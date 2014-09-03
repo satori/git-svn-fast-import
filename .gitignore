@@ -1,0 +1,3 @@
+*.o
+git-svn-fast-import
+config.mak

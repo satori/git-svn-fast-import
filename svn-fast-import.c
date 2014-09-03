@@ -29,18 +29,18 @@
 int
 main(int argc, char **argv)
 {
-	apr_initialize();
+    apr_initialize();
 
-	apr_pool_t *pool = apr_allocator_owner_get(svn_pool_create_allocator(FALSE));
+    apr_pool_t *pool = apr_allocator_owner_get(svn_pool_create_allocator(FALSE));
 
-	git_svn_parser_t *parser = git_svn_parser_create(pool);
-	git_svn_status_t err = git_svn_parser_parse(parser, pool);
+    git_svn_parser_t *parser = git_svn_parser_create(pool);
+    git_svn_status_t err = git_svn_parser_parse(parser, pool);
 
-	if (err != GIT_SVN_SUCCESS) {
-		return err;
-	}
+    if (err != GIT_SVN_SUCCESS) {
+        return err;
+    }
 
-	svn_pool_destroy(pool);
+    svn_pool_destroy(pool);
 
-	return GIT_SVN_SUCCESS;
+    return GIT_SVN_SUCCESS;
 }

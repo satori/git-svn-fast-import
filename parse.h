@@ -40,27 +40,27 @@ git_svn_parser_parse(git_svn_parser_t *, apr_pool_t *);
 
 typedef struct
 {
-	apr_pool_t *pool;
-	apr_hash_t *blobs;
-	svn_stream_t *output;
-	uint32_t last_mark;
+    apr_pool_t *pool;
+    apr_hash_t *blobs;
+    svn_stream_t *output;
+    uint32_t last_mark;
 } git_svn_parser_ctx_t;
 
 
 typedef struct
 {
-	apr_pool_t *pool;
-	git_svn_revision_t *rev;
-	apr_array_header_t *nodes;
-	git_svn_parser_ctx_t *parser_ctx;
+    apr_pool_t *pool;
+    git_svn_revision_t *rev;
+    apr_array_header_t *nodes;
+    git_svn_parser_ctx_t *parser_ctx;
 } git_svn_revision_ctx_t;
 
 
 typedef struct
 {
-	apr_pool_t *pool;
-	git_svn_node_t *node;
-	git_svn_revision_ctx_t *rev_ctx;
+    apr_pool_t *pool;
+    git_svn_node_t *node;
+    git_svn_revision_ctx_t *rev_ctx;
 } git_svn_node_ctx_t;
 
 

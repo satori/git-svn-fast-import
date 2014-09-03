@@ -20,48 +20,23 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef GIT_SVN_FAST_IMPORT_PARSE_H_
-#define GIT_SVN_FAST_IMPORT_PARSE_H_
+#ifndef GIT_SVN_FAST_IMPORT_DUMP_H_
+#define GIT_SVN_FAST_IMPORT_DUMP_H_
 
-#include "error.h"
 #include "types.h"
 
-#include <svn_repos.h>
+#include <svn_io.h>
 
+svn_error_t *
+git_svn_dump_revision_begin(svn_stream_t *, git_svn_revision_t *, apr_pool_t *);
 
-typedef svn_repos_parse_fns3_t git_svn_parser_t;
+svn_error_t *
+git_svn_dump_revision_end(svn_stream_t *, git_svn_revision_t *, apr_pool_t *);
 
-git_svn_parser_t *
-git_svn_parser_create(apr_pool_t *);
+svn_error_t *
+git_svn_dump_node(svn_stream_t *, git_svn_node_t *, apr_pool_t *);
 
-git_svn_status_t
-git_svn_parser_parse(git_svn_parser_t *, apr_pool_t *);
+svn_error_t *
+git_svn_dump_blob_header(svn_stream_t *, git_svn_blob_t *, apr_pool_t *);
 
-
-typedef struct
-{
-	apr_pool_t *pool;
-	apr_hash_t *blobs;
-	svn_stream_t *output;
-	uint32_t last_mark;
-} git_svn_parser_ctx_t;
-
-
-typedef struct
-{
-	apr_pool_t *pool;
-	git_svn_revision_t *rev;
-	apr_array_header_t *nodes;
-	git_svn_parser_ctx_t *parser_ctx;
-} git_svn_revision_ctx_t;
-
-
-typedef struct
-{
-	apr_pool_t *pool;
-	git_svn_node_t *node;
-	git_svn_revision_ctx_t *rev_ctx;
-} git_svn_node_ctx_t;
-
-
-#endif // GIT_SVN_FAST_IMPORT_PARSE_H_
+#endif // GIT_SVN_FAST_IMPORT_DUMP_H_

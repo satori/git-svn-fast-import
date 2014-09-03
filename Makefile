@@ -40,7 +40,7 @@ endif
 
 
 GIT_SVN_FAST_IMPORT = git-svn-fast-import
-OBJECTS = svn-fast-import.o parse.o
+OBJECTS = svn-fast-import.o dump.o parse.o
 
 
 all: $(GIT_SVN_FAST_IMPORT)

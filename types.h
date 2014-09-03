@@ -20,48 +20,55 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef GIT_SVN_FAST_IMPORT_PARSE_H_
-#define GIT_SVN_FAST_IMPORT_PARSE_H_
+#ifndef GIT_SVN_FAST_IMPORT_TYPES_H_
+#define GIT_SVN_FAST_IMPORT_TYPES_H_
 
-#include "error.h"
-#include "types.h"
-
-#include <svn_repos.h>
-
-
-typedef svn_repos_parse_fns3_t git_svn_parser_t;
-
-git_svn_parser_t *
-git_svn_parser_create(apr_pool_t *);
-
-git_svn_status_t
-git_svn_parser_parse(git_svn_parser_t *, apr_pool_t *);
+#include "compat.h"
 
 
 typedef struct
 {
-	apr_pool_t *pool;
-	apr_hash_t *blobs;
-	svn_stream_t *output;
-	uint32_t last_mark;
-} git_svn_parser_ctx_t;
+	int32_t revnum;
+	int64_t timestamp;
+	const char *branch;
+	const char *author;
+	const char *message;
+} git_svn_revision_t;
 
 
 typedef struct
 {
-	apr_pool_t *pool;
-	git_svn_revision_t *rev;
-	apr_array_header_t *nodes;
-	git_svn_parser_ctx_t *parser_ctx;
-} git_svn_revision_ctx_t;
+	uint32_t mark;
+	size_t length;
+	const char *checksum;
+} git_svn_blob_t;
+
+
+typedef enum
+{
+	GIT_SVN_NODE_ADD,
+	GIT_SVN_NODE_CHANGE,
+	GIT_SVN_NODE_DELETE,
+	GIT_SVN_NODE_REPLACE
+} git_svn_node_action_t;
+
+
+typedef enum
+{
+	GIT_SVN_NODE_UNKNOWN,
+	GIT_SVN_NODE_FILE,
+	GIT_SVN_NODE_DIR
+} git_svn_node_kind_t;
 
 
 typedef struct
 {
-	apr_pool_t *pool;
-	git_svn_node_t *node;
-	git_svn_revision_ctx_t *rev_ctx;
-} git_svn_node_ctx_t;
+	git_svn_node_action_t action;
+	git_svn_node_kind_t kind;
+	uint32_t mode;
+	const char *path;
+	git_svn_blob_t *blob;
+} git_svn_node_t;
 
 
-#endif // GIT_SVN_FAST_IMPORT_PARSE_H_
+#endif // GIT_SVN_FAST_IMPORT_TYPES_H_

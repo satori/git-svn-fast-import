@@ -27,9 +27,14 @@
 #include "types.h"
 
 #include <svn_repos.h>
+#include <svn_version.h>
 
 
+#if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
 typedef svn_repos_parse_fns3_t git_svn_parser_t;
+#else
+typedef svn_repos_parse_fns2_t git_svn_parser_t;
+#endif
 
 git_svn_parser_t *
 git_svn_parser_create(apr_pool_t *);

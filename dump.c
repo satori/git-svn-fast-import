@@ -88,7 +88,7 @@ git_svn_dump_node(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
 svn_error_t *
 git_svn_dump_blob_header(svn_stream_t *out, git_svn_blob_t *blob, apr_pool_t *pool)
 {
-    SVN_ERR(svn_stream_puts(out, "blob\n"));
+    SVN_ERR(svn_stream_printf(out, pool, "blob\n"));
     SVN_ERR(svn_stream_printf(out, pool, "mark :%d\n", blob->mark));
     SVN_ERR(svn_stream_printf(out, pool, "data %ld\n", blob->length));
 

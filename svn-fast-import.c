@@ -23,15 +23,18 @@
 #include "parse.h"
 
 #include <apr.h>
-#include <svn_pools.h>
 
 
 int
 main(int argc, char **argv)
 {
+    apr_pool_t *pool;
     apr_initialize();
 
-    apr_pool_t *pool = apr_allocator_owner_get(svn_pool_create_allocator(FALSE));
+    apr_status_t status = apr_pool_create_core(&pool);
+    if (status != APR_SUCCESS) {
+        return status;
+    }
 
     git_svn_parser_t *parser = git_svn_parser_create(pool);
     git_svn_status_t err = git_svn_parser_parse(parser, pool);
@@ -40,7 +43,7 @@ main(int argc, char **argv)
         return err;
     }
 
-    svn_pool_destroy(pool);
+    apr_pool_destroy(pool);
 
     return GIT_SVN_SUCCESS;
 }

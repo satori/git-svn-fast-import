@@ -19,35 +19,24 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-CC ?= cc
-RM = rm -f
-CFLAGS = -g -O2 -Wall -std=c99
-CPPFLAGS =
-LDFLAGS =
-EXTLIBS = -lapr-1 -lsvn_subr-1 -lsvn_repos-1
+uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 
--include config.mak
-include uname.mak
+ifeq ($(uname_S),Darwin)
+	ifndef NO_DARWIN_PORTS
+		ifeq ($(shell test -d /opt/local/lib && echo y),y)
+			LDFLAGS +=-L/opt/local/lib
+		endif
+		ifeq ($(shell test -d /opt/local/include && echo y),y)
+			CPPFLAGS +=-I/opt/local/include
+			ifeq ($(shell test -d /opt/local/include/subversion-1 && echo y),y)
+				CPPFLAGS +=-I/opt/local/include/subversion-1
+			endif
+		endif
+	endif
+endif
 
-
-APR_INCLUDES := $(shell apr-1-config --includes)
-APR_CPPFLAGS := $(shell apr-1-config --cppflags)
-CPPFLAGS +=$(APR_INCLUDES) $(APR_CPPFLAGS)
-
-
-GIT_SVN_FAST_IMPORT := git-svn-fast-import
-OBJECTS := svn-fast-import.o dump.o parse.o
-
-
-all: $(GIT_SVN_FAST_IMPORT)
-
-$(GIT_SVN_FAST_IMPORT): $(OBJECTS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(EXTLIBS)
-
-%.o: %.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ -c $<
-
-clean:
-	$(RM) $(GIT_SVN_FAST_IMPORT) $(OBJECTS)
-
-.PHONY: all clean
+ifeq ($(uname_S),Linux)
+	ifeq ($(shell test -d /usr/include/subversion-1 && echo y),y)
+		CPPFLAGS +=-I/usr/include/subversion-1
+	endif
+endif

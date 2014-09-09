@@ -57,14 +57,14 @@ node_modify(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
     if (node->kind == GIT_SVN_NODE_DIR) {
         return SVN_NO_ERROR;
     }
-    return svn_stream_printf(out, pool, "M %o :%d %s\n", node->mode, node->blob->mark, node->path);
+    return svn_stream_printf(out, pool, "M %o :%d \"%s\"\n", node->mode, node->blob->mark, node->path);
 }
 
 
 static svn_error_t *
 node_delete(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
 {
-    return svn_stream_printf(out, pool, "D %s\n", node->path);
+    return svn_stream_printf(out, pool, "D \"%s\"\n", node->path);
 }
 
 

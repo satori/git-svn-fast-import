@@ -60,7 +60,8 @@ new_revision_record(void **ctx, apr_hash_t *headers, void *p_ctx, apr_pool_t *po
     rev->revnum = SVN_INVALID_REVNUM;
     rev->branch = "master";
 
-    if ((value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_REVISION_NUMBER, APR_HASH_KEY_STRING))) {
+    value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_REVISION_NUMBER, APR_HASH_KEY_STRING);
+    if (value != NULL) {
         rev->revnum = SVN_STR_TO_REV(value);
     }
 
@@ -87,11 +88,13 @@ new_node_record(void **ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
     node->mode = GIT_SVN_NODE_MODE_NORMAL;
     node->kind = GIT_SVN_NODE_UNKNOWN;
 
-    if ((value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_PATH, APR_HASH_KEY_STRING))) {
+    value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_PATH, APR_HASH_KEY_STRING);
+    if (value != NULL) {
         node->path = apr_pstrdup(rev_ctx->pool, value);
     }
 
-    if ((value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_KIND, APR_HASH_KEY_STRING))) {
+    value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_KIND, APR_HASH_KEY_STRING);
+    if (value != NULL) {
         if (strcmp(value, "file") == 0) {
             node->kind = GIT_SVN_NODE_FILE;
         }
@@ -100,7 +103,8 @@ new_node_record(void **ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
         }
     }
 
-    if ((value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_ACTION, APR_HASH_KEY_STRING))) {
+    value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_ACTION, APR_HASH_KEY_STRING);
+    if (value != NULL) {
         if (strcmp(value, "change") == 0) {
             node->action = GIT_SVN_NODE_CHANGE;
         }
@@ -115,9 +119,12 @@ new_node_record(void **ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
         }
     }
 
-    if ((value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_SHA1, APR_HASH_KEY_STRING)) ||
-        (value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_COPY_SOURCE_SHA1, APR_HASH_KEY_STRING))) {
+    value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_SHA1, APR_HASH_KEY_STRING);
+    if (value == NULL) {
+        value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_COPY_SOURCE_SHA1, APR_HASH_KEY_STRING);
+    }
 
+    if (value != NULL) {
         git_svn_blob_t *blob = apr_hash_get(parser_ctx->blobs, value, APR_HASH_KEY_STRING);
 
         if (blob == NULL) {
@@ -125,7 +132,8 @@ new_node_record(void **ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
             blob->mark = parser_ctx->last_mark++;
             blob->checksum = apr_pstrdup(parser_ctx->pool, value);
 
-            if ((value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_LENGTH, APR_HASH_KEY_STRING))) {
+            value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_LENGTH, APR_HASH_KEY_STRING);
+            if (value != NULL) {
                 blob->length = svn__atoui64(value);
             }
 

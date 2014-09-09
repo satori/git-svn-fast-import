@@ -22,7 +22,6 @@
 
 #include "dump.h"
 
-
 svn_error_t *
 git_svn_dump_revision_begin(svn_stream_t *out, git_svn_revision_t *rev, apr_pool_t *pool)
 {
@@ -50,7 +49,6 @@ git_svn_dump_revision_noop(svn_stream_t *out, git_svn_revision_t *rev, apr_pool_
     return SVN_NO_ERROR;
 }
 
-
 static svn_error_t *
 node_modify(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
 {
@@ -60,13 +58,11 @@ node_modify(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
     return svn_stream_printf(out, pool, "M %o :%d \"%s\"\n", node->mode, node->blob->mark, node->path);
 }
 
-
 static svn_error_t *
 node_delete(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
 {
     return svn_stream_printf(out, pool, "D \"%s\"\n", node->path);
 }
-
 
 static svn_error_t *
 node_replace(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
@@ -74,7 +70,6 @@ node_replace(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
     SVN_ERR(node_delete(out, node, pool));
     return node_modify(out, node, pool);
 }
-
 
 svn_error_t *
 git_svn_dump_node(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
@@ -91,7 +86,6 @@ git_svn_dump_node(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
 
     return SVN_NO_ERROR;
 }
-
 
 svn_error_t *
 git_svn_dump_blob_header(svn_stream_t *out, git_svn_blob_t *blob, apr_pool_t *pool)

@@ -32,7 +32,6 @@
 #define GIT_SVN_NODE_MODE_EXECUTABLE 0100755
 #define GIT_SVN_NODE_MODE_SYMLINK    0120000
 
-
 #if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
 static svn_error_t *
 magic_header_record(int version, void *ctx, apr_pool_t *pool)
@@ -41,13 +40,11 @@ magic_header_record(int version, void *ctx, apr_pool_t *pool)
 }
 #endif
 
-
 static svn_error_t *
 uuid_record(const char *uuid, void *ctx, apr_pool_t *pool)
 {
     return SVN_NO_ERROR;
 }
-
 
 static svn_error_t *
 new_revision_record(void **ctx, apr_hash_t *headers, void *p_ctx, apr_pool_t *pool)
@@ -74,7 +71,6 @@ new_revision_record(void **ctx, apr_hash_t *headers, void *p_ctx, apr_pool_t *po
 
     return SVN_NO_ERROR;
 }
-
 
 static svn_error_t *
 new_node_record(void **ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
@@ -152,7 +148,6 @@ new_node_record(void **ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
     return SVN_NO_ERROR;
 }
 
-
 static svn_error_t *
 set_revision_property(void *ctx, const char *name, const svn_string_t *value)
 {
@@ -180,7 +175,6 @@ set_revision_property(void *ctx, const char *name, const svn_string_t *value)
     return SVN_NO_ERROR;
 }
 
-
 static svn_error_t *
 set_node_property(void *ctx, const char *name, const svn_string_t *value)
 {
@@ -197,7 +191,6 @@ set_node_property(void *ctx, const char *name, const svn_string_t *value)
     return SVN_NO_ERROR;
 }
 
-
 static svn_error_t *
 remove_node_props(void *ctx)
 {
@@ -208,7 +201,6 @@ remove_node_props(void *ctx)
 
     return SVN_NO_ERROR;
 }
-
 
 static svn_error_t *
 delete_node_property(void *ctx, const char *name)
@@ -222,7 +214,6 @@ delete_node_property(void *ctx, const char *name)
 
     return SVN_NO_ERROR;
 }
-
 
 static svn_error_t *
 set_fulltext(svn_stream_t **stream, void *ctx)
@@ -238,7 +229,6 @@ set_fulltext(svn_stream_t **stream, void *ctx)
     return SVN_NO_ERROR;
 }
 
-
 static svn_error_t *
 apply_textdelta(svn_txdelta_window_handler_t *handler, void **handler_baton, void *node_ctx)
 {
@@ -246,13 +236,11 @@ apply_textdelta(svn_txdelta_window_handler_t *handler, void **handler_baton, voi
     return SVN_NO_ERROR;
 }
 
-
 static svn_error_t *
 close_node(void *ctx)
 {
     return SVN_NO_ERROR;
 }
-
 
 static svn_error_t *
 close_revision(void *ctx)
@@ -279,7 +267,6 @@ close_revision(void *ctx)
     return SVN_NO_ERROR;
 }
 
-
 git_svn_parser_t *
 git_svn_parser_create(apr_pool_t *pool)
 {
@@ -303,13 +290,11 @@ git_svn_parser_create(apr_pool_t *pool)
     return p;
 }
 
-
 static svn_error_t *
 check_cancel(void *ctx)
 {
     return SVN_NO_ERROR;
 }
-
 
 git_svn_status_t
 git_svn_parser_parse(git_svn_parser_t *parser, apr_pool_t *pool)

@@ -29,15 +29,12 @@ EXTLIBS = -lapr-1 -lsvn_subr-1 -lsvn_repos-1
 -include config.mak
 include uname.mak
 
-
 APR_INCLUDES := $(shell apr-1-config --includes)
 APR_CPPFLAGS := $(shell apr-1-config --cppflags)
 CPPFLAGS +=$(APR_INCLUDES) $(APR_CPPFLAGS)
 
-
 GIT_SVN_FAST_IMPORT := git-svn-fast-import
 OBJECTS := svn-fast-import.o dump.o parse.o
-
 
 all: $(GIT_SVN_FAST_IMPORT)
 

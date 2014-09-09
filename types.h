@@ -25,7 +25,6 @@
 
 #include "compat.h"
 
-
 typedef struct
 {
     int32_t revnum;
@@ -35,14 +34,12 @@ typedef struct
     const char *message;
 } git_svn_revision_t;
 
-
 typedef struct
 {
     uint32_t mark;
     size_t length;
     const char *checksum;
 } git_svn_blob_t;
-
 
 typedef enum
 {
@@ -52,14 +49,12 @@ typedef enum
     GIT_SVN_NODE_REPLACE
 } git_svn_node_action_t;
 
-
 typedef enum
 {
     GIT_SVN_NODE_UNKNOWN,
     GIT_SVN_NODE_FILE,
     GIT_SVN_NODE_DIR
 } git_svn_node_kind_t;
-
 
 typedef struct
 {
@@ -69,6 +64,5 @@ typedef struct
     const char *path;
     git_svn_blob_t *blob;
 } git_svn_node_t;
-
 
 #endif // GIT_SVN_FAST_IMPORT_TYPES_H_

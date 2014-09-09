@@ -29,7 +29,6 @@
 #include <svn_repos.h>
 #include <svn_version.h>
 
-
 #if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
 typedef svn_repos_parse_fns3_t git_svn_parser_t;
 #else
@@ -42,7 +41,6 @@ git_svn_parser_create(apr_pool_t *);
 git_svn_status_t
 git_svn_parser_parse(git_svn_parser_t *, apr_pool_t *);
 
-
 typedef struct
 {
     apr_pool_t *pool;
@@ -50,7 +48,6 @@ typedef struct
     svn_stream_t *output;
     uint32_t last_mark;
 } git_svn_parser_ctx_t;
-
 
 typedef struct
 {
@@ -60,13 +57,11 @@ typedef struct
     git_svn_parser_ctx_t *parser_ctx;
 } git_svn_revision_ctx_t;
 
-
 typedef struct
 {
     apr_pool_t *pool;
     git_svn_node_t *node;
     git_svn_revision_ctx_t *rev_ctx;
 } git_svn_node_ctx_t;
-
 
 #endif // GIT_SVN_FAST_IMPORT_PARSE_H_

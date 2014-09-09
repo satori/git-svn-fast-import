@@ -54,6 +54,9 @@ git_svn_dump_revision_noop(svn_stream_t *out, git_svn_revision_t *rev, apr_pool_
 static svn_error_t *
 node_modify(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
 {
+    if (node->kind == GIT_SVN_NODE_DIR) {
+        return SVN_NO_ERROR;
+    }
     return svn_stream_printf(out, pool, "M %o :%d %s\n", node->mode, node->blob->mark, node->path);
 }
 
@@ -76,10 +79,6 @@ node_replace(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
 svn_error_t *
 git_svn_dump_node(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
 {
-    if (node->kind == GIT_SVN_NODE_DIR) {
-        return SVN_NO_ERROR;
-    }
-
     switch (node->action) {
     case GIT_SVN_NODE_ADD:
     case GIT_SVN_NODE_CHANGE:

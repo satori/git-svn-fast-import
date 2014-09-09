@@ -42,6 +42,15 @@ git_svn_dump_revision_end(svn_stream_t *out, git_svn_revision_t *rev, apr_pool_t
 }
 
 
+svn_error_t *
+git_svn_dump_revision_noop(svn_stream_t *out, git_svn_revision_t *rev, apr_pool_t *pool)
+{
+    SVN_ERR(svn_stream_printf(out, pool, "progress Skipped revision %d\n", rev->revnum));
+
+    return SVN_NO_ERROR;
+}
+
+
 static svn_error_t *
 node_modify(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
 {

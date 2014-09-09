@@ -34,6 +34,9 @@ svn_error_t *
 git_svn_dump_revision_end(svn_stream_t *, git_svn_revision_t *, apr_pool_t *);
 
 svn_error_t *
+git_svn_dump_revision_noop(svn_stream_t *, git_svn_revision_t *, apr_pool_t *);
+
+svn_error_t *
 git_svn_dump_node(svn_stream_t *, git_svn_node_t *, apr_pool_t *);
 
 svn_error_t *

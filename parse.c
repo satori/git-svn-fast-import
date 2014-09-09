@@ -255,6 +255,7 @@ close_revision(void *ctx)
     svn_stream_t *out = rev_ctx->parser_ctx->output;
 
     if (rev->revnum == 0) {
+        SVN_ERR(git_svn_dump_revision_noop(out, rev, pool));
         return SVN_NO_ERROR;
     }
 

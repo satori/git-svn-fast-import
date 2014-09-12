@@ -26,11 +26,31 @@
 
 #include <svn_hash.h>
 #include <svn_props.h>
+#include <svn_repos.h>
 #include <svn_time.h>
+#include <svn_version.h>
 
 #define GIT_SVN_NODE_MODE_NORMAL     0100644
 #define GIT_SVN_NODE_MODE_EXECUTABLE 0100755
 #define GIT_SVN_NODE_MODE_SYMLINK    0120000
+
+typedef struct
+{
+    apr_pool_t *pool;
+    git_svn_revision_t *rev;
+    apr_array_header_t *nodes;
+} revision_ctx_t;
+
+typedef struct
+{
+    apr_pool_t *pool;
+    svn_stream_t *output;
+    uint32_t last_mark;
+    apr_hash_t *blobs;
+    revision_ctx_t *rev_ctx;
+    git_svn_node_t *node;
+} parser_ctx_t;
+
 
 #if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
 static svn_error_t *
@@ -47,11 +67,11 @@ uuid_record(const char *uuid, void *ctx, apr_pool_t *pool)
 }
 
 static svn_error_t *
-new_revision_record(void **ctx, apr_hash_t *headers, void *p_ctx, apr_pool_t *pool)
+new_revision_record(void **r_ctx, apr_hash_t *headers, void *p_ctx, apr_pool_t *pool)
 {
     const char *value;
-    git_svn_parser_ctx_t *parser_ctx = p_ctx;
-    git_svn_revision_ctx_t *rev_ctx = apr_pcalloc(pool, sizeof(*rev_ctx));
+    parser_ctx_t *ctx = p_ctx;
+    ctx->rev_ctx = apr_pcalloc(pool, sizeof(revision_ctx_t));
     git_svn_revision_t *rev = apr_pcalloc(pool, sizeof(*rev));
 
     rev->revnum = SVN_INVALID_REVNUM;
@@ -62,31 +82,29 @@ new_revision_record(void **ctx, apr_hash_t *headers, void *p_ctx, apr_pool_t *po
         rev->revnum = SVN_STR_TO_REV(value);
     }
 
-    rev_ctx->rev = rev;
-    rev_ctx->nodes = apr_array_make(pool, 8, sizeof(git_svn_node_t));
-    rev_ctx->pool = pool;
-    rev_ctx->parser_ctx = parser_ctx;
+    ctx->rev_ctx->rev = rev;
+    ctx->rev_ctx->nodes = apr_array_make(pool, 8, sizeof(git_svn_node_t));
+    ctx->rev_ctx->pool = pool;
 
-    *ctx = rev_ctx;
+    *r_ctx = ctx;
 
     return SVN_NO_ERROR;
 }
 
 static svn_error_t *
-new_node_record(void **ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
+new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
 {
     const char *value;
-    git_svn_revision_ctx_t *rev_ctx = r_ctx;
-    git_svn_parser_ctx_t *parser_ctx = rev_ctx->parser_ctx;
-    git_svn_node_ctx_t *node_ctx = apr_pcalloc(pool, sizeof(*node_ctx));
-    git_svn_node_t *node = &APR_ARRAY_PUSH(rev_ctx->nodes, git_svn_node_t);
+    parser_ctx_t *ctx = r_ctx;
+    git_svn_revision_t *rev = ctx->rev_ctx->rev;
+    git_svn_node_t *node = &APR_ARRAY_PUSH(ctx->rev_ctx->nodes, git_svn_node_t);
 
     node->mode = GIT_SVN_NODE_MODE_NORMAL;
     node->kind = GIT_SVN_NODE_UNKNOWN;
 
     value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_PATH, APR_HASH_KEY_STRING);
     if (value != NULL) {
-        node->path = apr_pstrdup(rev_ctx->pool, value);
+        node->path = apr_pstrdup(ctx->rev_ctx->pool, value);
     }
 
     value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_KIND, APR_HASH_KEY_STRING);
@@ -121,39 +139,37 @@ new_node_record(void **ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
     }
 
     if (value != NULL) {
-        git_svn_blob_t *blob = apr_hash_get(parser_ctx->blobs, value, APR_HASH_KEY_STRING);
+        git_svn_blob_t *blob = apr_hash_get(ctx->blobs, value, APR_HASH_KEY_STRING);
 
         if (blob == NULL) {
-            blob = apr_pcalloc(parser_ctx->pool, sizeof(*blob));
-            blob->mark = parser_ctx->last_mark++;
-            blob->checksum = apr_pstrdup(parser_ctx->pool, value);
+            blob = apr_pcalloc(ctx->pool, sizeof(*blob));
+            blob->mark = ctx->last_mark++;
+            blob->checksum = apr_pstrdup(ctx->pool, value);
 
             value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_LENGTH, APR_HASH_KEY_STRING);
             if (value != NULL) {
                 blob->length = svn__atoui64(value);
             }
 
-            apr_hash_set(parser_ctx->blobs, blob->checksum, APR_HASH_KEY_STRING, blob);
+            apr_hash_set(ctx->blobs, blob->checksum, APR_HASH_KEY_STRING, blob);
         }
 
         node->blob = blob;
     }
 
-    node_ctx->node = node;
-    node_ctx->pool = pool;
-    node_ctx->rev_ctx = rev_ctx;
+    ctx->node = node;
 
-    *ctx = node_ctx;
+    *n_ctx = ctx;
 
     return SVN_NO_ERROR;
 }
 
 static svn_error_t *
-set_revision_property(void *ctx, const char *name, const svn_string_t *value)
+set_revision_property(void *r_ctx, const char *name, const svn_string_t *value)
 {
-    git_svn_revision_ctx_t *rev_ctx = ctx;
-    git_svn_revision_t *rev = rev_ctx->rev;
-    apr_pool_t *pool = rev_ctx->pool;
+    parser_ctx_t *ctx = r_ctx;
+    git_svn_revision_t *rev = ctx->rev_ctx->rev;
+    apr_pool_t *pool = ctx->rev_ctx->pool;
 
     // It is safe to ignore revision 0 properties
     if (rev->revnum == 0) {
@@ -176,10 +192,10 @@ set_revision_property(void *ctx, const char *name, const svn_string_t *value)
 }
 
 static svn_error_t *
-set_node_property(void *ctx, const char *name, const svn_string_t *value)
+set_node_property(void *n_ctx, const char *name, const svn_string_t *value)
 {
-    git_svn_node_ctx_t *node_ctx = ctx;
-    git_svn_node_t *node = node_ctx->node;
+    parser_ctx_t *ctx = n_ctx;
+    git_svn_node_t *node = ctx->node;
 
     if (strcmp(name, SVN_PROP_EXECUTABLE) == 0) {
         node->mode = GIT_SVN_NODE_MODE_EXECUTABLE;
@@ -192,10 +208,10 @@ set_node_property(void *ctx, const char *name, const svn_string_t *value)
 }
 
 static svn_error_t *
-remove_node_props(void *ctx)
+remove_node_props(void *n_ctx)
 {
-    git_svn_node_ctx_t *node_ctx = ctx;
-    git_svn_node_t *node = node_ctx->node;
+    parser_ctx_t *ctx = n_ctx;
+    git_svn_node_t *node = ctx->node;
 
     node->mode = GIT_SVN_NODE_MODE_NORMAL;
 
@@ -203,10 +219,10 @@ remove_node_props(void *ctx)
 }
 
 static svn_error_t *
-delete_node_property(void *ctx, const char *name)
+delete_node_property(void *n_ctx, const char *name)
 {
-    git_svn_node_ctx_t *node_ctx = ctx;
-    git_svn_node_t *node = node_ctx->node;
+    parser_ctx_t *ctx = n_ctx;
+    git_svn_node_t *node = ctx->node;
 
     if (strcmp(name, SVN_PROP_EXECUTABLE) == 0 || strcmp(name, SVN_PROP_SPECIAL) == 0) {
         node->mode = GIT_SVN_NODE_MODE_NORMAL;
@@ -216,12 +232,12 @@ delete_node_property(void *ctx, const char *name)
 }
 
 static svn_error_t *
-set_fulltext(svn_stream_t **stream, void *ctx)
+set_fulltext(svn_stream_t **stream, void *n_ctx)
 {
-    git_svn_node_ctx_t *node_ctx = ctx;
-    git_svn_node_t *node = node_ctx->node;
+    parser_ctx_t *ctx = n_ctx;
+    git_svn_node_t *node = ctx->node;
     git_svn_blob_t *blob = node->blob;
-    apr_pool_t *pool = node_ctx->pool;
+    apr_pool_t *pool = ctx->rev_ctx->pool;
 
     SVN_ERR(svn_stream_for_stdout(stream, pool));
     SVN_ERR(git_svn_dump_blob_header(*stream, blob, pool));
@@ -230,25 +246,28 @@ set_fulltext(svn_stream_t **stream, void *ctx)
 }
 
 static svn_error_t *
-apply_textdelta(svn_txdelta_window_handler_t *handler, void **handler_baton, void *node_ctx)
+apply_textdelta(svn_txdelta_window_handler_t *handler, void **handler_baton, void *n_ctx)
 {
     // TODO
     return SVN_NO_ERROR;
 }
 
 static svn_error_t *
-close_node(void *ctx)
+close_node(void *n_ctx)
 {
+    parser_ctx_t *ctx = n_ctx;
+    ctx->node = NULL;
+
     return SVN_NO_ERROR;
 }
 
 static svn_error_t *
-close_revision(void *ctx)
+close_revision(void *r_ctx)
 {
-    git_svn_revision_ctx_t *rev_ctx = ctx;
-    git_svn_revision_t *rev = rev_ctx->rev;
-    apr_pool_t *pool = rev_ctx->pool;
-    svn_stream_t *out = rev_ctx->parser_ctx->output;
+    parser_ctx_t *ctx = r_ctx;
+    git_svn_revision_t *rev = ctx->rev_ctx->rev;
+    apr_pool_t *pool = ctx->rev_ctx->pool;
+    svn_stream_t *out = ctx->output;
 
     if (rev->revnum == 0) {
         SVN_ERR(git_svn_dump_revision_noop(out, rev, pool));
@@ -257,37 +276,16 @@ close_revision(void *ctx)
 
     SVN_ERR(git_svn_dump_revision_begin(out, rev, pool));
 
-    for (int i = 0; i < rev_ctx->nodes->nelts; i++) {
-        git_svn_node_t *node = &APR_ARRAY_IDX(rev_ctx->nodes, i, git_svn_node_t);
+    for (int i = 0; i < ctx->rev_ctx->nodes->nelts; i++) {
+        git_svn_node_t *node = &APR_ARRAY_IDX(ctx->rev_ctx->nodes, i, git_svn_node_t);
         SVN_ERR(git_svn_dump_node(out, node, pool));
     }
 
     SVN_ERR(git_svn_dump_revision_end(out, rev, pool));
 
+    ctx->rev_ctx = NULL;
+
     return SVN_NO_ERROR;
-}
-
-git_svn_parser_t *
-git_svn_parser_create(apr_pool_t *pool)
-{
-    git_svn_parser_t *p = apr_pcalloc(pool, sizeof(*p));
-
-#if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
-    p->magic_header_record = magic_header_record;
-#endif
-    p->uuid_record = uuid_record;
-    p->new_revision_record = new_revision_record;
-    p->new_node_record = new_node_record;
-    p->set_revision_property = set_revision_property;
-    p->set_node_property = set_node_property;
-    p->remove_node_props = remove_node_props;
-    p->delete_node_property = delete_node_property;
-    p->set_fulltext = set_fulltext;
-    p->apply_textdelta = apply_textdelta;
-    p->close_node = close_node;
-    p->close_revision = close_revision;
-
-    return p;
 }
 
 static svn_error_t *
@@ -296,8 +294,29 @@ check_cancel(void *ctx)
     return SVN_NO_ERROR;
 }
 
+#if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
+static const svn_repos_parse_fns3_t callbacks = {
+    magic_header_record,
+    uuid_record,
+    new_revision_record,
+#else
+static const svn_repos_parse_fns2_t callbacks = {
+    new_revision_record,
+    uuid_record,
+#endif
+    new_node_record,
+    set_revision_property,
+    set_node_property,
+    delete_node_property,
+    remove_node_props,
+    set_fulltext,
+    apply_textdelta,
+    close_node,
+    close_revision
+};
+
 git_svn_status_t
-git_svn_parser_parse(git_svn_parser_t *parser, apr_pool_t *pool)
+git_svn_parse_dumpstream(apr_pool_t *pool)
 {
     svn_error_t *err;
 
@@ -308,21 +327,21 @@ git_svn_parser_parse(git_svn_parser_t *parser, apr_pool_t *pool)
         return GIT_SVN_FAILURE;
     }
 
-    git_svn_parser_ctx_t *ctx = apr_pcalloc(pool, sizeof(*ctx));
-    ctx->pool = pool;
-    ctx->blobs = apr_hash_make(pool);
-    ctx->last_mark = 1;
+    parser_ctx_t ctx = {};
+    ctx.pool = pool;
+    ctx.blobs = apr_hash_make(pool);
+    ctx.last_mark = 1;
 
     // Write to stdout
-    err = svn_stream_for_stdout(&ctx->output, pool);
+    err = svn_stream_for_stdout(&ctx.output, pool);
     if (err != NULL) {
         return GIT_SVN_FAILURE;
     }
 
 #if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
-    err = svn_repos_parse_dumpstream3(input, parser, ctx, FALSE, check_cancel, NULL, pool);
+    err = svn_repos_parse_dumpstream3(input, &callbacks, &ctx, FALSE, check_cancel, NULL, pool);
 #else
-    err = svn_repos_parse_dumpstream2(input, parser, ctx, check_cancel, NULL, pool);
+    err = svn_repos_parse_dumpstream2(input, &callbacks, &ctx, check_cancel, NULL, pool);
 #endif
     if (err != NULL) {
         return GIT_SVN_FAILURE;

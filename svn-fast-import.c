@@ -28,16 +28,18 @@ int
 main(int argc, char **argv)
 {
     apr_pool_t *pool;
+    apr_status_t apr_err;
+    git_svn_status_t err;
+
     apr_initialize();
 
-    apr_status_t status = apr_pool_create_core(&pool);
-    if (status != APR_SUCCESS) {
-        return status;
+    apr_err = apr_pool_create_core(&pool);
+    if (apr_err != APR_SUCCESS) {
+        return apr_err;
     }
 
-    git_svn_parser_t *parser = git_svn_parser_create(pool);
-    git_svn_status_t err = git_svn_parser_parse(parser, pool);
 
+    err = git_svn_parse_dumpstream(pool);
     if (err != GIT_SVN_SUCCESS) {
         return err;
     }

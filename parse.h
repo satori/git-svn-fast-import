@@ -24,44 +24,10 @@
 #define GIT_SVN_FAST_IMPORT_PARSE_H_
 
 #include "error.h"
-#include "types.h"
 
-#include <svn_repos.h>
-#include <svn_version.h>
-
-#if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
-typedef svn_repos_parse_fns3_t git_svn_parser_t;
-#else
-typedef svn_repos_parse_fns2_t git_svn_parser_t;
-#endif
-
-git_svn_parser_t *
-git_svn_parser_create(apr_pool_t *);
+#include <apr_pools.h>
 
 git_svn_status_t
-git_svn_parser_parse(git_svn_parser_t *, apr_pool_t *);
-
-typedef struct
-{
-    apr_pool_t *pool;
-    apr_hash_t *blobs;
-    svn_stream_t *output;
-    uint32_t last_mark;
-} git_svn_parser_ctx_t;
-
-typedef struct
-{
-    apr_pool_t *pool;
-    git_svn_revision_t *rev;
-    apr_array_header_t *nodes;
-    git_svn_parser_ctx_t *parser_ctx;
-} git_svn_revision_ctx_t;
-
-typedef struct
-{
-    apr_pool_t *pool;
-    git_svn_node_t *node;
-    git_svn_revision_ctx_t *rev_ctx;
-} git_svn_node_ctx_t;
+git_svn_parse_dumpstream(apr_pool_t *);
 
 #endif // GIT_SVN_FAST_IMPORT_PARSE_H_

@@ -20,57 +20,29 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef GIT_SVN_FAST_IMPORT_TYPES_H_
-#define GIT_SVN_FAST_IMPORT_TYPES_H_
+#ifndef GIT_SVN_FAST_IMPORT_TRIE_H_
+#define GIT_SVN_FAST_IMPORT_TRIE_H_
 
-#include "compat.h"
+#include "error.h"
 
-typedef struct
+#include <apr_pools.h>
+
+#define TRIE_SIZE 256
+
+typedef struct git_svn_trie_t
 {
-    const char *name;
-    const char *path;
-} git_svn_branch_t;
+    apr_pool_t *pool;
+    void *value;
+    struct git_svn_trie_t *chars[TRIE_SIZE];
+} git_svn_trie_t;
 
-typedef struct git_svn_revision_t
-{
-    uint32_t mark;
-    int32_t revnum;
-    int64_t timestamp;
-    git_svn_branch_t *branch;
-    const char *author;
-    const char *message;
-    struct git_svn_revision_t *copyfrom;
-} git_svn_revision_t;
+git_svn_trie_t *
+git_svn_trie_create(apr_pool_t *pool);
 
-typedef struct
-{
-    uint32_t mark;
-    size_t length;
-    const char *checksum;
-} git_svn_blob_t;
+void
+git_svn_trie_insert(git_svn_trie_t *t, const char *key, void *value);
 
-typedef enum
-{
-    GIT_SVN_NODE_ADD,
-    GIT_SVN_NODE_CHANGE,
-    GIT_SVN_NODE_DELETE,
-    GIT_SVN_NODE_REPLACE
-} git_svn_node_action_t;
+void *
+git_svn_trie_find_prefix(git_svn_trie_t *t, const char *key);
 
-typedef enum
-{
-    GIT_SVN_NODE_UNKNOWN,
-    GIT_SVN_NODE_FILE,
-    GIT_SVN_NODE_DIR
-} git_svn_node_kind_t;
-
-typedef struct
-{
-    git_svn_node_action_t action;
-    git_svn_node_kind_t kind;
-    uint32_t mode;
-    const char *path;
-    git_svn_blob_t *blob;
-} git_svn_node_t;
-
-#endif // GIT_SVN_FAST_IMPORT_TYPES_H_
+#endif // GIT_SVN_FAST_IMPORT_TRIE_H_

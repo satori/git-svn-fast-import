@@ -34,7 +34,7 @@ APR_CPPFLAGS := $(shell apr-1-config --cppflags)
 CPPFLAGS +=$(APR_INCLUDES) $(APR_CPPFLAGS)
 
 GIT_SVN_FAST_IMPORT := git-svn-fast-import
-OBJECTS := svn-fast-import.o dump.o parse.o
+OBJECTS := svn-fast-import.o dump.o options.o parse.o trie.o
 
 all: $(GIT_SVN_FAST_IMPORT)
 

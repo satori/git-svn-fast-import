@@ -23,8 +23,8 @@
 #include "parse.h"
 
 #include "dump.h"
+#include "trie.h"
 
-#include <svn_hash.h>
 #include <svn_props.h>
 #include <svn_repos.h>
 #include <svn_time.h>
@@ -46,11 +46,26 @@ typedef struct
     apr_pool_t *pool;
     svn_stream_t *output;
     uint32_t last_mark;
+    git_svn_options_t *options;
     apr_hash_t *blobs;
+    apr_hash_t *revisions;
+    git_svn_trie_t *branches;
     revision_ctx_t *rev_ctx;
     git_svn_node_t *node;
 } parser_ctx_t;
 
+
+static const char *
+cstring_skip_prefix(const char * str, const char *prefix)
+{
+    size_t len = strlen(prefix);
+
+    if (strncmp(str, prefix, len) == 0) {
+        return str + len;
+    }
+
+    return NULL;
+}
 
 #if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
 static svn_error_t *
@@ -69,17 +84,17 @@ uuid_record(const char *uuid, void *ctx, apr_pool_t *pool)
 static svn_error_t *
 new_revision_record(void **r_ctx, apr_hash_t *headers, void *p_ctx, apr_pool_t *pool)
 {
-    const char *value;
+    const char *revnum;
     parser_ctx_t *ctx = p_ctx;
     ctx->rev_ctx = apr_pcalloc(pool, sizeof(revision_ctx_t));
-    git_svn_revision_t *rev = apr_pcalloc(pool, sizeof(*rev));
+    git_svn_revision_t *rev = apr_pcalloc(ctx->pool, sizeof(*rev));
 
     rev->revnum = SVN_INVALID_REVNUM;
-    rev->branch = "master";
+    rev->branch = NULL;
 
-    value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_REVISION_NUMBER, APR_HASH_KEY_STRING);
-    if (value != NULL) {
-        rev->revnum = SVN_STR_TO_REV(value);
+    revnum = apr_hash_get(headers, SVN_REPOS_DUMPFILE_REVISION_NUMBER, APR_HASH_KEY_STRING);
+    if (revnum != NULL) {
+        rev->revnum = SVN_STR_TO_REV(revnum);
     }
 
     ctx->rev_ctx->rev = rev;
@@ -94,18 +109,16 @@ new_revision_record(void **r_ctx, apr_hash_t *headers, void *p_ctx, apr_pool_t *
 static svn_error_t *
 new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
 {
-    const char *value;
+    const char *value, *branch_root;
+    const char *path, *subpath;
     parser_ctx_t *ctx = r_ctx;
     git_svn_revision_t *rev = ctx->rev_ctx->rev;
     git_svn_node_t *node = &APR_ARRAY_PUSH(ctx->rev_ctx->nodes, git_svn_node_t);
+    git_svn_branch_t *branch;
 
     node->mode = GIT_SVN_NODE_MODE_NORMAL;
     node->kind = GIT_SVN_NODE_UNKNOWN;
-
-    value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_PATH, APR_HASH_KEY_STRING);
-    if (value != NULL) {
-        node->path = apr_pstrdup(ctx->rev_ctx->pool, value);
-    }
+    node->path = "";
 
     value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_KIND, APR_HASH_KEY_STRING);
     if (value != NULL) {
@@ -114,6 +127,46 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         }
         else if (strcmp(value, "dir") == 0) {
             node->kind = GIT_SVN_NODE_DIR;
+        }
+    }
+
+    path = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_PATH, APR_HASH_KEY_STRING);
+    if (path == NULL) {
+        return SVN_NO_ERROR;
+    }
+
+    branch = git_svn_trie_find_prefix(ctx->branches, path);
+    if (branch == NULL) {
+        subpath = cstring_skip_prefix(path, ctx->options->branches);
+        if (subpath == NULL) {
+            subpath = cstring_skip_prefix(path, ctx->options->tags);
+        }
+        if (subpath != NULL && *subpath != '\0') {
+            if (*subpath == '/') {
+                subpath++;
+            }
+            branch_root = strchr(subpath, '/');
+            branch = apr_pcalloc(ctx->pool, sizeof(*branch));
+            if (branch_root != NULL) {
+                branch->name = apr_pstrndup(ctx->pool, subpath, branch_root - subpath);
+                branch->path = apr_pstrndup(ctx->pool, path, branch_root - path);
+            }
+            else {
+                branch->name = apr_pstrdup(ctx->pool, subpath);
+                branch->path = apr_pstrdup(ctx->pool, path);
+            }
+            git_svn_dump_branch_found(ctx->output, branch, pool);
+            git_svn_trie_insert(ctx->branches, branch->path, branch);
+        }
+    }
+    if (branch != NULL) {
+        rev->branch = branch;
+        subpath = cstring_skip_prefix(path, branch->path);
+        if (*subpath == '/') {
+            subpath++;
+        }
+        if (subpath != NULL) {
+            node->path = apr_pstrdup(ctx->rev_ctx->pool, subpath);
         }
     }
 
@@ -130,6 +183,16 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         }
         else if (strcmp(value, "replace") == 0) {
             node->action = GIT_SVN_NODE_REPLACE;
+        }
+    }
+
+    value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_COPYFROM_REV, APR_HASH_KEY_STRING);
+    if (value != NULL) {
+        int32_t copyfrom_rev = SVN_STR_TO_REV(value);
+        git_svn_revision_t *copyfrom = apr_hash_get(ctx->revisions, &copyfrom_rev, sizeof(int32_t));
+
+        if (node->kind == GIT_SVN_NODE_DIR && node->action == GIT_SVN_NODE_ADD && *node->path == '\0') {
+            rev->copyfrom = copyfrom;
         }
     }
 
@@ -269,10 +332,12 @@ close_revision(void *r_ctx)
     apr_pool_t *pool = ctx->rev_ctx->pool;
     svn_stream_t *out = ctx->output;
 
-    if (rev->revnum == 0) {
+    if (rev->revnum == 0 || rev->branch == NULL) {
         SVN_ERR(git_svn_dump_revision_noop(out, rev, pool));
         return SVN_NO_ERROR;
     }
+
+    rev->mark = ctx->last_mark++;
 
     SVN_ERR(git_svn_dump_revision_begin(out, rev, pool));
 
@@ -282,6 +347,8 @@ close_revision(void *r_ctx)
     }
 
     SVN_ERR(git_svn_dump_revision_end(out, rev, pool));
+
+    apr_hash_set(ctx->revisions, &rev->revnum, sizeof(int32_t), rev);
 
     ctx->rev_ctx = NULL;
 
@@ -316,7 +383,7 @@ static const svn_repos_parse_fns2_t callbacks = {
 };
 
 git_svn_status_t
-git_svn_parse_dumpstream(apr_pool_t *pool)
+git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
 {
     svn_error_t *err;
 
@@ -330,7 +397,16 @@ git_svn_parse_dumpstream(apr_pool_t *pool)
     parser_ctx_t ctx = {};
     ctx.pool = pool;
     ctx.blobs = apr_hash_make(pool);
+    ctx.revisions = apr_hash_make(pool);
     ctx.last_mark = 1;
+    ctx.branches = git_svn_trie_create(pool);
+
+    git_svn_branch_t *master = apr_pcalloc(pool, sizeof(*master));
+    master->name = "master";
+    master->path = options->trunk;
+
+    git_svn_trie_insert(ctx.branches, master->path, master);
+    ctx.options = options;
 
     // Write to stdout
     err = svn_stream_for_stdout(&ctx.output, pool);

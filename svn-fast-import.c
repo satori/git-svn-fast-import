@@ -25,11 +25,12 @@
 #include <apr.h>
 
 int
-main(int argc, char **argv)
+main(int argc, const char **argv)
 {
     apr_pool_t *pool;
     apr_status_t apr_err;
     git_svn_status_t err;
+    git_svn_options_t options;
 
     apr_initialize();
 
@@ -38,8 +39,12 @@ main(int argc, char **argv)
         return apr_err;
     }
 
+    err = git_svn_parse_options(&options, argc, argv, pool);
+    if (err != GIT_SVN_SUCCESS) {
+        return err;
+    }
 
-    err = git_svn_parse_dumpstream(pool);
+    err = git_svn_parse_dumpstream(&options, pool);
     if (err != GIT_SVN_SUCCESS) {
         return err;
     }

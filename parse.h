@@ -24,10 +24,11 @@
 #define GIT_SVN_FAST_IMPORT_PARSE_H_
 
 #include "error.h"
+#include "options.h"
 
 #include <apr_pools.h>
 
 git_svn_status_t
-git_svn_parse_dumpstream(apr_pool_t *);
+git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_PARSE_H_

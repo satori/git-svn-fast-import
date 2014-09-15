@@ -25,11 +25,16 @@
 svn_error_t *
 git_svn_dump_revision_begin(svn_stream_t *out, git_svn_revision_t *rev, apr_pool_t *pool)
 {
-    SVN_ERR(svn_stream_printf(out, pool, "commit refs/heads/%s\n", rev->branch));
+    SVN_ERR(svn_stream_printf(out, pool, "commit refs/heads/%s\n", rev->branch->name));
+    SVN_ERR(svn_stream_printf(out, pool, "mark :%d\n", rev->mark));
     SVN_ERR(svn_stream_printf(out, pool, "committer %s <%s@local> %"PRId64" +0000\n",
                               rev->author, rev->author, rev->timestamp));
     SVN_ERR(svn_stream_printf(out, pool, "data %ld\n", strlen(rev->message)));
     SVN_ERR(svn_stream_printf(out, pool, "%s\n", rev->message));
+
+    if (rev->copyfrom != NULL) {
+        SVN_ERR(svn_stream_printf(out, pool, "from :%d\n", rev->copyfrom->mark));
+    }
 
     return SVN_NO_ERROR;
 }
@@ -37,14 +42,23 @@ git_svn_dump_revision_begin(svn_stream_t *out, git_svn_revision_t *rev, apr_pool
 svn_error_t *
 git_svn_dump_revision_end(svn_stream_t *out, git_svn_revision_t *rev, apr_pool_t *pool)
 {
-    return svn_stream_printf(out, pool, "progress Imported revision %d\n", rev->revnum);
-}
+    SVN_ERR(svn_stream_printf(out, pool, "progress Imported revision %d\n", rev->revnum));
 
+    return SVN_NO_ERROR;
+}
 
 svn_error_t *
 git_svn_dump_revision_noop(svn_stream_t *out, git_svn_revision_t *rev, apr_pool_t *pool)
 {
     SVN_ERR(svn_stream_printf(out, pool, "progress Skipped revision %d\n", rev->revnum));
+
+    return SVN_NO_ERROR;
+}
+
+svn_error_t *
+git_svn_dump_branch_found(svn_stream_t *out, git_svn_branch_t *branch, apr_pool_t *pool)
+{
+    SVN_ERR(svn_stream_printf(out, pool, "progress Found branch at %s\n", branch->path));
 
     return SVN_NO_ERROR;
 }

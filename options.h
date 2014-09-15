@@ -20,57 +20,21 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef GIT_SVN_FAST_IMPORT_TYPES_H_
-#define GIT_SVN_FAST_IMPORT_TYPES_H_
+#ifndef GIT_SVN_FAST_IMPORT_OPTIONS_H_
+#define GIT_SVN_FAST_IMPORT_OPTIONS_H_
 
-#include "compat.h"
+#include "error.h"
 
-typedef struct
-{
-    const char *name;
-    const char *path;
-} git_svn_branch_t;
-
-typedef struct git_svn_revision_t
-{
-    uint32_t mark;
-    int32_t revnum;
-    int64_t timestamp;
-    git_svn_branch_t *branch;
-    const char *author;
-    const char *message;
-    struct git_svn_revision_t *copyfrom;
-} git_svn_revision_t;
+#include <apr_pools.h>
 
 typedef struct
 {
-    uint32_t mark;
-    size_t length;
-    const char *checksum;
-} git_svn_blob_t;
+    const char *trunk;
+    const char *branches;
+    const char *tags;
+} git_svn_options_t;
 
-typedef enum
-{
-    GIT_SVN_NODE_ADD,
-    GIT_SVN_NODE_CHANGE,
-    GIT_SVN_NODE_DELETE,
-    GIT_SVN_NODE_REPLACE
-} git_svn_node_action_t;
+git_svn_status_t
+git_svn_parse_options(git_svn_options_t *options, int argc, const char **argv, apr_pool_t *pool);
 
-typedef enum
-{
-    GIT_SVN_NODE_UNKNOWN,
-    GIT_SVN_NODE_FILE,
-    GIT_SVN_NODE_DIR
-} git_svn_node_kind_t;
-
-typedef struct
-{
-    git_svn_node_action_t action;
-    git_svn_node_kind_t kind;
-    uint32_t mode;
-    const char *path;
-    git_svn_blob_t *blob;
-} git_svn_node_t;
-
-#endif // GIT_SVN_FAST_IMPORT_TYPES_H_
+#endif // GIT_SVN_FAST_IMPORT_OPTIONS_H_

@@ -206,7 +206,6 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
 
         if (blob == NULL) {
             blob = apr_pcalloc(ctx->pool, sizeof(*blob));
-            blob->mark = ctx->last_mark++;
             blob->checksum = apr_pstrdup(ctx->pool, value);
 
             value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_LENGTH, APR_HASH_KEY_STRING);
@@ -302,6 +301,12 @@ set_fulltext(svn_stream_t **stream, void *n_ctx)
     git_svn_blob_t *blob = node->blob;
     apr_pool_t *pool = ctx->rev_ctx->pool;
 
+    if (blob->mark) {
+        // Blob has been uploaded, if we've already assigned mark to it
+        return SVN_NO_ERROR;
+    }
+
+    blob->mark = ctx->last_mark++;
     SVN_ERR(svn_stream_for_stdout(stream, pool));
     SVN_ERR(git_svn_dump_blob_header(*stream, blob, pool));
 

@@ -129,19 +129,19 @@ get_node_action(apr_hash_t *headers)
     action = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_ACTION, APR_HASH_KEY_STRING);
     if (action != NULL) {
         if (strcmp(action, "change") == 0) {
-            return GIT_SVN_NODE_CHANGE;
+            return GIT_SVN_ACTION_CHANGE;
         }
         else if (strcmp(action, "add") == 0) {
-            return GIT_SVN_NODE_ADD;
+            return GIT_SVN_ACTION_ADD;
         }
         else if (strcmp(action, "delete") == 0) {
-            return GIT_SVN_NODE_DELETE;
+            return GIT_SVN_ACTION_DELETE;
         }
         else if (strcmp(action, "replace") == 0) {
-            return GIT_SVN_NODE_REPLACE;
+            return GIT_SVN_ACTION_REPLACE;
         }
     }
-    return GIT_SVN_NODE_NOOP;
+    return GIT_SVN_ACTION_NOOP;
 }
 
 static svn_error_t *
@@ -214,7 +214,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         node->path = apr_pstrdup(ctx->rev_ctx->pool, subpath);
     }
 
-    if (copyfrom_rev != NULL && node->kind == GIT_SVN_NODE_DIR && node->action == GIT_SVN_NODE_ADD && *node->path == '\0') {
+    if (copyfrom_rev != NULL && node->kind == GIT_SVN_NODE_DIR && node->action == GIT_SVN_ACTION_ADD && *node->path == '\0') {
         rev->copyfrom = copyfrom_rev;
     }
 

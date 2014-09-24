@@ -54,11 +54,11 @@ typedef struct
 
 typedef enum
 {
-    GIT_SVN_NODE_NOOP,
-    GIT_SVN_NODE_ADD,
-    GIT_SVN_NODE_CHANGE,
-    GIT_SVN_NODE_DELETE,
-    GIT_SVN_NODE_REPLACE
+    GIT_SVN_ACTION_NOOP,
+    GIT_SVN_ACTION_ADD,
+    GIT_SVN_ACTION_CHANGE,
+    GIT_SVN_ACTION_DELETE,
+    GIT_SVN_ACTION_REPLACE
 } git_svn_node_action_t;
 
 typedef enum

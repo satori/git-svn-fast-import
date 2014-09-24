@@ -89,18 +89,16 @@ svn_error_t *
 git_svn_dump_node(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
 {
     switch (node->action) {
-    case GIT_SVN_NODE_ADD:
-    case GIT_SVN_NODE_CHANGE:
+    case GIT_SVN_ACTION_ADD:
+    case GIT_SVN_ACTION_CHANGE:
         return node_modify(out, node, pool);
-    case GIT_SVN_NODE_DELETE:
+    case GIT_SVN_ACTION_DELETE:
         return node_delete(out, node, pool);
-    case GIT_SVN_NODE_REPLACE:
+    case GIT_SVN_ACTION_REPLACE:
         return node_replace(out, node, pool);
     default:
         return SVN_NO_ERROR;
     }
-
-    return SVN_NO_ERROR;
 }
 
 svn_error_t *

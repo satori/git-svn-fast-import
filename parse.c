@@ -152,14 +152,11 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     const char *copyfrom_revnum;
     parser_ctx_t *ctx = r_ctx;
     git_svn_revision_t *rev, *copyfrom_rev = NULL;
-    git_svn_node_t *node = &APR_ARRAY_PUSH(ctx->rev_ctx->nodes, git_svn_node_t);
+    git_svn_node_t *node;
     git_svn_branch_t *branch;
 
-    node->mode = GIT_SVN_NODE_MODE_NORMAL;
-    node->kind = get_node_kind(headers);
-    node->path = "";
-
     rev = ctx->rev_ctx->rev;
+    *n_ctx = ctx;
 
     path = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_PATH, APR_HASH_KEY_STRING);
     if (path == NULL) {
@@ -196,18 +193,26 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
             git_svn_trie_insert(ctx->branches, branch->path, branch);
         }
     }
-    if (branch != NULL) {
-        rev->branch = branch;
-        subpath = cstring_skip_prefix(path, branch->path);
+
+    if (branch == NULL) {
+        return SVN_NO_ERROR;
+    }
+
+    rev->branch = branch;
+
+    node = &APR_ARRAY_PUSH(ctx->rev_ctx->nodes, git_svn_node_t);
+    node->mode = GIT_SVN_NODE_MODE_NORMAL;
+    node->kind = get_node_kind(headers);
+    node->action = get_node_action(headers);
+    node->path = "";
+
+    subpath = cstring_skip_prefix(path, branch->path);
+    if (subpath != NULL) {
         if (*subpath == '/') {
             subpath++;
         }
-        if (subpath != NULL) {
-            node->path = apr_pstrdup(ctx->rev_ctx->pool, subpath);
-        }
+        node->path = apr_pstrdup(ctx->rev_ctx->pool, subpath);
     }
-
-    node->action = get_node_action(headers);
 
     if (copyfrom_rev != NULL && node->kind == GIT_SVN_NODE_DIR && node->action == GIT_SVN_NODE_ADD && *node->path == '\0') {
         rev->copyfrom = copyfrom_rev;
@@ -237,8 +242,6 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     }
 
     ctx->node = node;
-
-    *n_ctx = ctx;
 
     return SVN_NO_ERROR;
 }
@@ -276,6 +279,10 @@ set_node_property(void *n_ctx, const char *name, const svn_string_t *value)
     parser_ctx_t *ctx = n_ctx;
     git_svn_node_t *node = ctx->node;
 
+    if (node == NULL) {
+        return SVN_NO_ERROR;
+    }
+
     if (strcmp(name, SVN_PROP_EXECUTABLE) == 0) {
         node->mode = GIT_SVN_NODE_MODE_EXECUTABLE;
     }
@@ -292,6 +299,10 @@ remove_node_props(void *n_ctx)
     parser_ctx_t *ctx = n_ctx;
     git_svn_node_t *node = ctx->node;
 
+    if (node == NULL) {
+        return SVN_NO_ERROR;
+    }
+
     node->mode = GIT_SVN_NODE_MODE_NORMAL;
 
     return SVN_NO_ERROR;
@@ -302,6 +313,10 @@ delete_node_property(void *n_ctx, const char *name)
 {
     parser_ctx_t *ctx = n_ctx;
     git_svn_node_t *node = ctx->node;
+
+    if (node == NULL) {
+        return SVN_NO_ERROR;
+    }
 
     if (strcmp(name, SVN_PROP_EXECUTABLE) == 0 || strcmp(name, SVN_PROP_SPECIAL) == 0) {
         node->mode = GIT_SVN_NODE_MODE_NORMAL;
@@ -315,6 +330,11 @@ set_fulltext(svn_stream_t **stream, void *n_ctx)
 {
     parser_ctx_t *ctx = n_ctx;
     git_svn_node_t *node = ctx->node;
+
+    if (node == NULL) {
+        return SVN_NO_ERROR;
+    }
+
     git_svn_blob_t *blob = node->blob;
     apr_pool_t *pool = ctx->rev_ctx->pool;
 

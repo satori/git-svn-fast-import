@@ -96,6 +96,8 @@ git_svn_dump_node(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
         return node_delete(out, node, pool);
     case GIT_SVN_NODE_REPLACE:
         return node_replace(out, node, pool);
+    default:
+        return SVN_NO_ERROR;
     }
 
     return SVN_NO_ERROR;

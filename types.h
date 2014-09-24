@@ -25,6 +25,9 @@
 
 #include "compat.h"
 
+typedef uint32_t git_svn_mark_t;
+typedef int32_t git_svn_revnum_t;
+
 typedef struct
 {
     const char *name;
@@ -33,8 +36,8 @@ typedef struct
 
 typedef struct git_svn_revision_t
 {
-    uint32_t mark;
-    int32_t revnum;
+    git_svn_mark_t mark;
+    git_svn_revnum_t revnum;
     int64_t timestamp;
     git_svn_branch_t *branch;
     const char *author;
@@ -44,13 +47,14 @@ typedef struct git_svn_revision_t
 
 typedef struct
 {
-    uint32_t mark;
+    git_svn_mark_t mark;
     size_t length;
     const char *checksum;
 } git_svn_blob_t;
 
 typedef enum
 {
+    GIT_SVN_NODE_NOOP,
     GIT_SVN_NODE_ADD,
     GIT_SVN_NODE_CHANGE,
     GIT_SVN_NODE_DELETE,

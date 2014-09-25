@@ -33,6 +33,7 @@
 #define GIT_SVN_NODE_MODE_NORMAL     0100644
 #define GIT_SVN_NODE_MODE_EXECUTABLE 0100755
 #define GIT_SVN_NODE_MODE_SYMLINK    0120000
+#define GIT_SVN_NODE_MODE_DIR        0040000
 
 typedef struct
 {
@@ -144,6 +145,17 @@ get_node_action(apr_hash_t *headers)
     return GIT_SVN_ACTION_NOOP;
 }
 
+static uint32_t
+get_node_default_mode(git_svn_node_kind_t kind)
+{
+    switch(kind) {
+    case GIT_SVN_NODE_DIR:
+        return GIT_SVN_NODE_MODE_DIR;
+    default:
+        return GIT_SVN_NODE_MODE_NORMAL;
+    }
+}
+
 static svn_error_t *
 new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
 {
@@ -201,7 +213,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     rev->branch = branch;
 
     node = &APR_ARRAY_PUSH(ctx->rev_ctx->nodes, git_svn_node_t);
-    node->mode = GIT_SVN_NODE_MODE_NORMAL;
+    node->mode = get_node_default_mode(kind);
     node->kind = get_node_kind(headers);
     node->action = get_node_action(headers);
     node->path = "";
@@ -303,7 +315,7 @@ remove_node_props(void *n_ctx)
         return SVN_NO_ERROR;
     }
 
-    node->mode = GIT_SVN_NODE_MODE_NORMAL;
+    node->mode = get_node_default_mode(node->kind);
 
     return SVN_NO_ERROR;
 }

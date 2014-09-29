@@ -19,35 +19,28 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-CC ?= cc
-RM = rm -f
-CFLAGS = -g -O2 -Wall -std=c99
-CPPFLAGS =
-LDFLAGS =
-EXTLIBS = -lapr-1 -lsvn_subr-1 -lsvn_repos-1
+-include ../config.mak
 
--include config.mak
-include uname.mak
+RM ?= rm -f
+PROVE ?= prove
 
-APR_INCLUDES := $(shell apr-1-config --includes)
-APR_CPPFLAGS := $(shell apr-1-config --cppflags)
-CPPFLAGS +=$(APR_INCLUDES) $(APR_CPPFLAGS)
+TESTS = $(sort $(wildcard t[0-9][0-9][0-9][0-9]-*.sh))
 
-GIT_SVN_FAST_IMPORT := git-svn-fast-import
-OBJECTS := svn-fast-import.o dump.o options.o parse.o trie.o
+all: test
 
-all: $(GIT_SVN_FAST_IMPORT)
+test: $(TESTS)
+	$(MAKE) clean
 
-$(GIT_SVN_FAST_IMPORT): $(OBJECTS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(EXTLIBS)
+prove:
+	@echo "*** prove ***"
+	$(PROVE) --exec '$(SHELL)' $(TESTS)
+	$(MAKE) clean
 
-%.o: %.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ -c $<
-
-test:
-	$(MAKE) -C t all
+$(TESTS):
+	@echo "*** $@ ***"
+	$(SHELL) $@
 
 clean:
-	$(RM) $(GIT_SVN_FAST_IMPORT) $(OBJECTS)
+	$(RM) -r trash.*
 
-.PHONY: all clean
+.PHONY: all $(TESTS) prove clean

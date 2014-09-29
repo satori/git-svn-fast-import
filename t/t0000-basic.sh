@@ -1,3 +1,5 @@
+#!/bin/sh
+#
 # Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
 #
 # Permission is hereby granted, free of charge, to any person obtaining
@@ -19,35 +21,10 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-CC ?= cc
-RM = rm -f
-CFLAGS = -g -O2 -Wall -std=c99
-CPPFLAGS =
-LDFLAGS =
-EXTLIBS = -lapr-1 -lsvn_subr-1 -lsvn_repos-1
+test_description='Test git-svn-fast-import'
 
--include config.mak
-include uname.mak
+. ./lib/test.sh
 
-APR_INCLUDES := $(shell apr-1-config --includes)
-APR_CPPFLAGS := $(shell apr-1-config --cppflags)
-CPPFLAGS +=$(APR_INCLUDES) $(APR_CPPFLAGS)
+test_expect_success 'Initialize repository' 'git init'
 
-GIT_SVN_FAST_IMPORT := git-svn-fast-import
-OBJECTS := svn-fast-import.o dump.o options.o parse.o trie.o
-
-all: $(GIT_SVN_FAST_IMPORT)
-
-$(GIT_SVN_FAST_IMPORT): $(OBJECTS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(EXTLIBS)
-
-%.o: %.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ -c $<
-
-test:
-	$(MAKE) -C t all
-
-clean:
-	$(RM) $(GIT_SVN_FAST_IMPORT) $(OBJECTS)
-
-.PHONY: all clean
+test_done

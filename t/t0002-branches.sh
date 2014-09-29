@@ -21,25 +21,57 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-test_description='Test basic support'
+test_description='Test branch history support'
 
+. ./helpers.sh
 . ./lib/test.sh
+
+test_export_import() {
+	test_expect_success 'Export Subversion repository' 'svnadmin dump repo >repo.dump'
+	test_expect_success 'Import dump into Git' '(cd repo.git && git-svn-fast-import --stdlayout <../repo.dump)'
+}
 
 test_expect_success 'Initialize Subversion repository' '
 svnadmin create repo &&
-    svn checkout file:///$(pwd)/repo repo.svn
+	svn checkout file:///$(pwd)/repo repo.svn
 '
+
 test_expect_success 'Initialize Git repository' '
 git init repo.git
 '
 
-test_expect_success 'Export Subversion repository' '
-svnadmin dump repo >repo.dump
+test_expect_success 'Commit standard directories layout' '
+(cd repo.svn &&
+	mkdir -p branches tags trunk &&
+	svn add branches tags trunk &&
+	svn commit -m "Standard project directories initialized.")
 '
 
-test_expect_success 'Import dump into Git' '
+test_export_import
+
+cat >main.c <<EOF
+int main() {
+	return 0;
+}
+EOF
+
+test_expect_success 'Commit new file into trunk' '
+(cd repo.svn &&
+	cp ../main.c trunk/main.c &&
+	svn add trunk/main.c &&
+	svn commit -m "Initial revision")
+'
+
+test_export_import
+
+cat >expect <<EOF
+:000000 100644 0000000000000000000000000000000000000000 cb3f7482fa46d2ac25648a694127f23c1976b696 A	main.c
+EOF
+
+test_expect_success 'Validate files added' '
 (cd repo.git &&
-	git-svn-fast-import <../repo.dump)
+	git diff-tree -M -r master^ master >actual &&
+	test_cmp ../expect actual)
 '
 
 test_done

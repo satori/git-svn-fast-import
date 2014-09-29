@@ -1,5 +1,3 @@
-#!/bin/sh
-#
 # Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
 #
 # Permission is hereby granted, free of charge, to any person obtaining
@@ -21,25 +19,24 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-test_description='Test basic support'
+uname_S=$(uname -s)
 
-. ./lib/test.sh
-
-test_expect_success 'Initialize Subversion repository' '
-svnadmin create repo &&
-    svn checkout file:///$(pwd)/repo repo.svn
-'
-test_expect_success 'Initialize Git repository' '
-git init repo.git
-'
-
-test_expect_success 'Export Subversion repository' '
-svnadmin dump repo >repo.dump
-'
-
-test_expect_success 'Import dump into Git' '
-(cd repo.git &&
-	git-svn-fast-import <../repo.dump)
-'
-
-test_done
+test_tick() {
+	if test -z "${test_tick+set}"; then
+		test_tick=1112911993
+	else
+		test_tick=$(($test_tick + 60))
+	fi
+	case "$uname_S" in
+	Linux)
+		COMMIT_DATE=$(date -d "@$test_tick" "+%Y-%m-%dT%H:%M:%S.000000Z")
+		;;
+	Darwin|FreeBSD)
+		COMMIT_DATE=$(date -j -f "%s" $test_tick "+%Y-%m-%dT%H:%M:%S.000000Z")
+		;;
+	*)
+		error "Unsupported OS: $uname_S"
+		;;
+	esac
+	export COMMIT_DATE
+}

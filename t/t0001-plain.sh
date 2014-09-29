@@ -21,25 +21,77 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-test_description='Test basic support'
+test_description='Test plain history support'
 
+. ./helpers.sh
 . ./lib/test.sh
+
+test_export_import() {
+	test_expect_success 'Export Subversion repository' 'svnadmin dump repo >repo.dump'
+	test_expect_success 'Import dump into Git' '(cd repo.git && git-svn-fast-import <../repo.dump)'
+}
 
 test_expect_success 'Initialize Subversion repository' '
 svnadmin create repo &&
-    svn checkout file:///$(pwd)/repo repo.svn
+	svn checkout file:///$(pwd)/repo repo.svn
 '
+
+cat >repo/hooks/pre-revprop-change <<EOF
+#!/bin/sh
+exit 0
+EOF
+
+chmod +x repo/hooks/pre-revprop-change
+
 test_expect_success 'Initialize Git repository' '
 git init repo.git
 '
 
-test_expect_success 'Export Subversion repository' '
-svnadmin dump repo >repo.dump
+cat >repo.svn/main.c <<EOF
+int main() {
+	return 0;
+}
+EOF
+
+test_tick
+
+test_expect_success 'Commit new file' '
+(cd repo.svn &&
+	svn add main.c &&
+	svn commit -m "Initial revision" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE)
 '
 
-test_expect_success 'Import dump into Git' '
+test_export_import
+
+cat >expect <<EOF
+a45b1471385a5361a222215c9381435eab089293
+:000000 100644 0000000000000000000000000000000000000000 cb3f7482fa46d2ac25648a694127f23c1976b696 A	main.c
+EOF
+
+test_expect_success 'Validate files added' '
 (cd repo.git &&
-	git-svn-fast-import <../repo.dump)
+	git diff-tree -M -r --root master >actual &&
+	test_cmp ../expect actual)
 '
+
+cat >repo.svn/main.c <<EOF
+#include <stdio.h>
+
+int main() {
+	printf("Hello, world\n");
+	return 0;
+}
+EOF
+
+test_tick
+
+test_expect_success 'Commit file modification' '
+(cd repo.svn &&
+	svn commit -m "Some modification" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE)
+'
+
+test_export_import
 
 test_done

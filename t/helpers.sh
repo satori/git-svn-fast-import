@@ -29,10 +29,10 @@ test_tick() {
 	fi
 	case "$uname_S" in
 	Linux)
-		COMMIT_DATE=$(date -d "@$test_tick" "+%Y-%m-%dT%H:%M:%S.000000Z")
+		COMMIT_DATE=$(date -u -d "@$test_tick" "+%Y-%m-%dT%H:%M:%S.000000Z")
 		;;
 	Darwin|FreeBSD)
-		COMMIT_DATE=$(date -j -f "%s" $test_tick "+%Y-%m-%dT%H:%M:%S.000000Z")
+		COMMIT_DATE=$(date -ju -f "%s" $test_tick "+%Y-%m-%dT%H:%M:%S.000000Z")
 		;;
 	*)
 		error "Unsupported OS: $uname_S"

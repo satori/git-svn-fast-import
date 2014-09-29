@@ -59,13 +59,14 @@ test_expect_success 'Commit new file' '
 (cd repo.svn &&
 	svn add main.c &&
 	svn commit -m "Initial revision" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE)
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
 '
 
 test_export_import
 
 cat >expect <<EOF
-a45b1471385a5361a222215c9381435eab089293
+bcd5f99c825242e10b409f125f49d7cc931d55bc
 :000000 100644 0000000000000000000000000000000000000000 cb3f7482fa46d2ac25648a694127f23c1976b696 A	main.c
 EOF
 
@@ -89,7 +90,8 @@ test_tick
 test_expect_success 'Commit file modification' '
 (cd repo.svn &&
 	svn commit -m "Some modification" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE)
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
 '
 
 test_export_import

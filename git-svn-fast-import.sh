@@ -1,3 +1,5 @@
+#!/bin/sh
+#
 # Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
 #
 # Permission is hereby granted, free of charge, to any person obtaining
@@ -18,39 +20,26 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+TMP_PREFIX=/tmp/git-svn-fast-import
+TMP_SUFFIX=$$
+CHAN=$TMP_PREFIX.chan.$TMP_SUFFIX
+BACKCHAN=$TMP_PREFIX.back.$TMP_SUFFIX
 
-CC ?= cc
-RM = rm -f
-CFLAGS = -g -O2 -Wall -std=c99
-CPPFLAGS =
-LDFLAGS =
-EXTLIBS = -lapr-1 -lsvn_subr-1 -lsvn_repos-1
+# Cleanup on EXIT
+on_exit() {
+	rm -f $CHAN $BACKCHAN
+}
 
--include config.mak
-include uname.mak
+trap 'on_exit' EXIT
 
-APR_INCLUDES := $(shell apr-1-config --includes)
-APR_CPPFLAGS := $(shell apr-1-config --cppflags)
-CPPFLAGS +=$(APR_INCLUDES) $(APR_CPPFLAGS)
+mkfifo $CHAN $BACKCHAN
 
-GIT_SVN_FAST_IMPORT := git-svn-fast-import
-SVN_FAST_EXPORT := svn-fast-export
-OBJECTS := svn-fast-export.o dump.o options.o parse.o trie.o
+git fast-import --cat-blob-fd=3 <$CHAN 3>$BACKCHAN &
+FAST_IMPORT_PID=$!
 
-all: $(GIT_SVN_FAST_IMPORT) $(SVN_FAST_EXPORT)
+svn-fast-export $@ >$CHAN 3<$BACKCHAN
+RET_CODE=$?
 
-$(GIT_SVN_FAST_IMPORT): git-svn-fast-import.sh
+wait $FAST_IMPORT_PID
 
-$(SVN_FAST_EXPORT): $(OBJECTS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(EXTLIBS)
-
-%.o: %.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ -c $<
-
-test:
-	$(MAKE) -C t all
-
-clean:
-	$(RM) $(GIT_SVN_FAST_IMPORT) $(SVN_FAST_EXPORT) $(OBJECTS)
-
-.PHONY: all clean
+exit $RET_CODE

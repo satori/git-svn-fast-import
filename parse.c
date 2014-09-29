@@ -159,12 +159,14 @@ get_node_default_mode(git_svn_node_kind_t kind)
 static svn_error_t *
 new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
 {
-    const char *value, *branch_root;
-    const char *path, *subpath;
-    const char *copyfrom_revnum;
+    const char *value;
+    const char *path, *subpath, *branch_root;
+    const char *copyfrom_path, *copyfrom_revnum;
     parser_ctx_t *ctx = r_ctx;
     git_svn_revision_t *rev, *copyfrom_rev = NULL;
     git_svn_node_t *node;
+    git_svn_node_action_t action;
+    git_svn_node_kind_t kind;
     git_svn_branch_t *branch;
 
     rev = ctx->rev_ctx->rev;
@@ -174,6 +176,8 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     if (path == NULL) {
         return SVN_NO_ERROR;
     }
+
+    copyfrom_path = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_COPYFROM_PATH, APR_HASH_KEY_STRING);
 
     copyfrom_revnum = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_COPYFROM_REV, APR_HASH_KEY_STRING);
     if (copyfrom_revnum != NULL) {
@@ -212,10 +216,17 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
 
     rev->branch = branch;
 
+    kind = get_node_kind(headers);
+    action = get_node_action(headers);
+
+    if (kind == GIT_SVN_NODE_DIR && action == GIT_SVN_ACTION_ADD && copyfrom_path == NULL) {
+        return SVN_NO_ERROR;
+    }
+
     node = &APR_ARRAY_PUSH(ctx->rev_ctx->nodes, git_svn_node_t);
     node->mode = get_node_default_mode(kind);
-    node->kind = get_node_kind(headers);
-    node->action = get_node_action(headers);
+    node->kind = kind;
+    node->action = action;
     node->path = "";
 
     subpath = cstring_skip_prefix(path, branch->path);

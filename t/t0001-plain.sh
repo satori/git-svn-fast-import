@@ -27,24 +27,18 @@ test_description='Test plain history support'
 . ./lib/test.sh
 
 test_export_import() {
-	test_expect_success 'Export Subversion repository' 'svnadmin dump repo >repo.dump'
-	test_expect_success 'Import dump into Git' '(cd repo.git && git-svn-fast-import <../repo.dump)'
+	test_expect_success 'Import dump into Git' '
+	svnadmin dump repo >repo.dump &&
+		(cd repo.git && git-svn-fast-import <../repo.dump)
+	'
 }
 
-test_expect_success 'Initialize Subversion repository' '
+test_expect_success 'Initialize repositories' '
 svnadmin create repo &&
-	svn checkout file:///$(pwd)/repo repo.svn
-'
-
-cat >repo/hooks/pre-revprop-change <<EOF
-#!/bin/sh
-exit 0
-EOF
-
-chmod +x repo/hooks/pre-revprop-change
-
-test_expect_success 'Initialize Git repository' '
-git init repo.git
+	echo "#!/bin/sh" >repo/hooks/pre-revprop-change &&
+	chmod +x repo/hooks/pre-revprop-change &&
+	svn checkout file:///$(pwd)/repo repo.svn &&
+	git init repo.git
 '
 
 cat >repo.svn/main.c <<EOF
@@ -72,7 +66,7 @@ EOF
 
 test_expect_success 'Validate files added' '
 (cd repo.git &&
-	git diff-tree -M -r --root master >actual &&
+	git diff-tree --root master >actual &&
 	test_cmp ../expect actual)
 '
 
@@ -95,5 +89,179 @@ test_expect_success 'Commit file modification' '
 '
 
 test_export_import
+
+cat >expect <<EOF
+:100644 100644 cb3f7482fa46d2ac25648a694127f23c1976b696 0e5f181f94f2ff9f984b4807887c4d2c6f642723 M	main.c
+EOF
+
+test_expect_success 'Validate files modified' '
+(cd repo.git &&
+	git diff-tree -M -r master^ master >actual &&
+	test_cmp ../expect actual)
+'
+
+test_tick
+
+mkdir -p repo.svn/lib
+cat >repo.svn/lib.c <<EOF
+void dummy(void) {
+	// Do nothing
+}
+EOF
+
+test_expect_success 'Commit empty dir and new file' '
+(cd repo.svn &&
+	svn add lib &&
+	svn add lib.c &&
+	svn commit -m "Empty dir added" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:000000 100644 0000000000000000000000000000000000000000 87734a8c690949471d1836b2e9247ad8f82c9df6 A	lib.c
+EOF
+
+test_expect_success 'Validate empty dir was not added' '
+(cd repo.git &&
+	git diff-tree -M -r master^ master >actual &&
+	test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Commit file move' '
+(cd repo.svn &&
+	svn mv lib.c lib &&
+	svn commit -m "File moved to dir" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:100644 100644 87734a8c690949471d1836b2e9247ad8f82c9df6 87734a8c690949471d1836b2e9247ad8f82c9df6 R100	lib.c	lib/lib.c
+EOF
+
+test_expect_success 'Validate file move' '
+(cd repo.git &&
+	git diff-tree -M -r master^ master >actual &&
+	test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Commit file copy' '
+(cd repo.svn &&
+	svn cp main.c lib &&
+	svn commit -m "File copied to dir" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:000000 100644 0000000000000000000000000000000000000000 0e5f181f94f2ff9f984b4807887c4d2c6f642723 A	lib/main.c
+EOF
+
+test_expect_success 'Validate file copy' '
+(cd repo.git &&
+	git diff-tree -M -r master^ master >actual &&
+	test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Commit file delete' '
+(cd repo.svn &&
+	svn rm main.c &&
+	svn commit -m "File removed" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:100644 000000 0e5f181f94f2ff9f984b4807887c4d2c6f642723 0000000000000000000000000000000000000000 D	main.c
+EOF
+
+test_expect_success 'Validate file remove' '
+(cd repo.git &&
+	git diff-tree master^ master >actual &&
+	test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Commit directory move' '
+(cd repo.svn &&
+	svn update &&
+	svn mv lib src &&
+	svn commit -m "Directory renamed" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:100644 100644 87734a8c690949471d1836b2e9247ad8f82c9df6 87734a8c690949471d1836b2e9247ad8f82c9df6 R100	lib/lib.c	src/lib.c
+:100644 100644 0e5f181f94f2ff9f984b4807887c4d2c6f642723 0e5f181f94f2ff9f984b4807887c4d2c6f642723 R100	lib/main.c	src/main.c
+EOF
+
+test_expect_failure 'Validate directory move' '
+(cd repo.git &&
+	git diff-tree -M -r master^ master >actual &&
+	test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Commit directory copy' '
+(cd repo.svn &&
+	svn cp src lib &&
+	svn commit -m "Directory copied" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:040000 040000 f9e724c547c90dfac10d779fcae9f9bc299245c1 f9e724c547c90dfac10d779fcae9f9bc299245c1 C100	src	lib
+EOF
+
+test_expect_failure 'Validate directory copy' '
+(cd repo.git &&
+	git diff-tree --find-copies-harder master^ master >actual &&
+	test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Commit directory delete' '
+(cd repo.svn &&
+	svn rm src &&
+	svn commit -m "Directory removed" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:040000 000000 f9e724c547c90dfac10d779fcae9f9bc299245c1 0000000000000000000000000000000000000000 D	src
+EOF
+
+test_expect_failure 'Validate directory remove' '
+(cd repo.git &&
+	git diff-tree master^ master >actual &&
+	test_cmp ../expect actual)
+'
 
 test_done

@@ -25,6 +25,8 @@
 
 #include "compat.h"
 
+#define GIT_SVN_CHECKSUM_BYTES_LENGTH 20
+
 typedef uint32_t git_svn_mark_t;
 typedef int32_t git_svn_revnum_t;
 
@@ -45,11 +47,13 @@ typedef struct git_svn_revision_t
     struct git_svn_revision_t *copyfrom;
 } git_svn_revision_t;
 
+typedef uint8_t git_svn_checksum_t[GIT_SVN_CHECKSUM_BYTES_LENGTH];
+
 typedef struct
 {
     git_svn_mark_t mark;
     size_t length;
-    const char *checksum;
+    git_svn_checksum_t checksum;
 } git_svn_blob_t;
 
 typedef enum

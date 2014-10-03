@@ -24,6 +24,7 @@
 
 #include "dump.h"
 #include "trie.h"
+#include "utils.h"
 
 #include <svn_props.h>
 #include <svn_repos.h>
@@ -54,19 +55,6 @@ typedef struct
     revision_ctx_t *rev_ctx;
     git_svn_node_t *node;
 } parser_ctx_t;
-
-
-static const char *
-cstring_skip_prefix(const char * str, const char *prefix)
-{
-    size_t len = strlen(prefix);
-
-    if (strncmp(str, prefix, len) == 0) {
-        return str + len;
-    }
-
-    return NULL;
-}
 
 #if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
 static svn_error_t *
@@ -167,7 +155,9 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     git_svn_node_t *node;
     git_svn_node_action_t action;
     git_svn_node_kind_t kind;
+    git_svn_checksum_t checksum;
     git_svn_branch_t *branch;
+    git_svn_status_t err;
 
     rev = ctx->rev_ctx->rev;
     *n_ctx = ctx;
@@ -247,18 +237,23 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     }
 
     if (value != NULL) {
-        git_svn_blob_t *blob = apr_hash_get(ctx->blobs, value, APR_HASH_KEY_STRING);
+        err = hex_to_bytes(checksum, value, GIT_SVN_CHECKSUM_BYTES_LENGTH);
+        if (err) {
+            return svn_error_create(SVN_ERR_BAD_CHECKSUM_PARSE, NULL, NULL);
+        }
+
+        git_svn_blob_t *blob = apr_hash_get(ctx->blobs, checksum, sizeof(git_svn_checksum_t));
 
         if (blob == NULL) {
             blob = apr_pcalloc(ctx->pool, sizeof(*blob));
-            blob->checksum = apr_pstrdup(ctx->pool, value);
+            memcpy(blob->checksum, checksum, sizeof(git_svn_checksum_t));
 
             value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_LENGTH, APR_HASH_KEY_STRING);
             if (value != NULL) {
                 blob->length = svn__atoui64(value);
             }
 
-            apr_hash_set(ctx->blobs, blob->checksum, APR_HASH_KEY_STRING, blob);
+            apr_hash_set(ctx->blobs, blob->checksum, sizeof(git_svn_checksum_t), blob);
         }
 
         node->blob = blob;

@@ -20,6 +20,18 @@
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+OPTIONS_SPEC="\
+git-svn-fast-import [options]
+--
+h,help          show the help
+s,stdlayout     set trunk,tags,branches as the relative paths, which is Subversion default
+T,trunk=        set trunk to a relative repository path
+t,tags=         set tags to a relative repository path, can be specified multiple times
+b,branches=     set branches to a relative repository path, can be specified multiple times"
+
+eval "$(echo "$OPTIONS_SPEC" | git rev-parse --parseopt -- $@ || echo exit $?)"
+
 TMP_PREFIX=/tmp/git-svn-fast-import
 TMP_SUFFIX=$$
 CHAN=$TMP_PREFIX.chan.$TMP_SUFFIX

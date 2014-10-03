@@ -22,35 +22,15 @@
 
 #include "options.h"
 
-#include <stdio.h>
 #include <apr_getopt.h>
 
 static struct apr_getopt_option_t cmdline_options[] = {
-    {"help", 'h', 0, "\tprint this help message and exit."},
-    {"stdlayout", 's', 0, "shorthand way of setting trunk,tags,branches as the relative paths, which is Subversion default."},
-    {"trunk", 'T', 1, "set trunk to a relative repository path."},
-    {"tags", 't', 1, "set tags to a relative repository path, can be specified multiple times."},
-    {"branches", 'b', 1, "set branches to a relative repository path, can be specified multiple times."},
+    {"stdlayout", 's', 0, ""},
+    {"trunk", 'T', 1, ""},
+    {"tags", 't', 1, ""},
+    {"branches", 'b', 1, ""},
     {0, 0, 0, 0}
 };
-
-static void
-print_usage(apr_getopt_option_t *opts)
-{
-    fprintf(stdout, "usage: git-svn-fast-import [options]\n");
-    for (int i = 0; ; i++) {
-        if (opts[i].optch == 0) {
-            break;
-        }
-        if (opts[i].has_arg) {
-            fprintf(stdout, "\t-%c ARG, --%s ARG \t%s\n", opts[i].optch, opts[i].name, opts[i].description);
-        }
-        else {
-            fprintf(stdout, "\t-%c, --%s \t%s\n", opts[i].optch, opts[i].name, opts[i].description);
-        }
-    }
-    fprintf(stdout, "\n");
-}
 
 git_svn_status_t
 git_svn_parse_options(git_svn_options_t *options, int argc, const char **argv, apr_pool_t *pool)
@@ -71,11 +51,11 @@ git_svn_parse_options(git_svn_options_t *options, int argc, const char **argv, a
         int opt_id;
         const char *opt_arg;
         apr_err = apr_getopt_long(arg_parser, cmdline_options, &opt_id, &opt_arg);
-        if (APR_STATUS_IS_EOF(apr_err)) {
-            break;
-        }
-        else if (apr_err) {
-            print_usage(cmdline_options);
+
+        if (apr_err) {
+            if (APR_STATUS_IS_EOF(apr_err)) {
+                break;
+            }
             return GIT_SVN_FAILURE;
         }
 
@@ -94,9 +74,6 @@ git_svn_parse_options(git_svn_options_t *options, int argc, const char **argv, a
         case 'b':
             options->branches = opt_arg;
             break;
-        case 'h':
-            print_usage(cmdline_options);
-            return GIT_SVN_FAILURE;
         default:
             return GIT_SVN_FAILURE;
         }

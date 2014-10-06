@@ -81,7 +81,7 @@ EOF
 
 test_tick
 
-test_expect_success 'Commit file modification' '
+test_expect_success 'Commit file content modification' '
 (cd repo.svn &&
 	svn commit -m "Some modification" &&
 	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
@@ -94,9 +94,53 @@ cat >expect <<EOF
 :100644 100644 cb3f7482fa46d2ac25648a694127f23c1976b696 0e5f181f94f2ff9f984b4807887c4d2c6f642723 M	main.c
 EOF
 
-test_expect_success 'Validate files modified' '
+test_expect_success 'Validate file content modify' '
 (cd repo.git &&
-	git diff-tree -M -r master^ master >actual &&
+	git diff-tree master^ master >actual &&
+	test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Commit file mode executable' '
+(cd repo.svn &&
+	svn propset svn:executable on main.c &&
+	svn commit -m "Change mode to executable" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:100644 100755 0e5f181f94f2ff9f984b4807887c4d2c6f642723 0e5f181f94f2ff9f984b4807887c4d2c6f642723 M	main.c
+EOF
+
+test_expect_failure 'Validate file mode modify' '
+(cd repo.git &&
+	git diff-tree master^ master >actual &&
+	test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Commit file mode normal' '
+(cd repo.svn &&
+	svn propdel svn:executable main.c &&
+	svn commit -m "Change mode to normal" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:100755 100644 0e5f181f94f2ff9f984b4807887c4d2c6f642723 0e5f181f94f2ff9f984b4807887c4d2c6f642723 M	main.c
+EOF
+
+test_expect_failure 'Validate file mode modify' '
+(cd repo.git &&
+	git diff-tree master^ master >actual &&
 	test_cmp ../expect actual)
 '
 

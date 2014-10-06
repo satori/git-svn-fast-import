@@ -114,6 +114,50 @@ test_expect_success 'Validate file modify' '
 
 test_tick
 
+test_expect_success 'Commit file mode executable' '
+(cd repo.svn &&
+    svn propset svn:executable on trunk/main.c &&
+    svn commit -m "Change mode to executable" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:100644 100755 0e5f181f94f2ff9f984b4807887c4d2c6f642723 0e5f181f94f2ff9f984b4807887c4d2c6f642723 M	main.c
+EOF
+
+test_expect_failure 'Validate file mode modify' '
+(cd repo.git &&
+    git diff-tree master^ master >actual &&
+    test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Commit file mode normal' '
+(cd repo.svn &&
+    svn propdel svn:executable trunk/main.c &&
+    svn commit -m "Change mode to normal" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:100755 100644 0e5f181f94f2ff9f984b4807887c4d2c6f642723 0e5f181f94f2ff9f984b4807887c4d2c6f642723 M	main.c
+EOF
+
+test_expect_failure 'Valide file mode modify' '
+(cd repo.git &&
+    git diff-tree master^ master >actual &&
+    test_cmp ../expect actual)
+'
+
+test_tick
+
 mkdir -p repo.svn/trunk/lib
 cat >repo.svn/trunk/lib.c <<EOF
 void dummy(void) {
@@ -299,7 +343,7 @@ test_expect_success 'Validate branch create' '
 '
 
 cat >expect <<EOF
-913d92d New feature branch created
+ab7ada7 New feature branch created
 EOF
 
 test_expect_success 'Validate branch last commit' '

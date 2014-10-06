@@ -22,7 +22,7 @@
 
 #include "parse.h"
 
-#include "dump.h"
+#include "backend.h"
 #include "trie.h"
 #include "utils.h"
 
@@ -46,7 +46,7 @@ typedef struct
 typedef struct
 {
     apr_pool_t *pool;
-    svn_stream_t *output;
+    backend_t backend;
     mark_t last_mark;
     git_svn_options_t *options;
     apr_hash_t *blobs;
@@ -195,7 +195,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
                 branch->name = apr_pstrdup(ctx->pool, subpath);
                 branch->path = apr_pstrdup(ctx->pool, path);
             }
-            dump_branch_found(ctx->output, branch, pool);
+            backend_notify_branch_found(&ctx->backend, branch, pool);
             trie_insert(ctx->branches, branch->path, branch);
         }
     }
@@ -346,6 +346,7 @@ delete_node_property(void *n_ctx, const char *name)
 static svn_error_t *
 set_fulltext(svn_stream_t **stream, void *n_ctx)
 {
+    git_svn_status_t err;
     parser_ctx_t *ctx = n_ctx;
     node_t *node = ctx->node;
 
@@ -363,7 +364,11 @@ set_fulltext(svn_stream_t **stream, void *n_ctx)
 
     blob->mark = ctx->last_mark++;
     SVN_ERR(svn_stream_for_stdout(stream, pool));
-    SVN_ERR(dump_blob_header(*stream, blob, pool));
+
+    err = backend_write_blob_header(&ctx->backend, blob, pool);
+    if (err) {
+        return svn_error_create(SVN_ERR_BASE, NULL, NULL);
+    }
 
     return SVN_NO_ERROR;
 }
@@ -387,26 +392,17 @@ close_node(void *n_ctx)
 static svn_error_t *
 close_revision(void *r_ctx)
 {
+    git_svn_status_t err;
     parser_ctx_t *ctx = r_ctx;
     revision_t *rev = ctx->rev_ctx->rev;
     apr_pool_t *pool = ctx->rev_ctx->pool;
-    svn_stream_t *out = ctx->output;
-
-    if (rev->revnum == 0 || rev->branch == NULL) {
-        SVN_ERR(dump_revision_noop(out, rev, pool));
-        return SVN_NO_ERROR;
-    }
 
     rev->mark = ctx->last_mark++;
 
-    SVN_ERR(dump_revision_begin(out, rev, pool));
-
-    for (int i = 0; i < ctx->rev_ctx->nodes->nelts; i++) {
-        node_t *node = &APR_ARRAY_IDX(ctx->rev_ctx->nodes, i, node_t);
-        SVN_ERR(dump_node(out, node, pool));
+    err = backend_write_revision(&ctx->backend, rev, ctx->rev_ctx->nodes, pool);
+    if (err) {
+        return svn_error_create(SVN_ERR_BASE, NULL, NULL);
     }
-
-    SVN_ERR(dump_revision_end(out, rev, pool));
 
     apr_hash_set(ctx->revisions, &rev->revnum, sizeof(revnum_t), rev);
 
@@ -469,7 +465,7 @@ git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
     ctx.options = options;
 
     // Write to stdout
-    err = svn_stream_for_stdout(&ctx.output, pool);
+    err = svn_stream_for_stdout(&ctx.backend.out, pool);
     if (err != NULL) {
         return GIT_SVN_FAILURE;
     }

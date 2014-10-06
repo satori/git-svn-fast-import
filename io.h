@@ -20,17 +20,16 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef GIT_SVN_FAST_IMPORT_ERROR_H_
-#define GIT_SVN_FAST_IMPORT_ERROR_H_
+#ifndef GIT_SVN_FAST_IMPORT_IO_H_
+#define GIT_SVN_FAST_IMPORT_IO_H_
 
-#include <svn_error.h>
+#include "compat.h"
+#include "error.h"
 
-typedef int git_svn_status_t;
+#include <apr_pools.h>
+#include <svn_io.h>
 
-#define GIT_SVN_SUCCESS 0
-#define GIT_SVN_FAILURE 1
+git_svn_status_t
+io_printf(svn_stream_t *out, apr_pool_t *pool, const char *fmt, ...);
 
-void
-handle_svn_error(svn_error_t *err);
-
-#endif // GIT_SVN_FAST_IMPORT_ERROR_H_
+#endif // GIT_SVN_FAST_IMPORT_IO_H_

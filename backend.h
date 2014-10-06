@@ -20,29 +20,26 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef GIT_SVN_FAST_IMPORT_DUMP_H_
-#define GIT_SVN_FAST_IMPORT_DUMP_H_
+#ifndef GIT_SVN_FAST_IMPORT_BACKEND_H_
+#define GIT_SVN_FAST_IMPORT_BACKEND_H_
 
+#include "error.h"
 #include "types.h"
 
 #include <svn_io.h>
 
-svn_error_t *
-dump_revision_begin(svn_stream_t *out, revision_t *rev, apr_pool_t *pool);
+typedef struct
+{
+    svn_stream_t *out;
+} backend_t;
 
-svn_error_t *
-dump_revision_end(svn_stream_t *out, revision_t *rev, apr_pool_t *pool);
+git_svn_status_t
+backend_write_revision(backend_t *be, revision_t *rev, apr_array_header_t *nodes, apr_pool_t *pool);
 
-svn_error_t *
-dump_revision_noop(svn_stream_t *out, revision_t *rev, apr_pool_t *pool);
+git_svn_status_t
+backend_write_blob_header(backend_t *be, blob_t *blob, apr_pool_t *pool);
 
-svn_error_t *
-dump_branch_found(svn_stream_t *out, branch_t *rev, apr_pool_t *pool);
+git_svn_status_t
+backend_notify_branch_found(backend_t *be, branch_t *branch, apr_pool_t *pool);
 
-svn_error_t *
-dump_node(svn_stream_t *out, node_t *node, apr_pool_t *pool);
-
-svn_error_t *
-dump_blob_header(svn_stream_t *out, blob_t *blob, apr_pool_t *pool);
-
-#endif // GIT_SVN_FAST_IMPORT_DUMP_H_
+#endif // GIT_SVN_FAST_IMPORT_BACKEND_H_

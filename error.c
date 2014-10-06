@@ -20,17 +20,10 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef GIT_SVN_FAST_IMPORT_ERROR_H_
-#define GIT_SVN_FAST_IMPORT_ERROR_H_
-
-#include <svn_error.h>
-
-typedef int git_svn_status_t;
-
-#define GIT_SVN_SUCCESS 0
-#define GIT_SVN_FAILURE 1
+#include "error.h"
 
 void
-handle_svn_error(svn_error_t *err);
-
-#endif // GIT_SVN_FAST_IMPORT_ERROR_H_
+handle_svn_error(svn_error_t *err)
+{
+    svn_handle_error2(err, stderr, FALSE, "svn-fast-export: ");
+}

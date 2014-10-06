@@ -80,8 +80,8 @@ revision_end(svn_stream_t *out, revision_t *rev, apr_pool_t *pool)
 static git_svn_status_t
 node_modify(svn_stream_t *out, node_t *node, apr_pool_t *pool)
 {
-    if (node->kind == KIND_DIR) {
-        return SVN_NO_ERROR;
+    if (node->kind == KIND_DIR || node->blob == NULL) {
+        return GIT_SVN_SUCCESS;
     }
     return io_printf(out, pool, "M %o :%d \"%s\"\n", node->mode, node->blob->mark, node->path);
 }

@@ -28,21 +28,21 @@
 #include <svn_io.h>
 
 svn_error_t *
-git_svn_dump_revision_begin(svn_stream_t *out, git_svn_revision_t *rev, apr_pool_t *pool);
+dump_revision_begin(svn_stream_t *out, revision_t *rev, apr_pool_t *pool);
 
 svn_error_t *
-git_svn_dump_revision_end(svn_stream_t *out, git_svn_revision_t *rev, apr_pool_t *pool);
+dump_revision_end(svn_stream_t *out, revision_t *rev, apr_pool_t *pool);
 
 svn_error_t *
-git_svn_dump_revision_noop(svn_stream_t *out, git_svn_revision_t *rev, apr_pool_t *pool);
+dump_revision_noop(svn_stream_t *out, revision_t *rev, apr_pool_t *pool);
 
 svn_error_t *
-git_svn_dump_branch_found(svn_stream_t *out, git_svn_branch_t *rev, apr_pool_t *pool);
+dump_branch_found(svn_stream_t *out, branch_t *rev, apr_pool_t *pool);
 
 svn_error_t *
-git_svn_dump_node(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool);
+dump_node(svn_stream_t *out, node_t *node, apr_pool_t *pool);
 
 svn_error_t *
-git_svn_dump_blob_header(svn_stream_t *out, git_svn_blob_t *blob, apr_pool_t *pool);
+dump_blob_header(svn_stream_t *out, blob_t *blob, apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_DUMP_H_

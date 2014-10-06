@@ -29,20 +29,20 @@
 
 #define TRIE_SIZE 256
 
-typedef struct git_svn_trie_t
+typedef struct trie_t
 {
     apr_pool_t *pool;
     void *value;
-    struct git_svn_trie_t *chars[TRIE_SIZE];
-} git_svn_trie_t;
+    struct trie_t *chars[TRIE_SIZE];
+} trie_t;
 
-git_svn_trie_t *
-git_svn_trie_create(apr_pool_t *pool);
+trie_t *
+trie_create(apr_pool_t *pool);
 
 void
-git_svn_trie_insert(git_svn_trie_t *t, const char *key, void *value);
+trie_insert(trie_t *t, const char *key, void *value);
 
 void *
-git_svn_trie_find_prefix(git_svn_trie_t *t, const char *key);
+trie_find_prefix(trie_t *t, const char *key);
 
 #endif // GIT_SVN_FAST_IMPORT_TRIE_H_

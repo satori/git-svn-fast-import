@@ -23,7 +23,7 @@
 #include "dump.h"
 
 svn_error_t *
-git_svn_dump_revision_begin(svn_stream_t *out, git_svn_revision_t *rev, apr_pool_t *pool)
+dump_revision_begin(svn_stream_t *out, revision_t *rev, apr_pool_t *pool)
 {
     SVN_ERR(svn_stream_printf(out, pool, "commit refs/heads/%s\n", rev->branch->name));
     SVN_ERR(svn_stream_printf(out, pool, "mark :%d\n", rev->mark));
@@ -40,7 +40,7 @@ git_svn_dump_revision_begin(svn_stream_t *out, git_svn_revision_t *rev, apr_pool
 }
 
 svn_error_t *
-git_svn_dump_revision_end(svn_stream_t *out, git_svn_revision_t *rev, apr_pool_t *pool)
+dump_revision_end(svn_stream_t *out, revision_t *rev, apr_pool_t *pool)
 {
     SVN_ERR(svn_stream_printf(out, pool, "progress Imported revision %d\n", rev->revnum));
 
@@ -48,7 +48,7 @@ git_svn_dump_revision_end(svn_stream_t *out, git_svn_revision_t *rev, apr_pool_t
 }
 
 svn_error_t *
-git_svn_dump_revision_noop(svn_stream_t *out, git_svn_revision_t *rev, apr_pool_t *pool)
+dump_revision_noop(svn_stream_t *out, revision_t *rev, apr_pool_t *pool)
 {
     SVN_ERR(svn_stream_printf(out, pool, "progress Skipped revision %d\n", rev->revnum));
 
@@ -56,7 +56,7 @@ git_svn_dump_revision_noop(svn_stream_t *out, git_svn_revision_t *rev, apr_pool_
 }
 
 svn_error_t *
-git_svn_dump_branch_found(svn_stream_t *out, git_svn_branch_t *branch, apr_pool_t *pool)
+dump_branch_found(svn_stream_t *out, branch_t *branch, apr_pool_t *pool)
 {
     SVN_ERR(svn_stream_printf(out, pool, "progress Found branch at %s\n", branch->path));
 
@@ -64,37 +64,37 @@ git_svn_dump_branch_found(svn_stream_t *out, git_svn_branch_t *branch, apr_pool_
 }
 
 static svn_error_t *
-node_modify(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
+node_modify(svn_stream_t *out, node_t *node, apr_pool_t *pool)
 {
-    if (node->kind == GIT_SVN_NODE_DIR) {
+    if (node->kind == KIND_DIR) {
         return SVN_NO_ERROR;
     }
     return svn_stream_printf(out, pool, "M %o :%d \"%s\"\n", node->mode, node->blob->mark, node->path);
 }
 
 static svn_error_t *
-node_delete(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
+node_delete(svn_stream_t *out, node_t *node, apr_pool_t *pool)
 {
     return svn_stream_printf(out, pool, "D \"%s\"\n", node->path);
 }
 
 static svn_error_t *
-node_replace(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
+node_replace(svn_stream_t *out, node_t *node, apr_pool_t *pool)
 {
     SVN_ERR(node_delete(out, node, pool));
     return node_modify(out, node, pool);
 }
 
 svn_error_t *
-git_svn_dump_node(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
+dump_node(svn_stream_t *out, node_t *node, apr_pool_t *pool)
 {
     switch (node->action) {
-    case GIT_SVN_ACTION_ADD:
-    case GIT_SVN_ACTION_CHANGE:
+    case ACTION_ADD:
+    case ACTION_CHANGE:
         return node_modify(out, node, pool);
-    case GIT_SVN_ACTION_DELETE:
+    case ACTION_DELETE:
         return node_delete(out, node, pool);
-    case GIT_SVN_ACTION_REPLACE:
+    case ACTION_REPLACE:
         return node_replace(out, node, pool);
     default:
         return SVN_NO_ERROR;
@@ -102,7 +102,7 @@ git_svn_dump_node(svn_stream_t *out, git_svn_node_t *node, apr_pool_t *pool)
 }
 
 svn_error_t *
-git_svn_dump_blob_header(svn_stream_t *out, git_svn_blob_t *blob, apr_pool_t *pool)
+dump_blob_header(svn_stream_t *out, blob_t *blob, apr_pool_t *pool)
 {
     SVN_ERR(svn_stream_printf(out, pool, "blob\n"));
     SVN_ERR(svn_stream_printf(out, pool, "mark :%d\n", blob->mark));

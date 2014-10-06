@@ -25,60 +25,60 @@
 
 #include "compat.h"
 
-#define GIT_SVN_CHECKSUM_BYTES_LENGTH 20
+#define CHECKSUM_BYTES_LENGTH 20
 
-typedef uint32_t git_svn_mark_t;
-typedef int32_t git_svn_revnum_t;
+typedef uint32_t mark_t;
+typedef int32_t revnum_t;
 
 typedef struct
 {
     const char *name;
     const char *path;
-} git_svn_branch_t;
+} branch_t;
 
-typedef struct git_svn_revision_t
+typedef struct revision_t
 {
-    git_svn_mark_t mark;
-    git_svn_revnum_t revnum;
+    mark_t mark;
+    revnum_t revnum;
     int64_t timestamp;
-    git_svn_branch_t *branch;
+    branch_t *branch;
     const char *author;
     const char *message;
-    struct git_svn_revision_t *copyfrom;
-} git_svn_revision_t;
+    struct revision_t *copyfrom;
+} revision_t;
 
-typedef uint8_t git_svn_checksum_t[GIT_SVN_CHECKSUM_BYTES_LENGTH];
+typedef uint8_t checksum_t[CHECKSUM_BYTES_LENGTH];
 
 typedef struct
 {
-    git_svn_mark_t mark;
+    mark_t mark;
     size_t length;
-    git_svn_checksum_t checksum;
-} git_svn_blob_t;
+    checksum_t checksum;
+} blob_t;
 
 typedef enum
 {
-    GIT_SVN_ACTION_NOOP,
-    GIT_SVN_ACTION_ADD,
-    GIT_SVN_ACTION_CHANGE,
-    GIT_SVN_ACTION_DELETE,
-    GIT_SVN_ACTION_REPLACE
-} git_svn_node_action_t;
+    ACTION_NOOP,
+    ACTION_ADD,
+    ACTION_CHANGE,
+    ACTION_DELETE,
+    ACTION_REPLACE
+} node_action_t;
 
 typedef enum
 {
-    GIT_SVN_NODE_UNKNOWN,
-    GIT_SVN_NODE_FILE,
-    GIT_SVN_NODE_DIR
-} git_svn_node_kind_t;
+    KIND_UNKNOWN,
+    KIND_FILE,
+    KIND_DIR
+} node_kind_t;
 
 typedef struct
 {
-    git_svn_node_action_t action;
-    git_svn_node_kind_t kind;
+    node_action_t action;
+    node_kind_t kind;
     uint32_t mode;
     const char *path;
-    git_svn_blob_t *blob;
-} git_svn_node_t;
+    blob_t *blob;
+} node_t;
 
 #endif // GIT_SVN_FAST_IMPORT_TYPES_H_

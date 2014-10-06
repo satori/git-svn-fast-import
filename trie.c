@@ -22,21 +22,21 @@
 
 #include "trie.h"
 
-git_svn_trie_t *
-git_svn_trie_create(apr_pool_t *pool)
+trie_t *
+trie_create(apr_pool_t *pool)
 {
-    git_svn_trie_t *t = apr_pcalloc(pool, sizeof(git_svn_trie_t));
+    trie_t *t = apr_pcalloc(pool, sizeof(trie_t));
     t->pool = pool;
     return t;
 }
 
 void
-git_svn_trie_insert(git_svn_trie_t *t, const char *key, void *value)
+trie_insert(trie_t *t, const char *key, void *value)
 {
     unsigned char c;
     while ((c = *key++)) {
         if (t->chars[c] == NULL) {
-            t->chars[c] = git_svn_trie_create(t->pool);
+            t->chars[c] = trie_create(t->pool);
         }
         t = t->chars[c];
     }
@@ -44,7 +44,7 @@ git_svn_trie_insert(git_svn_trie_t *t, const char *key, void *value)
 }
 
 void *
-git_svn_trie_find_prefix(git_svn_trie_t *t, const char *key)
+trie_find_prefix(trie_t *t, const char *key)
 {
     unsigned char c;
     while ((c = *key++)) {

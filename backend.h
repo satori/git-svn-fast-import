@@ -31,6 +31,7 @@
 typedef struct
 {
     svn_stream_t *out;
+    svn_stream_t *back;
 } backend_t;
 
 git_svn_status_t
@@ -41,5 +42,8 @@ backend_write_blob_header(backend_t *be, blob_t *blob, apr_pool_t *pool);
 
 git_svn_status_t
 backend_notify_branch_found(backend_t *be, branch_t *branch, apr_pool_t *pool);
+
+git_svn_status_t
+backend_get_checksum(backend_t *be, uint8_t *sha1, revision_t *rev, const char *path, apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_BACKEND_H_

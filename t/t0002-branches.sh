@@ -150,7 +150,7 @@ cat >expect <<EOF
 :100755 100644 0e5f181f94f2ff9f984b4807887c4d2c6f642723 0e5f181f94f2ff9f984b4807887c4d2c6f642723 M	main.c
 EOF
 
-test_expect_failure 'Valide file mode modify' '
+test_expect_failure 'Validate file mode modify' '
 (cd repo.git &&
     git diff-tree master^ master >actual &&
     test_cmp ../expect actual)
@@ -221,12 +221,12 @@ test_expect_success 'Commit file copy' '
 test_export_import
 
 cat >expect <<EOF
-:000000 100644 0000000000000000000000000000000000000000 0e5f181f94f2ff9f984b4807887c4d2c6f642723 A	lib/main.c
+:100644 100644 0e5f181f94f2ff9f984b4807887c4d2c6f642723 0e5f181f94f2ff9f984b4807887c4d2c6f642723 C100	main.c	lib/main.c
 EOF
 
 test_expect_success 'Validate file copy' '
 (cd repo.git &&
-	git diff-tree -M -r master^ master >actual &&
+	git diff-tree --find-copies-harder -r master^ master >actual &&
 	test_cmp ../expect actual)
 '
 
@@ -270,7 +270,7 @@ cat >expect <<EOF
 :100644 100644 0e5f181f94f2ff9f984b4807887c4d2c6f642723 0e5f181f94f2ff9f984b4807887c4d2c6f642723 R100	lib/main.c	src/main.c
 EOF
 
-test_expect_failure 'Validate directory move' '
+test_expect_success 'Validate directory move' '
 (cd repo.git &&
 	git diff-tree -M -r master^ master >actual &&
 	test_cmp ../expect actual)
@@ -292,7 +292,7 @@ cat >expect <<EOF
 :040000 040000 f9e724c547c90dfac10d779fcae9f9bc299245c1 f9e724c547c90dfac10d779fcae9f9bc299245c1 C100	src	lib
 EOF
 
-test_expect_failure 'Validate directory copy' '
+test_expect_success 'Validate directory copy' '
 (cd repo.git &&
 	git diff-tree --find-copies-harder master^ master >actual &&
 	test_cmp ../expect actual)
@@ -314,7 +314,7 @@ cat >expect <<EOF
 :040000 000000 f9e724c547c90dfac10d779fcae9f9bc299245c1 0000000000000000000000000000000000000000 D	src
 EOF
 
-test_expect_failure 'Validate directory remove' '
+test_expect_success 'Validate directory remove' '
 (cd repo.git &&
 	git diff-tree master^ master >actual &&
 	test_cmp ../expect actual)
@@ -343,7 +343,7 @@ test_expect_success 'Validate branch create' '
 '
 
 cat >expect <<EOF
-ab7ada7 New feature branch created
+6efdf6e New feature branch created
 EOF
 
 test_expect_success 'Validate branch last commit' '
@@ -494,7 +494,7 @@ cat >expect <<EOF
 :000000 040000 0000000000000000000000000000000000000000 16feeafb28986a880f6c361e0891d6f60cb29352 A	lib2
 EOF
 
-test_expect_failure 'Validate directory merge into master' '
+test_expect_success 'Validate directory merge into master' '
 (cd repo.git &&
 	git diff-tree master^ master >actual &&
 	test_cmp ../expect actual)
@@ -504,7 +504,7 @@ cat >expect <<EOF
 :000000 100644 0000000000000000000000000000000000000000 b6289d9d04ef92ec0efbc839ebb78965906c5d7d A	lib2/fun.c
 EOF
 
-test_expect_failure 'Validate file merge inside new dir into master' '
+test_expect_success 'Validate file merge inside new dir into master' '
 (cd repo.git &&
 	git diff-tree -r master^ master >actual &&
 	test_cmp ../expect actual)

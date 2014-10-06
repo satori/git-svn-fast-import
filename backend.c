@@ -23,6 +23,7 @@
 #include "backend.h"
 
 #include "io.h"
+#include "utils.h"
 
 static git_svn_status_t
 revision_noop(svn_stream_t *out, revision_t *rev, apr_pool_t *pool)
@@ -78,12 +79,39 @@ revision_end(svn_stream_t *out, revision_t *rev, apr_pool_t *pool)
 }
 
 static git_svn_status_t
+node_modify_blob(svn_stream_t *out, node_t *node, apr_pool_t *pool)
+{
+    blob_t *blob = node->content.data.blob;
+
+    return io_printf(out, pool, "M %o :%d \"%s\"\n", node->mode, blob->mark, node->path);
+}
+
+static git_svn_status_t
+node_modify_checksum(svn_stream_t *out, node_t *node, apr_pool_t *pool)
+{
+    git_svn_status_t err;
+    char checksum[CHECKSUM_CHARS_LENGTH + 1];
+    checksum[CHECKSUM_CHARS_LENGTH] = '\0';
+
+    err = bytes_to_hex(checksum, node->content.data.checksum, CHECKSUM_BYTES_LENGTH);
+    if (err) {
+        return err;
+    }
+
+    return io_printf(out, pool, "M %o %s \"%s\"\n", node->mode, checksum, node->path);
+}
+
+static git_svn_status_t
 node_modify(svn_stream_t *out, node_t *node, apr_pool_t *pool)
 {
-    if (node->kind == KIND_DIR || node->blob == NULL) {
+    switch (node->content.kind) {
+    case CONTENT_CHECKSUM:
+        return node_modify_checksum(out, node, pool);
+    case CONTENT_BLOB:
+        return node_modify_blob(out, node, pool);
+    default:
         return GIT_SVN_SUCCESS;
     }
-    return io_printf(out, pool, "M %o :%d \"%s\"\n", node->mode, node->blob->mark, node->path);
 }
 
 static git_svn_status_t
@@ -176,4 +204,34 @@ git_svn_status_t
 backend_notify_branch_found(backend_t *be, branch_t *branch, apr_pool_t *pool)
 {
     return io_printf(be->out, pool, "progress Found branch at %s\n", branch->path);
+}
+
+git_svn_status_t
+backend_get_checksum(backend_t *be, uint8_t *sha1, revision_t *rev, const char *path, apr_pool_t *pool)
+{
+    const char *next, *prev;
+    git_svn_status_t err;
+
+    err = io_printf(be->out, pool, "ls :%d \"%s\"\n", rev->mark, path);
+    if (err) {
+        return err;
+    }
+
+    err = io_readline(be->back, &next, pool);
+    if (err) {
+        return err;
+    }
+
+    if (*next == 'm') { // missing path
+        fprintf(stderr, "%s\n", next);
+        return GIT_SVN_FAILURE;
+    }
+
+    for (int i = 0; i < 3; i++) {
+        prev = next;
+        next = strchr(prev, ' ');
+        next++;
+    }
+
+    return hex_to_bytes(sha1, prev, CHECKSUM_BYTES_LENGTH);
 }

@@ -26,10 +26,13 @@
 #include "trie.h"
 #include "utils.h"
 
+#include <apr_portable.h>
 #include <svn_props.h>
 #include <svn_repos.h>
 #include <svn_time.h>
 #include <svn_version.h>
+
+#define BACK_FILENO 3
 
 #define MODE_NORMAL     0100644
 #define MODE_EXECUTABLE 0100755
@@ -144,19 +147,59 @@ get_node_default_mode(node_kind_t kind)
     }
 }
 
+static git_svn_status_t
+get_node_blob(blob_t **dst, apr_hash_t *headers, parser_ctx_t *ctx)
+{
+    git_svn_status_t err;
+    const char *content_sha1, *content_length;
+    checksum_t checksum;
+    blob_t *blob;
+
+    content_sha1 = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_SHA1, APR_HASH_KEY_STRING);
+    if (content_sha1 == NULL) {
+        content_sha1 = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_COPY_SOURCE_SHA1, APR_HASH_KEY_STRING);
+    }
+
+    if (content_sha1 == NULL) {
+        return GIT_SVN_SUCCESS;
+    }
+
+    err = hex_to_bytes(checksum, content_sha1, CHECKSUM_BYTES_LENGTH);
+    if (err) {
+        return err;
+    }
+
+    blob = apr_hash_get(ctx->blobs, checksum, sizeof(checksum_t));
+
+    if (blob == NULL) {
+        blob = apr_pcalloc(ctx->pool, sizeof(blob_t));
+        memcpy(blob->checksum, checksum, sizeof(checksum_t));
+
+        content_length = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_LENGTH, APR_HASH_KEY_STRING);
+        if (content_length != NULL) {
+            blob->length = svn__atoui64(content_length);
+        }
+
+        apr_hash_set(ctx->blobs, blob->checksum, sizeof(checksum_t), blob);
+    }
+
+    *dst = blob;
+
+    return GIT_SVN_SUCCESS;
+}
+
 static svn_error_t *
 new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
 {
-    const char *value;
     const char *path, *subpath, *branch_root;
-    const char *copyfrom_path, *copyfrom_revnum;
+    const char *copyfrom_path, *copyfrom_subpath, *copyfrom_revnum;
     parser_ctx_t *ctx = r_ctx;
     revision_t *rev, *copyfrom_rev = NULL;
     node_t *node;
     node_action_t action;
     node_kind_t kind;
-    checksum_t checksum;
-    branch_t *branch;
+    blob_t *blob = NULL;
+    branch_t *branch, *copyfrom_branch = NULL;
     git_svn_status_t err;
 
     rev = ctx->rev_ctx->rev;
@@ -168,6 +211,9 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     }
 
     copyfrom_path = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_COPYFROM_PATH, APR_HASH_KEY_STRING);
+    if (copyfrom_path != NULL) {
+        copyfrom_branch = trie_find_prefix(ctx->branches, copyfrom_path);
+    }
 
     copyfrom_revnum = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_COPYFROM_REV, APR_HASH_KEY_STRING);
     if (copyfrom_revnum != NULL) {
@@ -227,36 +273,32 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         node->path = apr_pstrdup(ctx->rev_ctx->pool, subpath);
     }
 
-    if (copyfrom_rev != NULL && node->kind == KIND_DIR && node->action == ACTION_ADD && *node->path == '\0') {
+    if (node->kind == KIND_DIR && node->action == ACTION_ADD && *node->path == '\0' && copyfrom_rev != NULL) {
         rev->copyfrom = copyfrom_rev;
     }
 
-    value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_SHA1, APR_HASH_KEY_STRING);
-    if (value == NULL) {
-        value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_COPY_SOURCE_SHA1, APR_HASH_KEY_STRING);
+    if (node->kind == KIND_FILE) {
+        err = get_node_blob(&blob, headers, ctx);
+        if (err) {
+            return svn_error_create(SVN_ERR_BASE, NULL, NULL);
+        }
+        if (blob != NULL) {
+            node->content.data.blob = blob;
+            node->content.kind = CONTENT_BLOB;
+        }
     }
 
-    if (value != NULL) {
-        err = hex_to_bytes(checksum, value, CHECKSUM_BYTES_LENGTH);
+    if (node->content.kind == CONTENT_UNKNOWN && copyfrom_branch != NULL) {
+        copyfrom_subpath = cstring_skip_prefix(copyfrom_path, copyfrom_branch->path);
+        if (*copyfrom_subpath == '/') {
+            copyfrom_subpath++;
+        }
+
+        err = backend_get_checksum(&ctx->backend, node->content.data.checksum, copyfrom_rev, copyfrom_subpath, ctx->rev_ctx->pool);
         if (err) {
-            return svn_error_create(SVN_ERR_BAD_CHECKSUM_PARSE, NULL, NULL);
+            return svn_error_create(SVN_ERR_BASE, NULL, NULL);
         }
-
-        blob_t *blob = apr_hash_get(ctx->blobs, checksum, sizeof(checksum_t));
-
-        if (blob == NULL) {
-            blob = apr_pcalloc(ctx->pool, sizeof(*blob));
-            memcpy(blob->checksum, checksum, sizeof(checksum_t));
-
-            value = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_LENGTH, APR_HASH_KEY_STRING);
-            if (value != NULL) {
-                blob->length = svn__atoui64(value);
-            }
-
-            apr_hash_set(ctx->blobs, blob->checksum, sizeof(checksum_t), blob);
-        }
-
-        node->blob = blob;
+        node->content.kind = CONTENT_CHECKSUM;
     }
 
     ctx->node = node;
@@ -354,7 +396,7 @@ set_fulltext(svn_stream_t **stream, void *n_ctx)
         return SVN_NO_ERROR;
     }
 
-    blob_t *blob = node->blob;
+    blob_t *blob = node->content.data.blob;
     apr_pool_t *pool = ctx->rev_ctx->pool;
 
     if (blob->mark) {
@@ -441,12 +483,16 @@ static const svn_repos_parse_fns2_t callbacks = {
 git_svn_status_t
 git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
 {
-    svn_error_t *err;
-
+    apr_file_t *back_file;
+    apr_status_t apr_err;
+    svn_error_t *svn_err;
     svn_stream_t *input;
+    int back_fd = BACK_FILENO;
+
     // Read the input from stdin
-    err = svn_stream_for_stdin(&input, pool);
-    if (err != NULL) {
+    svn_err = svn_stream_for_stdin(&input, pool);
+    if (svn_err != NULL) {
+        handle_svn_error(svn_err);
         return GIT_SVN_FAILURE;
     }
 
@@ -465,17 +511,27 @@ git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
     ctx.options = options;
 
     // Write to stdout
-    err = svn_stream_for_stdout(&ctx.backend.out, pool);
-    if (err != NULL) {
+    svn_err = svn_stream_for_stdout(&ctx.backend.out, pool);
+    if (svn_err != NULL) {
+        handle_svn_error(svn_err);
         return GIT_SVN_FAILURE;
     }
 
+    // Read backend answers
+    apr_err = apr_os_file_put(&back_file, &back_fd, APR_FOPEN_READ, pool);
+    if (apr_err) {
+        return GIT_SVN_FAILURE;
+    }
+
+    ctx.backend.back = svn_stream_from_aprfile2(back_file, FALSE, pool);
+
 #if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
-    err = svn_repos_parse_dumpstream3(input, &callbacks, &ctx, FALSE, check_cancel, NULL, pool);
+    svn_err = svn_repos_parse_dumpstream3(input, &callbacks, &ctx, FALSE, check_cancel, NULL, pool);
 #else
-    err = svn_repos_parse_dumpstream2(input, &callbacks, &ctx, check_cancel, NULL, pool);
+    svn_err = svn_repos_parse_dumpstream2(input, &callbacks, &ctx, check_cancel, NULL, pool);
 #endif
-    if (err != NULL) {
+    if (svn_err != NULL) {
+        handle_svn_error(svn_err);
         return GIT_SVN_FAILURE;
     }
 

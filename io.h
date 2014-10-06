@@ -26,10 +26,12 @@
 #include "compat.h"
 #include "error.h"
 
-#include <apr_pools.h>
 #include <svn_io.h>
 
 git_svn_status_t
 io_printf(svn_stream_t *out, apr_pool_t *pool, const char *fmt, ...);
+
+git_svn_status_t
+io_readline(svn_stream_t *in, const char **dst, apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_IO_H_

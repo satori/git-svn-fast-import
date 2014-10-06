@@ -26,6 +26,7 @@
 #include "compat.h"
 
 #define CHECKSUM_BYTES_LENGTH 20
+#define CHECKSUM_CHARS_LENGTH 40
 
 typedef uint32_t mark_t;
 typedef int32_t revnum_t;
@@ -72,13 +73,26 @@ typedef enum
     KIND_DIR
 } node_kind_t;
 
+typedef enum
+{
+    CONTENT_UNKNOWN,
+    CONTENT_CHECKSUM,
+    CONTENT_BLOB
+} content_kind_t;
+
 typedef struct
 {
     node_action_t action;
     node_kind_t kind;
     uint32_t mode;
     const char *path;
-    blob_t *blob;
+    struct {
+        content_kind_t kind;
+        union {
+            checksum_t checksum;
+            blob_t *blob;
+        } data;
+    } content;
 } node_t;
 
 #endif // GIT_SVN_FAST_IMPORT_TYPES_H_

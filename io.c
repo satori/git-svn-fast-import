@@ -46,3 +46,21 @@ io_printf(svn_stream_t *out, apr_pool_t *pool, const char *fmt, ...)
 
     return GIT_SVN_SUCCESS;
 }
+
+git_svn_status_t
+io_readline(svn_stream_t *in, const char **dst, apr_pool_t *pool)
+{
+    svn_error_t *err;
+    svn_boolean_t eof;
+    svn_stringbuf_t *buf;
+
+    err = svn_stream_readline(in, &buf, "\n", &eof, pool);
+    if (err) {
+        handle_svn_error(err);
+        return GIT_SVN_FAILURE;
+    }
+
+    *dst = buf->data;
+
+    return GIT_SVN_SUCCESS;
+}

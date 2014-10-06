@@ -209,12 +209,12 @@ test_expect_success 'Commit file copy' '
 test_export_import
 
 cat >expect <<EOF
-:000000 100644 0000000000000000000000000000000000000000 0e5f181f94f2ff9f984b4807887c4d2c6f642723 A	lib/main.c
+:100644 100644 0e5f181f94f2ff9f984b4807887c4d2c6f642723 0e5f181f94f2ff9f984b4807887c4d2c6f642723 C100	main.c	lib/main.c
 EOF
 
 test_expect_success 'Validate file copy' '
 (cd repo.git &&
-	git diff-tree -M -r master^ master >actual &&
+	git diff-tree --find-copies-harder -r master^ master >actual &&
 	test_cmp ../expect actual)
 '
 
@@ -258,7 +258,7 @@ cat >expect <<EOF
 :100644 100644 0e5f181f94f2ff9f984b4807887c4d2c6f642723 0e5f181f94f2ff9f984b4807887c4d2c6f642723 R100	lib/main.c	src/main.c
 EOF
 
-test_expect_failure 'Validate directory move' '
+test_expect_success 'Validate directory move' '
 (cd repo.git &&
 	git diff-tree -M -r master^ master >actual &&
 	test_cmp ../expect actual)
@@ -280,7 +280,7 @@ cat >expect <<EOF
 :040000 040000 f9e724c547c90dfac10d779fcae9f9bc299245c1 f9e724c547c90dfac10d779fcae9f9bc299245c1 C100	src	lib
 EOF
 
-test_expect_failure 'Validate directory copy' '
+test_expect_success 'Validate directory copy' '
 (cd repo.git &&
 	git diff-tree --find-copies-harder master^ master >actual &&
 	test_cmp ../expect actual)
@@ -302,7 +302,7 @@ cat >expect <<EOF
 :040000 000000 f9e724c547c90dfac10d779fcae9f9bc299245c1 0000000000000000000000000000000000000000 D	src
 EOF
 
-test_expect_failure 'Validate directory remove' '
+test_expect_success 'Validate directory remove' '
 (cd repo.git &&
 	git diff-tree master^ master >actual &&
 	test_cmp ../expect actual)

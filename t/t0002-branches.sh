@@ -26,20 +26,27 @@ test_description='Test branch history support'
 . ./helpers.sh
 . ./lib/test.sh
 
-test_export_import() {
-	test_expect_success 'Import dump into Git' '
+export_import() {
 	svnadmin dump repo >repo.dump &&
 		(cd repo.git && git-svn-fast-import --stdlayout <../repo.dump)
+}
+
+test_export_import() {
+	test_expect_success 'Import dump into Git' 'export_import'
+}
+
+test_init_repos() {
+	test_expect_success 'Initialize repositories' '
+	rm -rf repo repo.svn repo.git &&
+	    svnadmin create repo &&
+	    echo "#!/bin/sh" >repo/hooks/pre-revprop-change &&
+		chmod +x repo/hooks/pre-revprop-change &&
+		svn checkout file:///$(pwd)/repo repo.svn &&
+		git init repo.git
 	'
 }
 
-test_expect_success 'Initialize repositories' '
-svnadmin create repo &&
-	echo "#!/bin/sh" >repo/hooks/pre-revprop-change &&
-	chmod +x repo/hooks/pre-revprop-change &&
-	svn checkout file:///$(pwd)/repo repo.svn &&
-	git init repo.git
-'
+test_init_repos
 
 test_tick
 
@@ -54,13 +61,52 @@ test_expect_success 'Commit standard directories layout' '
 
 test_export_import
 
+test_tick
+
+mkdir -p repo.svn/branches/without_parent
+
+test_expect_success 'Create branch without parent' '
+(cd repo.svn &&
+	svn add branches/without_parent &&
+	svn commit -m "Add branch without parent" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_expect_failure 'Import dump into Git' 'export_import'
+
+cat >expect <<EOF
+  without_parent
+EOF
+
+test_expect_failure 'Validate branch creation' '
+(cd repo.git &&
+	git branch --list without_parent >actual &&
+	test_cmp ../expect actual)
+'
+
+test_init_repos
+
+test_tick
+
+test_expect_success 'Commit standard directories layout' '
+(cd repo.svn &&
+	mkdir -p branches tags trunk &&
+	svn add branches tags trunk &&
+	svn commit -m "Standard project directories initialized." &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+test_tick
+
 cat >repo.svn/trunk/main.c <<EOF
 int main() {
 	return 0;
 }
 EOF
-
-test_tick
 
 test_expect_success 'Commit new file into trunk' '
 (cd repo.svn &&
@@ -343,7 +389,7 @@ test_expect_success 'Validate branch create' '
 '
 
 cat >expect <<EOF
-6efdf6e New feature branch created
+fe30eac New feature branch created
 EOF
 
 test_expect_success 'Validate branch last commit' '

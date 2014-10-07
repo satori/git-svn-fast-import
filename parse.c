@@ -147,6 +147,22 @@ get_node_default_mode(node_kind_t kind)
     }
 }
 
+static revision_t *
+get_node_copyfrom_rev(apr_hash_t *headers, parser_ctx_t *ctx)
+{
+    const char *copyfrom_revnum;
+    revnum_t revnum;
+
+    copyfrom_revnum = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_COPYFROM_REV, APR_HASH_KEY_STRING);
+    if (copyfrom_revnum == NULL) {
+        return NULL;
+    }
+
+    revnum = SVN_STR_TO_REV(copyfrom_revnum);
+
+    return apr_hash_get(ctx->revisions, &revnum, sizeof(revnum_t));
+}
+
 static git_svn_status_t
 get_node_blob(blob_t **dst, apr_hash_t *headers, parser_ctx_t *ctx)
 {
@@ -191,15 +207,14 @@ get_node_blob(blob_t **dst, apr_hash_t *headers, parser_ctx_t *ctx)
 static svn_error_t *
 new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
 {
-    const char *path, *subpath, *branch_root;
-    const char *copyfrom_path, *copyfrom_subpath, *copyfrom_revnum;
+    const char *path, *subpath;
+    const char *copyfrom_path, *copyfrom_subpath;
     parser_ctx_t *ctx = r_ctx;
     revision_t *rev, *copyfrom_rev = NULL;
     node_t *node;
     node_action_t action;
     node_kind_t kind;
-    blob_t *blob = NULL;
-    branch_t *branch, *copyfrom_branch = NULL;
+    branch_t *branch = NULL, *copyfrom_branch = NULL;
     git_svn_status_t err;
 
     rev = ctx->rev_ctx->rev;
@@ -210,40 +225,55 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         return SVN_NO_ERROR;
     }
 
+    copyfrom_rev = get_node_copyfrom_rev(headers, ctx);
+
     copyfrom_path = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_COPYFROM_PATH, APR_HASH_KEY_STRING);
     if (copyfrom_path != NULL) {
-        copyfrom_branch = trie_find_prefix(ctx->branches, copyfrom_path);
+        copyfrom_branch = trie_find_exact(ctx->branches, copyfrom_path);
     }
 
-    copyfrom_revnum = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_COPYFROM_REV, APR_HASH_KEY_STRING);
-    if (copyfrom_revnum != NULL) {
-        revnum_t revnum = SVN_STR_TO_REV(copyfrom_revnum);
-        copyfrom_rev = apr_hash_get(ctx->revisions, &revnum, sizeof(revnum_t));
+    subpath = cstring_skip_prefix(path, ctx->options->branches);
+    if (subpath == NULL) {
+        subpath = cstring_skip_prefix(path, ctx->options->tags);
+    }
+    if (subpath != NULL) {
+        if (*subpath == '/') {
+            subpath++;
+        }
     }
 
-    branch = trie_find_prefix(ctx->branches, path);
+    if (copyfrom_branch != NULL && subpath != NULL) {
+        if (copyfrom_rev != NULL) {
+            rev->copyfrom = copyfrom_rev;
+        }
+        branch = apr_pcalloc(ctx->pool, sizeof(branch_t));
+        branch->name = apr_pstrdup(ctx->pool, subpath);
+        branch->path = apr_pstrdup(ctx->pool, path);
+        backend_notify_branch_found(&ctx->backend, branch, pool);
+        trie_insert(ctx->branches, branch->path, branch);
+    }
+
+    if (copyfrom_branch == NULL && copyfrom_path != NULL) {
+        copyfrom_branch = trie_find_longest_prefix(ctx->branches, copyfrom_path);
+    }
+
     if (branch == NULL) {
-        subpath = cstring_skip_prefix(path, ctx->options->branches);
-        if (subpath == NULL) {
-            subpath = cstring_skip_prefix(path, ctx->options->tags);
+        branch = trie_find_longest_prefix(ctx->branches, path);
+    }
+    if (branch == NULL && subpath != NULL) {
+        const char *branch_root;
+        branch_root = strchr(subpath, '/');
+        branch = apr_pcalloc(ctx->pool, sizeof(branch_t));
+        if (branch_root != NULL) {
+            branch->name = apr_pstrndup(ctx->pool, subpath, branch_root - subpath);
+            branch->path = apr_pstrndup(ctx->pool, path, branch_root - path);
         }
-        if (subpath != NULL && *subpath != '\0') {
-            if (*subpath == '/') {
-                subpath++;
-            }
-            branch_root = strchr(subpath, '/');
-            branch = apr_pcalloc(ctx->pool, sizeof(*branch));
-            if (branch_root != NULL) {
-                branch->name = apr_pstrndup(ctx->pool, subpath, branch_root - subpath);
-                branch->path = apr_pstrndup(ctx->pool, path, branch_root - path);
-            }
-            else {
-                branch->name = apr_pstrdup(ctx->pool, subpath);
-                branch->path = apr_pstrdup(ctx->pool, path);
-            }
-            backend_notify_branch_found(&ctx->backend, branch, pool);
-            trie_insert(ctx->branches, branch->path, branch);
+        else {
+            branch->name = apr_pstrdup(ctx->pool, subpath);
+            branch->path = apr_pstrdup(ctx->pool, path);
         }
+        backend_notify_branch_found(&ctx->backend, branch, pool);
+        trie_insert(ctx->branches, branch->path, branch);
     }
 
     if (branch == NULL) {
@@ -273,17 +303,12 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         node->path = apr_pstrdup(ctx->rev_ctx->pool, subpath);
     }
 
-    if (node->kind == KIND_DIR && node->action == ACTION_ADD && *node->path == '\0' && copyfrom_rev != NULL) {
-        rev->copyfrom = copyfrom_rev;
-    }
-
     if (node->kind == KIND_FILE) {
-        err = get_node_blob(&blob, headers, ctx);
+        err = get_node_blob(&node->content.data.blob, headers, ctx);
         if (err) {
             return svn_error_create(SVN_ERR_BASE, NULL, NULL);
         }
-        if (blob != NULL) {
-            node->content.data.blob = blob;
+        if (node->content.data.blob != NULL) {
             node->content.kind = CONTENT_BLOB;
         }
     }

@@ -33,7 +33,7 @@ trie_create(apr_pool_t *pool)
 void
 trie_insert(trie_t *t, const char *key, void *value)
 {
-    unsigned char c;
+    uint8_t c;
     while ((c = *key++)) {
         if (t->chars[c] == NULL) {
             t->chars[c] = trie_create(t->pool);
@@ -44,12 +44,25 @@ trie_insert(trie_t *t, const char *key, void *value)
 }
 
 void *
-trie_find_prefix(trie_t *t, const char *key)
+trie_find_longest_prefix(trie_t *t, const char *key)
 {
-    unsigned char c;
+    uint8_t c;
     while ((c = *key++)) {
-        if (t->value != NULL || t->chars[c] == NULL) {
+        if (t->chars[c] == NULL) {
             break;
+        }
+        t = t->chars[c];
+    }
+    return t->value;
+}
+
+void *
+trie_find_exact(trie_t *t, const char *key)
+{
+    uint8_t c;
+    while ((c = *key++)) {
+        if (t->chars[c] == NULL) {
+            return NULL;
         }
         t = t->chars[c];
     }

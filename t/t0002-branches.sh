@@ -570,7 +570,7 @@ cat >expect <<EOF
   new-feature-2
 EOF
 
-test_expect_failure 'Validate branch creation' '
+test_expect_success 'Validate branch creation' '
 (cd repo.git &&
 	git branch --list new-feature-2 >actual &&
 	test_cmp ../expect actual)

@@ -43,6 +43,9 @@ void
 trie_insert(trie_t *t, const char *key, void *value);
 
 void *
-trie_find_prefix(trie_t *t, const char *key);
+trie_find_longest_prefix(trie_t *t, const char *key);
+
+void *
+trie_find_exact(trie_t *t, const char *key);
 
 #endif // GIT_SVN_FAST_IMPORT_TRIE_H_

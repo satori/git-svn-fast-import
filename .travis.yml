@@ -6,8 +6,10 @@ notifications:
     email: false
 install:
     - sudo add-apt-repository ppa:svn/ppa -y
+    - sudo add-apt-repository ppa:git-core/candidate -y
     - sudo apt-get update -qq
     - sudo apt-get install -y libapr1-dev
     - sudo apt-get install -y libsvn-dev
+    - sudo apt-get install -y git
 script:
     - make && make test

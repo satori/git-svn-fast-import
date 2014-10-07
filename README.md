@@ -15,6 +15,7 @@ Use the `make` command:
 
 * [Apache Portable Runtime](https://apr.apache.org/)
 * [Subversion](https://subversion.apache.org/)
+* [Git](http://git-scm.com/) >= 2.1.2
 
 ## Example
 

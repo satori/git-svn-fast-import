@@ -47,7 +47,7 @@ $(SVN_FAST_EXPORT): $(OBJECTS)
 %.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ -c $<
 
-test:
+test: all
 	$(MAKE) -C t all
 
 clean:

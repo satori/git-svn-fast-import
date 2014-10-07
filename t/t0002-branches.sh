@@ -532,4 +532,70 @@ test_expect_failure 'Validate branch remove' '
 	test_cmp ../expect actual)
 '
 
+test_tick
+
+test_expect_success 'Create new branch' '
+(cd repo.svn &&
+    svn cp trunk branches/new-feature &&
+    svn commit -m "Add new branch" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+  new-feature
+EOF
+
+test_expect_success 'Validate branch creation' '
+(cd repo.git &&
+    git branch --list new-feature >actual &&
+    test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Create another branch' '
+(cd repo.svn &&
+    svn cp trunk branches/new-feature-2 &&
+    svn commit -m "Add another branch" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+  new-feature-2
+EOF
+
+test_expect_failure 'Validate branch creation' '
+(cd repo.git &&
+    git branch --list new-feature-2 >actual &&
+    test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Create one more branch' '
+(cd repo.svn &&
+    svn cp branches/new-feature-2 branches/another-feature &&
+    svn commit -m "Add one more branch" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+  another-feature
+EOF
+
+test_expect_success 'Validate branch creation' '
+(cd repo.git &&
+    git branch --list another-feature >actual &&
+    test_cmp ../expect actual)
+'
+
 test_done

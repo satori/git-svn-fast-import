@@ -53,5 +53,12 @@ svn-fast-export $@ >$CHAN 3<$BACKCHAN
 RET_CODE=$?
 
 wait $FAST_IMPORT_PID
+GIT_RET_CODE=$?
 
-exit $RET_CODE
+if test $RET_CODE -gt 0; then
+	exit $RET_CODE
+elif test $GIT_RET_CODE -gt 0; then
+	exit $GIT_RET_CODE
+else
+	exit 0
+fi

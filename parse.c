@@ -240,6 +240,9 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         if (*subpath == '/') {
             subpath++;
         }
+        if (*subpath == '\0') {
+            subpath = NULL;
+        }
     }
 
     if (copyfrom_branch != NULL && subpath != NULL) {

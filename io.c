@@ -59,6 +59,10 @@ io_readline(svn_stream_t *in, const char **dst, apr_pool_t *pool)
         handle_svn_error(err);
         return GIT_SVN_FAILURE;
     }
+    if (eof) {
+        handle_error("Unexpected EOF");
+        return GIT_SVN_FAILURE;
+    }
 
     *dst = buf->data;
 

@@ -209,7 +209,7 @@ backend_notify_branch_found(backend_t *be, branch_t *branch, apr_pool_t *pool)
 git_svn_status_t
 backend_get_checksum(backend_t *be, uint8_t *sha1, revision_t *rev, const char *path, apr_pool_t *pool)
 {
-    const char *next, *prev;
+    const char *next = NULL, *prev = NULL;
     git_svn_status_t err;
 
     err = io_printf(be->out, pool, "ls :%d \"%s\"\n", rev->mark, path);
@@ -222,8 +222,9 @@ backend_get_checksum(backend_t *be, uint8_t *sha1, revision_t *rev, const char *
         return err;
     }
 
-    if (*next == 'm') { // missing path
-        fprintf(stderr, "%s\n", next);
+    // Check if path is missing
+    if (*next == 'm') {
+        handle_error(next);
         return GIT_SVN_FAILURE;
     }
 

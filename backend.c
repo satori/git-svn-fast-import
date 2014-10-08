@@ -26,12 +26,6 @@
 #include "utils.h"
 
 static git_svn_status_t
-revision_noop(svn_stream_t *out, revision_t *rev, apr_pool_t *pool)
-{
-    return io_printf(out, pool, "progress Skipped revision %d\n", rev->revnum);
-}
-
-static git_svn_status_t
 revision_begin(svn_stream_t *out, revision_t *rev, apr_pool_t *pool)
 {
     git_svn_status_t err;
@@ -152,10 +146,6 @@ backend_write_revision(backend_t *be, revision_t *rev, apr_array_header_t *nodes
 {
     git_svn_status_t err;
 
-    if (rev->revnum == 0 || rev->branch == NULL) {
-        return revision_noop(be->out, rev, pool);
-    }
-
     err = revision_begin(be->out, rev, pool);
     if (err) {
         return err;
@@ -198,6 +188,12 @@ backend_write_blob_header(backend_t *be, blob_t *blob, apr_pool_t *pool)
     }
 
     return GIT_SVN_SUCCESS;
+}
+
+git_svn_status_t
+backend_notify_skip_revision(backend_t *be, revision_t *rev, apr_pool_t *pool)
+{
+    return io_printf(be->out, pool, "progress Skipped revision %d\n", rev->revnum);
 }
 
 git_svn_status_t

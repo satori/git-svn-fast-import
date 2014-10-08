@@ -44,6 +44,9 @@ git_svn_status_t
 backend_notify_branch_found(backend_t *be, branch_t *branch, apr_pool_t *pool);
 
 git_svn_status_t
+backend_notify_skip_revision(backend_t *be, revision_t *rev, apr_pool_t *pool);
+
+git_svn_status_t
 backend_get_checksum(backend_t *be, uint8_t *sha1, revision_t *rev, const char *path, apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_BACKEND_H_

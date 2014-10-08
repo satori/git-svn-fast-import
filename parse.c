@@ -322,7 +322,13 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
             copyfrom_subpath++;
         }
 
-        err = backend_get_checksum(&ctx->backend, node->content.data.checksum, copyfrom_rev, copyfrom_subpath, ctx->rev_ctx->pool);
+        if (copyfrom_rev != NULL && strcmp(copyfrom_rev->branch->name, copyfrom_branch->name) == 0) {
+            err = backend_get_checksum(&ctx->backend, node->content.data.checksum, copyfrom_rev, copyfrom_subpath, ctx->rev_ctx->pool);
+        }
+        else {
+            err = backend_get_checksum(&ctx->backend, node->content.data.checksum, copyfrom_branch->last_rev, copyfrom_subpath, ctx->rev_ctx->pool);
+        }
+
         if (err) {
             return svn_error_create(SVN_ERR_BASE, NULL, NULL);
         }
@@ -467,6 +473,14 @@ close_revision(void *r_ctx)
     revision_t *rev = ctx->rev_ctx->rev;
     apr_pool_t *pool = ctx->rev_ctx->pool;
 
+    if (rev->revnum == 0 || rev->branch == NULL) {
+        err = backend_notify_skip_revision(&ctx->backend, rev, pool);
+        if (err) {
+            return svn_error_create(SVN_ERR_BASE, NULL, NULL);
+        }
+        return SVN_NO_ERROR;
+    }
+
     rev->mark = ctx->last_mark++;
 
     err = backend_write_revision(&ctx->backend, rev, ctx->rev_ctx->nodes, pool);
@@ -475,6 +489,8 @@ close_revision(void *r_ctx)
     }
 
     apr_hash_set(ctx->revisions, &rev->revnum, sizeof(revnum_t), rev);
+
+    rev->branch->last_rev = rev;
 
     ctx->rev_ctx = NULL;
 

@@ -679,16 +679,13 @@ test_expect_success 'Create branch after garbage removal' '
 	svn propset svn:author --revprop -r HEAD author1)
 '
 
-test_expect_failure 'Import dump into Git' '
-svnadmin dump repo >repo.dump &&
-	(cd repo.git && git-svn-fast-import --stdlayout <../repo.dump)
-'
+test_export_import
 
 cat >expect <<EOF
   no-features
 EOF
 
-test_expect_failure 'Validate branch creation' '
+test_expect_success 'Validate branch creation' '
 (cd repo.git &&
 	git branch --list no-features >actual &&
 	test_cmp ../expect actual)

@@ -31,10 +31,13 @@
 typedef uint32_t mark_t;
 typedef int32_t revnum_t;
 
+struct revision_t;
+
 typedef struct
 {
     const char *name;
     const char *path;
+    struct revision_t *last_rev;
 } branch_t;
 
 typedef struct revision_t

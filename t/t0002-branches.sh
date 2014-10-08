@@ -642,4 +642,56 @@ test_expect_success 'Validate branch creation' '
 	test_cmp ../expect actual)
 '
 
+test_tick
+
+mkdir -p repo.svn/garbage
+
+test_expect_success 'Commit out-of-branches garbage' '
+(cd repo.svn &&
+	svn add garbage &&
+	svn commit -m "Add garbage commit" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+test_tick
+
+test_expect_success 'Commit garbage remove' '
+(cd repo.svn &&
+	svn rm garbage &&
+	svn commit -m "Remove garbage" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+test_tick
+
+test_expect_success 'Create branch after garbage removal' '
+(cd repo.svn &&
+	svn update &&
+	svn cp branches/another-feature branches/no-features &&
+	svn commit -m "Create branch after garbage removal" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_expect_failure 'Import dump into Git' '
+svnadmin dump repo >repo.dump &&
+	(cd repo.git && git-svn-fast-import --stdlayout <../repo.dump)
+'
+
+cat >expect <<EOF
+  no-features
+EOF
+
+test_expect_failure 'Validate branch creation' '
+(cd repo.git &&
+	git branch --list no-features >actual &&
+	test_cmp ../expect actual)
+'
+
 test_done

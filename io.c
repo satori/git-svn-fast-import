@@ -22,6 +22,10 @@
 
 #include "io.h"
 
+#include <unistd.h>
+
+#define BUFSIZE 1024
+
 git_svn_status_t
 io_printf(int fd, const char *fmt, ...)
 {
@@ -42,23 +46,43 @@ io_printf(int fd, const char *fmt, ...)
 }
 
 git_svn_status_t
-io_readline(svn_stream_t *in, const char **dst, apr_pool_t *pool)
+io_readline(int fd, char **dst)
 {
-    svn_error_t *err;
-    svn_boolean_t eof;
-    svn_stringbuf_t *buf;
+    size_t capacity = BUFSIZE, len = 0;
+    char *buf = malloc(capacity);
 
-    err = svn_stream_readline(in, &buf, "\n", &eof, pool);
-    if (err) {
-        handle_svn_error(err);
-        return GIT_SVN_FAILURE;
+    while (1) {
+        char c;
+        ssize_t n;
+
+        n = read(fd, &c, 1);
+        if (n != 1) {
+            goto error;
+        }
+        if (c == '\n') {
+            break;
+        }
+
+        buf[len++] = c;
+
+        if (len == capacity) {
+            char *newbuf;
+            newbuf = realloc(buf, capacity << 1);
+            if (newbuf == NULL) {
+                goto error;
+            }
+            buf = newbuf;
+            capacity = capacity << 1;
+        }
     }
-    if (eof) {
-        handle_error("Unexpected EOF");
-        return GIT_SVN_FAILURE;
-    }
 
-    *dst = buf->data;
-
+    *dst = buf;
     return GIT_SVN_SUCCESS;
+
+error:
+    if (errno) {
+        handle_errno(errno);
+    }
+    free(buf);
+    return GIT_SVN_FAILURE;
 }

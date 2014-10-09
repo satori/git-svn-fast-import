@@ -32,7 +32,8 @@ typedef struct
 {
     // Output fileno.
     int out;
-    svn_stream_t *back;
+    // Response fileno.
+    int back;
 } backend_t;
 
 git_svn_status_t

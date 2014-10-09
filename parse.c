@@ -526,11 +526,8 @@ static const svn_repos_parse_fns2_t callbacks = {
 git_svn_status_t
 git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
 {
-    apr_file_t *back_file;
-    apr_status_t apr_err;
     svn_error_t *svn_err;
     svn_stream_t *input;
-    int back_fd = BACK_FILENO;
 
     // Read the input from stdin
     svn_err = svn_stream_for_stdin(&input, pool);
@@ -557,12 +554,7 @@ git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
     ctx.backend.out = OUT_FILENO;
 
     // Read backend answers
-    apr_err = apr_os_file_put(&back_file, &back_fd, APR_FOPEN_READ, pool);
-    if (apr_err) {
-        return GIT_SVN_FAILURE;
-    }
-
-    ctx.backend.back = svn_stream_from_aprfile2(back_file, FALSE, pool);
+    ctx.backend.back = BACK_FILENO;
 
 #if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
     svn_err = svn_repos_parse_dumpstream3(input, &callbacks, &ctx, FALSE, check_cancel, NULL, pool);

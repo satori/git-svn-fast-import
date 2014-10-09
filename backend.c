@@ -202,27 +202,17 @@ backend_notify_branch_found(backend_t *be, branch_t *branch)
     return io_printf(be->out, "progress Found branch at %s\n", branch->path);
 }
 
-git_svn_status_t
-backend_get_checksum(backend_t *be, uint8_t *sha1, revision_t *rev, const char *path, apr_pool_t *pool)
-{
-    const char *next = NULL, *prev = NULL;
-    git_svn_status_t err;
-
-    err = io_printf(be->out, "ls :%d \"%s\"\n", rev->mark, path);
-    if (err) {
-        return err;
-    }
-
-    err = io_readline(be->back, &next, pool);
-    if (err) {
-        return err;
-    }
+static git_svn_status_t
+parse_checksum(uint8_t *dst, const char *src) {
+    const char *next, *prev;
 
     // Check if path is missing
-    if (*next == 'm') {
-        handle_error(next);
+    if (*src == 'm') {
+        handle_error(src);
         return GIT_SVN_FAILURE;
     }
+
+    next = src;
 
     for (int i = 0; i < 3; i++) {
         prev = next;
@@ -230,5 +220,28 @@ backend_get_checksum(backend_t *be, uint8_t *sha1, revision_t *rev, const char *
         next++;
     }
 
-    return hex_to_bytes(sha1, prev, CHECKSUM_BYTES_LENGTH);
+    return hex_to_bytes(dst, prev, CHECKSUM_BYTES_LENGTH);
+}
+
+git_svn_status_t
+backend_get_checksum(backend_t *be, uint8_t *sha1, revision_t *rev, const char *path, apr_pool_t *pool)
+{
+    char *line;
+    git_svn_status_t err;
+
+    err = io_printf(be->out, "ls :%d \"%s\"\n", rev->mark, path);
+    if (err) {
+        return err;
+    }
+
+    err = io_readline(be->back, &line);
+    if (err) {
+        return err;
+    }
+
+    err = parse_checksum(sha1, line);
+
+    free(line);
+
+    return err;
 }

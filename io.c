@@ -22,25 +22,19 @@
 
 #include "io.h"
 
-#include <string.h>
-
 git_svn_status_t
-io_printf(svn_stream_t *out, apr_pool_t *pool, const char *fmt, ...)
+io_printf(int fd, const char *fmt, ...)
 {
-    const char *message;
-    size_t len;
+    git_svn_status_t err;
     va_list args;
-    svn_error_t *err;
 
     va_start(args, fmt);
-    message = apr_pvsprintf(pool, fmt, args);
+    vdprintf(fd, fmt, args);
+    err = errno;
     va_end(args);
 
-    len = strlen(message);
-
-    err = svn_stream_write(out, message, &len);
-    if (err) {
-        handle_svn_error(err);
+    if (err && err != EILSEQ) {
+        handle_errno(err);
         return GIT_SVN_FAILURE;
     }
 

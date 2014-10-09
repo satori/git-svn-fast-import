@@ -30,21 +30,22 @@
 
 typedef struct
 {
-    svn_stream_t *out;
+    // Output fileno.
+    int out;
     svn_stream_t *back;
 } backend_t;
 
 git_svn_status_t
-backend_write_revision(backend_t *be, revision_t *rev, apr_array_header_t *nodes, apr_pool_t *pool);
+backend_write_revision(backend_t *be, revision_t *rev, apr_array_header_t *nodes);
 
 git_svn_status_t
-backend_write_blob_header(backend_t *be, blob_t *blob, apr_pool_t *pool);
+backend_write_blob_header(backend_t *be, blob_t *blob);
 
 git_svn_status_t
-backend_notify_branch_found(backend_t *be, branch_t *branch, apr_pool_t *pool);
+backend_notify_branch_found(backend_t *be, branch_t *branch);
 
 git_svn_status_t
-backend_notify_skip_revision(backend_t *be, revision_t *rev, apr_pool_t *pool);
+backend_notify_skip_revision(backend_t *be, revision_t *rev);
 
 git_svn_status_t
 backend_get_checksum(backend_t *be, uint8_t *sha1, revision_t *rev, const char *path, apr_pool_t *pool);

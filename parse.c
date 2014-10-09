@@ -32,6 +32,7 @@
 #include <svn_time.h>
 #include <svn_version.h>
 
+#define OUT_FILENO 1
 #define BACK_FILENO 3
 
 #define MODE_NORMAL     0100644
@@ -252,7 +253,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         branch = apr_pcalloc(ctx->pool, sizeof(branch_t));
         branch->name = apr_pstrdup(ctx->pool, subpath);
         branch->path = apr_pstrdup(ctx->pool, path);
-        backend_notify_branch_found(&ctx->backend, branch, pool);
+        backend_notify_branch_found(&ctx->backend, branch);
         trie_insert(ctx->branches, branch->path, branch);
     }
 
@@ -275,7 +276,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
             branch->name = apr_pstrdup(ctx->pool, subpath);
             branch->path = apr_pstrdup(ctx->pool, path);
         }
-        backend_notify_branch_found(&ctx->backend, branch, pool);
+        backend_notify_branch_found(&ctx->backend, branch);
         trie_insert(ctx->branches, branch->path, branch);
     }
 
@@ -431,7 +432,6 @@ set_fulltext(svn_stream_t **stream, void *n_ctx)
     }
 
     blob_t *blob = node->content.data.blob;
-    apr_pool_t *pool = ctx->rev_ctx->pool;
 
     if (blob->mark) {
         // Blob has been uploaded, if we've already assigned mark to it
@@ -439,9 +439,9 @@ set_fulltext(svn_stream_t **stream, void *n_ctx)
     }
 
     blob->mark = ctx->last_mark++;
-    SVN_ERR(svn_stream_for_stdout(stream, pool));
+    SVN_ERR(svn_stream_for_stdout(stream, ctx->rev_ctx->pool));
 
-    err = backend_write_blob_header(&ctx->backend, blob, pool);
+    err = backend_write_blob_header(&ctx->backend, blob);
     if (err) {
         return svn_error_create(SVN_ERR_BASE, NULL, NULL);
     }
@@ -471,10 +471,9 @@ close_revision(void *r_ctx)
     git_svn_status_t err;
     parser_ctx_t *ctx = r_ctx;
     revision_t *rev = ctx->rev_ctx->rev;
-    apr_pool_t *pool = ctx->rev_ctx->pool;
 
     if (rev->revnum == 0 || rev->branch == NULL) {
-        err = backend_notify_skip_revision(&ctx->backend, rev, pool);
+        err = backend_notify_skip_revision(&ctx->backend, rev);
         if (err) {
             return svn_error_create(SVN_ERR_BASE, NULL, NULL);
         }
@@ -483,7 +482,7 @@ close_revision(void *r_ctx)
 
     rev->mark = ctx->last_mark++;
 
-    err = backend_write_revision(&ctx->backend, rev, ctx->rev_ctx->nodes, pool);
+    err = backend_write_revision(&ctx->backend, rev, ctx->rev_ctx->nodes);
     if (err) {
         return svn_error_create(SVN_ERR_BASE, NULL, NULL);
     }
@@ -555,11 +554,7 @@ git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
     ctx.options = options;
 
     // Write to stdout
-    svn_err = svn_stream_for_stdout(&ctx.backend.out, pool);
-    if (svn_err != NULL) {
-        handle_svn_error(svn_err);
-        return GIT_SVN_FAILURE;
-    }
+    ctx.backend.out = OUT_FILENO;
 
     // Read backend answers
     apr_err = apr_os_file_put(&back_file, &back_fd, APR_FOPEN_READ, pool);

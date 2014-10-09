@@ -22,6 +22,8 @@
 
 #include "error.h"
 
+#include <string.h>
+
 void
 handle_svn_error(svn_error_t *err)
 {
@@ -32,4 +34,11 @@ void
 handle_error(const char *msg)
 {
     fprintf(stderr, "svn-fast-export: %s\n", msg);
+}
+
+void
+handle_errno(int err)
+{
+    const char *msg = strerror(err);
+    handle_error(msg);
 }

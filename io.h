@@ -29,7 +29,7 @@
 #include <svn_io.h>
 
 git_svn_status_t
-io_printf(svn_stream_t *out, apr_pool_t *pool, const char *fmt, ...);
+io_printf(int fd, const char *fmt, ...);
 
 git_svn_status_t
 io_readline(svn_stream_t *in, const char **dst, apr_pool_t *pool);

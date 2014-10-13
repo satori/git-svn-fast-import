@@ -366,6 +366,28 @@ test_expect_success 'Validate directory remove' '
 
 test_tick
 
+test_expect_success 'Commit new tag from trunk' '
+(cd repo.svn &&
+	svn cp trunk tags/release-1.0 &&
+	svn commit -m "New tag" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+  release-1.0
+EOF
+
+test_expect_success 'Validate tag create' '
+(cd repo.git &&
+	git branch --list release-1.0 >actual &&
+	test_cmp ../expect actual)
+'
+
+test_tick
+
 test_expect_success 'Commit new branch' '
 (cd repo.svn &&
 	svn cp trunk branches/some-feature &&
@@ -387,7 +409,7 @@ test_expect_success 'Validate branch create' '
 '
 
 cat >expect <<EOF
-fe30eac New feature branch created
+309585d New feature branch created
 EOF
 
 test_expect_success 'Validate branch last commit' '
@@ -551,6 +573,28 @@ EOF
 test_expect_success 'Validate file merge inside new dir into master' '
 (cd repo.git &&
 	git diff-tree -r master^ master >actual &&
+	test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Validate tag create from branch' '
+(cd repo.svn &&
+	svn cp branches/some-feature tags/some-feature-before-remove &&
+	svn commit -m "Create another tag" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+  some-feature-before-remove
+EOF
+
+test_expect_success 'Validate tag create' '
+(cd repo.git &&
+	git branch --list some-feature-before-remove >actual &&
 	test_cmp ../expect actual)
 '
 

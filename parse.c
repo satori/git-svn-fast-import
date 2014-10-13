@@ -512,7 +512,14 @@ close_revision(void *r_ctx)
     }
 
     for (idx = apr_hash_first(ctx->rev_ctx->pool, rev->commits); idx; idx = apr_hash_next(idx)) {
-        commit_t *commit = apr_hash_this_val(idx);
+        commit_t *commit;
+        const void *key;
+        ssize_t keylen = sizeof(branch_t *);
+        void *value;
+
+        apr_hash_this(idx, &key, &keylen, &value);
+        commit = value;
+
         apr_array_header_t *nodes = apr_hash_get(ctx->rev_ctx->nodes, commit, sizeof(commit_t *));
 
         commit->mark = ctx->last_mark++;

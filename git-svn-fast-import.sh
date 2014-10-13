@@ -47,7 +47,7 @@ trap 'on_exit' EXIT
 
 mkfifo $CHAN $BACKCHAN
 
-git fast-import --cat-blob-fd=3 <$CHAN 3>$BACKCHAN &
+git fast-import --cat-blob-fd=3 --done <$CHAN 3>$BACKCHAN &
 FAST_IMPORT_PID=$!
 
 svn-fast-export $@ >$CHAN 3<$BACKCHAN

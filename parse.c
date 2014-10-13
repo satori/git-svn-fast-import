@@ -619,5 +619,7 @@ git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
         return GIT_SVN_FAILURE;
     }
 
+    backend_finished(&ctx.backend);
+
     return GIT_SVN_SUCCESS;
 }

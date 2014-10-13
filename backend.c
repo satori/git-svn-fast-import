@@ -264,3 +264,9 @@ backend_get_checksum(backend_t *be,
 
     return err;
 }
+
+git_svn_status_t
+backend_finished(backend_t *be)
+{
+    return io_printf(be->out, "done\n");
+}

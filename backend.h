@@ -65,4 +65,7 @@ backend_get_checksum(backend_t *be,
                      const commit_t *commit,
                      const char *path);
 
+git_svn_status_t
+backend_finished(backend_t *be);
+
 #endif // GIT_SVN_FAST_IMPORT_BACKEND_H_

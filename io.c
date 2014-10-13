@@ -49,7 +49,7 @@ git_svn_status_t
 io_readline(int fd, char **dst)
 {
     size_t capacity = BUFSIZE, len = 0;
-    char *buf = malloc(capacity);
+    char *buf = calloc(capacity, sizeof(char));
 
     while (1) {
         char c;
@@ -62,7 +62,6 @@ io_readline(int fd, char **dst)
         if (c == '\n') {
             break;
         }
-
         buf[len++] = c;
 
         if (len == capacity) {

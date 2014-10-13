@@ -26,38 +26,42 @@
 #include "utils.h"
 
 static git_svn_status_t
-revision_begin(int fd, revision_t *rev)
+write_commit_header(int fd,
+                    const commit_t *commit,
+                    const char *author,
+                    const char *message,
+                    int64_t timestamp)
 {
     git_svn_status_t err;
 
-    err = io_printf(fd, "commit refs/heads/%s\n", rev->branch->name);
+    err = io_printf(fd, "commit refs/heads/%s\n", commit->branch->name);
     if (err) {
         return err;
     }
 
-    err = io_printf(fd, "mark :%d\n", rev->mark);
+    err = io_printf(fd, "mark :%d\n", commit->mark);
     if (err) {
         return err;
     }
 
     err = io_printf(fd, "committer %s <%s@local> %"PRId64" +0000\n",
-                    rev->author, rev->author, rev->timestamp);
+                    author, author, timestamp);
     if (err) {
         return err;
     }
 
-    err = io_printf(fd, "data %ld\n", strlen(rev->message));
+    err = io_printf(fd, "data %ld\n", strlen(message));
     if (err) {
         return err;
     }
 
-    err = io_printf(fd, "%s\n", rev->message);
+    err = io_printf(fd, "%s\n", message);
     if (err) {
         return err;
     }
 
-    if (rev->copyfrom != NULL) {
-        err = io_printf(fd, "from :%d\n", rev->copyfrom->mark);
+    if (commit->copyfrom != NULL) {
+        err = io_printf(fd, "from :%d\n", commit->copyfrom->mark);
         if (err) {
             return err;
         }
@@ -67,13 +71,7 @@ revision_begin(int fd, revision_t *rev)
 }
 
 static git_svn_status_t
-revision_end(int fd, revision_t *rev)
-{
-    return io_printf(fd, "progress Imported revision %d\n", rev->revnum);
-}
-
-static git_svn_status_t
-node_modify_blob(int fd, node_t *node)
+node_modify_blob(int fd, const node_t *node)
 {
     blob_t *blob = node->content.data.blob;
 
@@ -81,7 +79,7 @@ node_modify_blob(int fd, node_t *node)
 }
 
 static git_svn_status_t
-node_modify_checksum(int fd, node_t *node)
+node_modify_checksum(int fd, const node_t *node)
 {
     git_svn_status_t err;
     char checksum[CHECKSUM_CHARS_LENGTH + 1];
@@ -96,7 +94,7 @@ node_modify_checksum(int fd, node_t *node)
 }
 
 static git_svn_status_t
-node_modify(int fd, node_t *node)
+node_modify(int fd, const node_t *node)
 {
     switch (node->content.kind) {
     case CONTENT_CHECKSUM:
@@ -109,13 +107,13 @@ node_modify(int fd, node_t *node)
 }
 
 static git_svn_status_t
-node_delete(int fd, node_t *node)
+node_delete(int fd, const node_t *node)
 {
     return io_printf(fd, "D \"%s\"\n", node->path);
 }
 
 static git_svn_status_t
-node_replace(int fd, node_t *node)
+node_replace(int fd, const node_t *node)
 {
     git_svn_status_t err;
     err = node_delete(fd, node);
@@ -126,7 +124,7 @@ node_replace(int fd, node_t *node)
 }
 
 static git_svn_status_t
-handle_node(int fd, node_t *node)
+handle_node(int fd, const node_t *node)
 {
     switch (node->action) {
     case ACTION_ADD:
@@ -142,11 +140,16 @@ handle_node(int fd, node_t *node)
 }
 
 git_svn_status_t
-backend_write_revision(backend_t *be, revision_t *rev, apr_array_header_t *nodes)
+backend_write_commit(backend_t *be,
+                     const commit_t *commit,
+                     const apr_array_header_t *nodes,
+                     const char *author,
+                     const char *message,
+                     int64_t timestamp)
 {
     git_svn_status_t err;
 
-    err = revision_begin(be->out, rev);
+    err = write_commit_header(be->out, commit, author, message, timestamp);
     if (err) {
         return err;
     }
@@ -159,16 +162,11 @@ backend_write_revision(backend_t *be, revision_t *rev, apr_array_header_t *nodes
         }
     }
 
-    err = revision_end(be->out, rev);
-    if (err) {
-        return err;
-    }
-
     return GIT_SVN_SUCCESS;
 }
 
 git_svn_status_t
-backend_write_blob_header(backend_t *be, blob_t *blob)
+backend_write_blob_header(backend_t *be, const blob_t *blob)
 {
     git_svn_status_t err;
 
@@ -191,15 +189,33 @@ backend_write_blob_header(backend_t *be, blob_t *blob)
 }
 
 git_svn_status_t
-backend_notify_skip_revision(backend_t *be, revision_t *rev)
+backend_notify_revision_skipped(backend_t *be, revnum_t revnum)
 {
-    return io_printf(be->out, "progress Skipped revision %d\n", rev->revnum);
+    return io_printf(be->out, "progress Skipped revision %d\n", revnum);
 }
 
 git_svn_status_t
-backend_notify_branch_found(backend_t *be, branch_t *branch)
+backend_notify_revision_imported(backend_t *be, revnum_t revnum)
 {
-    return io_printf(be->out, "progress Found branch at %s\n", branch->path);
+    return io_printf(be->out, "progress Imported revision %d\n", revnum);
+}
+
+git_svn_status_t
+backend_notify_branch_found(backend_t *be, const branch_t *branch)
+{
+    if (be->verbose) {
+        return io_printf(be->out, "progress Found branch at %s\n", branch->path);
+    }
+    return GIT_SVN_SUCCESS;
+}
+
+git_svn_status_t
+backend_notify_branch_updated(backend_t *be, const branch_t *branch)
+{
+    if (be->verbose) {
+        return io_printf(be->out, "progress Updated branch %s\n", branch->name);
+    }
+    return GIT_SVN_SUCCESS;
 }
 
 static git_svn_status_t
@@ -224,12 +240,15 @@ parse_checksum(uint8_t *dst, const char *src) {
 }
 
 git_svn_status_t
-backend_get_checksum(backend_t *be, uint8_t *sha1, revision_t *rev, const char *path, apr_pool_t *pool)
+backend_get_checksum(backend_t *be,
+                     uint8_t *dst,
+                     const commit_t *commit,
+                     const char *path)
 {
     char *line;
     git_svn_status_t err;
 
-    err = io_printf(be->out, "ls :%d \"%s\"\n", rev->mark, path);
+    err = io_printf(be->out, "ls :%d \"%s\"\n", commit->mark, path);
     if (err) {
         return err;
     }
@@ -239,7 +258,7 @@ backend_get_checksum(backend_t *be, uint8_t *sha1, revision_t *rev, const char *
         return err;
     }
 
-    err = parse_checksum(sha1, line);
+    err = parse_checksum(dst, line);
 
     free(line);
 

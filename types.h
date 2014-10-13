@@ -31,25 +31,21 @@
 typedef uint32_t mark_t;
 typedef int32_t revnum_t;
 
-struct revision_t;
+struct commit_t;
 
 typedef struct
 {
     const char *name;
     const char *path;
-    struct revision_t *last_rev;
+    struct commit_t *last_commit;
 } branch_t;
 
-typedef struct revision_t
+typedef struct commit_t
 {
-    mark_t mark;
-    revnum_t revnum;
-    int64_t timestamp;
     branch_t *branch;
-    const char *author;
-    const char *message;
-    struct revision_t *copyfrom;
-} revision_t;
+    mark_t mark;
+    struct commit_t *copyfrom;
+} commit_t;
 
 typedef uint8_t checksum_t[CHECKSUM_BYTES_LENGTH];
 

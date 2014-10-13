@@ -691,4 +691,76 @@ test_expect_success 'Validate branch creation' '
 	test_cmp ../expect actual)
 '
 
+test_tick
+
+cat >repo.svn/branches/another-feature/doc.txt << EOF
+another-feature documentation
+EOF
+
+cat >repo.svn/branches/new-feature/README << EOF
+new-feature README
+EOF
+
+test_expect_success 'Commit into multiple branches' '
+(cd repo.svn &&
+	svn add branches/another-feature/doc.txt &&
+	svn add branches/new-feature/README &&
+	svn commit -m "Commit into multiple branches" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:000000 100644 0000000000000000000000000000000000000000 c16dbc56913951c9ba0cf7248809aa2c546ba51b A	doc.txt
+EOF
+
+test_expect_success 'Validate commit into first branch' '
+(cd repo.git &&
+	git diff-tree another-feature^ another-feature >actual &&
+	test_cmp ../expect actual)
+'
+
+cat >expect <<EOF
+:000000 100644 0000000000000000000000000000000000000000 8533c3e2e2490184d7d6e7833ac818317bb28529 A	README
+EOF
+
+test_expect_success 'Validate commit into second branch' '
+(cd repo.git &&
+	git diff-tree new-feature^ new-feature >actual &&
+	test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Commit branch rename' '
+(cd repo.svn &&
+	svn mv branches/no-features branches/mega-features &&
+	svn commit -m "Rename branch no-features into mega-features" &&
+	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+EOF
+
+test_expect_failure 'Validate old branch name disappeared' '
+(cd repo.git &&
+	git branch --list no-features >actual &&
+	test_cmp ../expect actual)
+'
+
+cat >expect <<EOF
+  mega-features
+EOF
+
+test_expect_success 'Validate branch with new name appeared' '
+(cd repo.git &&
+	git branch --list mega-features >actual &&
+	test_cmp ../expect actual)
+'
+
 test_done

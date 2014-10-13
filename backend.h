@@ -26,29 +26,43 @@
 #include "error.h"
 #include "types.h"
 
-#include <svn_io.h>
-
 typedef struct
 {
     // Output fileno.
     int out;
     // Response fileno.
     int back;
+    // Verbose mode.
+    int verbose;
 } backend_t;
 
 git_svn_status_t
-backend_write_revision(backend_t *be, revision_t *rev, apr_array_header_t *nodes);
+backend_write_commit(backend_t *be,
+                     const commit_t *commit,
+                     const apr_array_header_t *nodes,
+                     const char *author,
+                     const char *message,
+                     int64_t timestamp);
 
 git_svn_status_t
-backend_write_blob_header(backend_t *be, blob_t *blob);
+backend_write_blob_header(backend_t *be, const blob_t *blob);
 
 git_svn_status_t
-backend_notify_branch_found(backend_t *be, branch_t *branch);
+backend_notify_branch_found(backend_t *be, const branch_t *branch);
 
 git_svn_status_t
-backend_notify_skip_revision(backend_t *be, revision_t *rev);
+backend_notify_branch_updated(backend_t *be, const branch_t *branch);
 
 git_svn_status_t
-backend_get_checksum(backend_t *be, uint8_t *sha1, revision_t *rev, const char *path, apr_pool_t *pool);
+backend_notify_revision_skipped(backend_t *be, revnum_t revnum);
+
+git_svn_status_t
+backend_notify_revision_imported(backend_t *be, revnum_t revnum);
+
+git_svn_status_t
+backend_get_checksum(backend_t *be,
+                     uint8_t *dst,
+                     const commit_t *commit,
+                     const char *path);
 
 #endif // GIT_SVN_FAST_IMPORT_BACKEND_H_

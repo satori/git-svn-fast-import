@@ -29,6 +29,7 @@ static struct apr_getopt_option_t cmdline_options[] = {
     {"trunk", 'T', 1, ""},
     {"tags", 't', 1, ""},
     {"branches", 'b', 1, ""},
+    {"verbose", 'v', 0, ""},
     {0, 0, 0, 0}
 };
 
@@ -43,6 +44,7 @@ git_svn_parse_options(git_svn_options_t *options, int argc, const char **argv, a
         return GIT_SVN_FAILURE;
     }
 
+    options->verbose = 0;
     options->trunk = "";
     options->branches = "";
     options->tags = "";
@@ -73,6 +75,9 @@ git_svn_parse_options(git_svn_options_t *options, int argc, const char **argv, a
             break;
         case 'b':
             options->branches = opt_arg;
+            break;
+        case 'v':
+            options->verbose = 1;
             break;
         default:
             return GIT_SVN_FAILURE;

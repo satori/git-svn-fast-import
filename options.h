@@ -29,6 +29,7 @@
 
 typedef struct
 {
+    int verbose;
     const char *trunk;
     const char *branches;
     const char *tags;

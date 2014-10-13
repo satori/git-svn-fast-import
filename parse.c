@@ -42,9 +42,21 @@
 
 typedef struct
 {
+    // Subversion revision number
+    revnum_t revnum;
+    // branch_t to commit_t mapping
+    apr_hash_t *commits;
+} revision_t;
+
+typedef struct
+{
     apr_pool_t *pool;
+    const char *message;
+    const char *author;
+    int64_t timestamp;
     revision_t *rev;
-    apr_array_header_t *nodes;
+    // commit_t to apr_array_header_t mapping
+    apr_hash_t *nodes;
 } revision_ctx_t;
 
 typedef struct
@@ -80,10 +92,10 @@ new_revision_record(void **r_ctx, apr_hash_t *headers, void *p_ctx, apr_pool_t *
     const char *revnum;
     parser_ctx_t *ctx = p_ctx;
     ctx->rev_ctx = apr_pcalloc(pool, sizeof(revision_ctx_t));
-    revision_t *rev = apr_pcalloc(ctx->pool, sizeof(*rev));
 
+    revision_t *rev = apr_pcalloc(ctx->pool, sizeof(revision_t));
     rev->revnum = SVN_INVALID_REVNUM;
-    rev->branch = NULL;
+    rev->commits = apr_hash_make(ctx->pool);
 
     revnum = apr_hash_get(headers, SVN_REPOS_DUMPFILE_REVISION_NUMBER, APR_HASH_KEY_STRING);
     if (revnum != NULL) {
@@ -91,7 +103,7 @@ new_revision_record(void **r_ctx, apr_hash_t *headers, void *p_ctx, apr_pool_t *
     }
 
     ctx->rev_ctx->rev = rev;
-    ctx->rev_ctx->nodes = apr_array_make(pool, 8, sizeof(node_t));
+    ctx->rev_ctx->nodes = apr_hash_make(pool);
     ctx->rev_ctx->pool = pool;
 
     *r_ctx = ctx;
@@ -148,11 +160,12 @@ get_node_default_mode(node_kind_t kind)
     }
 }
 
-static revision_t *
-get_node_copyfrom_rev(apr_hash_t *headers, parser_ctx_t *ctx)
+static commit_t *
+get_copyfrom_commit(apr_hash_t *headers, parser_ctx_t *ctx, branch_t *copyfrom_branch)
 {
     const char *copyfrom_revnum;
     revnum_t revnum;
+    revision_t *rev;
 
     copyfrom_revnum = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_COPYFROM_REV, APR_HASH_KEY_STRING);
     if (copyfrom_revnum == NULL) {
@@ -161,7 +174,17 @@ get_node_copyfrom_rev(apr_hash_t *headers, parser_ctx_t *ctx)
 
     revnum = SVN_STR_TO_REV(copyfrom_revnum);
 
-    return apr_hash_get(ctx->revisions, &revnum, sizeof(revnum_t));
+    rev = apr_hash_get(ctx->revisions, &revnum, sizeof(revnum_t));
+    if (rev != NULL) {
+        commit_t *commit;
+        commit = apr_hash_get(rev->commits, copyfrom_branch, sizeof(branch_t *));
+
+        if (commit != NULL && strcmp(commit->branch->name, copyfrom_branch->name) == 0) {
+            return commit;
+        }
+    }
+
+    return copyfrom_branch->last_commit;
 }
 
 static git_svn_status_t
@@ -209,24 +232,23 @@ static svn_error_t *
 new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
 {
     const char *path, *subpath;
-    const char *copyfrom_path, *copyfrom_subpath;
+    const char *copyfrom_path;
     parser_ctx_t *ctx = r_ctx;
-    revision_t *rev, *copyfrom_rev = NULL;
+    revision_t *rev = ctx->rev_ctx->rev;
+    commit_t *commit, *copyfrom_commit = NULL;
+    branch_t *branch = NULL, *copyfrom_branch = NULL;
+    apr_array_header_t *nodes;
     node_t *node;
     node_action_t action;
     node_kind_t kind;
-    branch_t *branch = NULL, *copyfrom_branch = NULL;
     git_svn_status_t err;
 
-    rev = ctx->rev_ctx->rev;
     *n_ctx = ctx;
 
     path = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_PATH, APR_HASH_KEY_STRING);
     if (path == NULL) {
         return SVN_NO_ERROR;
     }
-
-    copyfrom_rev = get_node_copyfrom_rev(headers, ctx);
 
     copyfrom_path = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_COPYFROM_PATH, APR_HASH_KEY_STRING);
     if (copyfrom_path != NULL) {
@@ -247,9 +269,6 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     }
 
     if (copyfrom_branch != NULL && subpath != NULL) {
-        if (copyfrom_rev != NULL) {
-            rev->copyfrom = copyfrom_rev;
-        }
         branch = apr_pcalloc(ctx->pool, sizeof(branch_t));
         branch->name = apr_pstrdup(ctx->pool, subpath);
         branch->path = apr_pstrdup(ctx->pool, path);
@@ -284,7 +303,18 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         return SVN_NO_ERROR;
     }
 
-    rev->branch = branch;
+    commit = apr_hash_get(rev->commits, branch, sizeof(branch_t *));
+    if (commit == NULL) {
+        commit = apr_pcalloc(ctx->pool, sizeof(commit_t));
+        commit->branch = branch;
+        apr_hash_set(rev->commits, commit->branch, sizeof(branch_t *), commit);
+    }
+
+    nodes = apr_hash_get(ctx->rev_ctx->nodes, commit, sizeof(commit_t *));
+    if (nodes == NULL) {
+        nodes = apr_array_make(ctx->rev_ctx->pool, 8, sizeof(node_t));
+        apr_hash_set(ctx->rev_ctx->nodes, commit, sizeof(commit_t *), nodes);
+    }
 
     kind = get_node_kind(headers);
     action = get_node_action(headers);
@@ -293,7 +323,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         return SVN_NO_ERROR;
     }
 
-    node = &APR_ARRAY_PUSH(ctx->rev_ctx->nodes, node_t);
+    node = &APR_ARRAY_PUSH(nodes, node_t);
     node->mode = get_node_default_mode(kind);
     node->kind = kind;
     node->action = action;
@@ -318,22 +348,27 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     }
 
     if (node->content.kind == CONTENT_UNKNOWN && copyfrom_branch != NULL) {
-        copyfrom_subpath = cstring_skip_prefix(copyfrom_path, copyfrom_branch->path);
-        if (*copyfrom_subpath == '/') {
-            copyfrom_subpath++;
-        }
+        copyfrom_commit = get_copyfrom_commit(headers, ctx, copyfrom_branch);
 
-        if (copyfrom_rev != NULL && strcmp(copyfrom_rev->branch->name, copyfrom_branch->name) == 0) {
-            err = backend_get_checksum(&ctx->backend, node->content.data.checksum, copyfrom_rev, copyfrom_subpath, ctx->rev_ctx->pool);
-        }
-        else {
-            err = backend_get_checksum(&ctx->backend, node->content.data.checksum, copyfrom_branch->last_rev, copyfrom_subpath, ctx->rev_ctx->pool);
-        }
+        if (copyfrom_commit != NULL) {
+            const char *copyfrom_subpath;
 
-        if (err) {
-            return svn_error_create(SVN_ERR_BASE, NULL, NULL);
+            copyfrom_subpath = cstring_skip_prefix(copyfrom_path, copyfrom_branch->path);
+            if (*copyfrom_subpath == '/') {
+                copyfrom_subpath++;
+            }
+
+            if (*copyfrom_subpath == '\0') {
+                commit->copyfrom = copyfrom_commit;
+            }
+
+            err = backend_get_checksum(&ctx->backend, node->content.data.checksum, copyfrom_commit, copyfrom_subpath);
+            if (err) {
+                return svn_error_create(SVN_ERR_BASE, NULL, NULL);
+            }
+
+            node->content.kind = CONTENT_CHECKSUM;
         }
-        node->content.kind = CONTENT_CHECKSUM;
     }
 
     ctx->node = node;
@@ -345,24 +380,18 @@ static svn_error_t *
 set_revision_property(void *r_ctx, const char *name, const svn_string_t *value)
 {
     parser_ctx_t *ctx = r_ctx;
-    revision_t *rev = ctx->rev_ctx->rev;
     apr_pool_t *pool = ctx->rev_ctx->pool;
 
-    // It is safe to ignore revision 0 properties
-    if (rev->revnum == 0) {
-        return SVN_NO_ERROR;
-    }
-
     if (strcmp(name, SVN_PROP_REVISION_AUTHOR) == 0) {
-        rev->author = apr_pstrdup(pool, value->data);
+        ctx->rev_ctx->author = apr_pstrdup(pool, value->data);
     }
     else if (strcmp(name, SVN_PROP_REVISION_DATE) == 0) {
         apr_time_t timestamp;
         svn_time_from_cstring(&timestamp, value->data, pool);
-        rev->timestamp = apr_time_sec(timestamp);
+        ctx->rev_ctx->timestamp = apr_time_sec(timestamp);
     }
     else if (strcmp(name, SVN_PROP_REVISION_LOG) == 0) {
-        rev->message = apr_pstrdup(pool, value->data);
+        ctx->rev_ctx->message = apr_pstrdup(pool, value->data);
     }
 
     return SVN_NO_ERROR;
@@ -470,27 +499,43 @@ close_revision(void *r_ctx)
 {
     git_svn_status_t err;
     parser_ctx_t *ctx = r_ctx;
-    revision_t *rev = ctx->rev_ctx->rev;
+    revision_ctx_t *rev_ctx = ctx->rev_ctx;
+    revision_t *rev = rev_ctx->rev;
+    apr_hash_index_t *idx;
 
-    if (rev->revnum == 0 || rev->branch == NULL) {
-        err = backend_notify_skip_revision(&ctx->backend, rev);
+    if (rev->revnum == 0 || apr_hash_count(rev->commits) == 0) {
+        err = backend_notify_revision_skipped(&ctx->backend, rev->revnum);
         if (err) {
             return svn_error_create(SVN_ERR_BASE, NULL, NULL);
         }
         return SVN_NO_ERROR;
     }
 
-    rev->mark = ctx->last_mark++;
+    for (idx = apr_hash_first(ctx->rev_ctx->pool, rev->commits); idx; idx = apr_hash_next(idx)) {
+        commit_t *commit = apr_hash_this_val(idx);
+        apr_array_header_t *nodes = apr_hash_get(ctx->rev_ctx->nodes, commit, sizeof(commit_t *));
 
-    err = backend_write_revision(&ctx->backend, rev, ctx->rev_ctx->nodes);
+        commit->mark = ctx->last_mark++;
+
+        err = backend_write_commit(&ctx->backend, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp);
+        if (err) {
+            return svn_error_create(SVN_ERR_BASE, NULL, NULL);
+        }
+
+        err = backend_notify_branch_updated(&ctx->backend, commit->branch);
+        if (err) {
+            return svn_error_create(SVN_ERR_BASE, NULL, NULL);
+        }
+
+        commit->branch->last_commit = commit;
+    }
+
+    err = backend_notify_revision_imported(&ctx->backend, rev->revnum);
     if (err) {
         return svn_error_create(SVN_ERR_BASE, NULL, NULL);
     }
 
     apr_hash_set(ctx->revisions, &rev->revnum, sizeof(revnum_t), rev);
-
-    rev->branch->last_rev = rev;
-
     ctx->rev_ctx = NULL;
 
     return SVN_NO_ERROR;
@@ -550,9 +595,10 @@ git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
     trie_insert(ctx.branches, master->path, master);
     ctx.options = options;
 
+    ctx.backend.verbose = options->verbose;
+
     // Write to stdout
     ctx.backend.out = OUT_FILENO;
-
     // Read backend answers
     ctx.backend.back = BACK_FILENO;
 

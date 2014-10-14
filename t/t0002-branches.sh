@@ -62,6 +62,8 @@ test_export_import
 test_tick
 
 mkdir -p repo.svn/branches/without_parent
+cat >repo.svn/branches/without_parent/dummy.c <<EOF
+EOF
 
 test_expect_success 'Create branch without parent' '
 (cd repo.svn &&
@@ -117,12 +119,13 @@ test_expect_success 'Commit new file into trunk' '
 test_export_import
 
 cat >expect <<EOF
+a465abbdea786cf1f59ae9ce1ac53cb034bffb7e
 :000000 100644 0000000000000000000000000000000000000000 cb3f7482fa46d2ac25648a694127f23c1976b696 A	main.c
 EOF
 
 test_expect_success 'Validate files added' '
 (cd repo.git &&
-	git diff-tree -M -r master^ master >actual &&
+	git diff-tree --root master >actual &&
 	test_cmp ../expect actual)
 '
 
@@ -409,7 +412,7 @@ test_expect_success 'Validate branch create' '
 '
 
 cat >expect <<EOF
-309585d New feature branch created
+02ceb18 New feature branch created
 EOF
 
 test_expect_success 'Validate branch last commit' '

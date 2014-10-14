@@ -244,9 +244,10 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     branch_t *branch = NULL, *copyfrom_branch = NULL;
     apr_array_header_t *nodes;
     node_t *node;
-    node_action_t action;
-    node_kind_t kind;
+    node_action_t action = get_node_action(headers);
+    node_kind_t kind = get_node_kind(headers);
     git_svn_status_t err;
+    int is_new_branch;
 
     *n_ctx = ctx;
 
@@ -277,8 +278,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         branch = apr_pcalloc(ctx->pool, sizeof(branch_t));
         branch->name = apr_pstrdup(ctx->pool, subpath);
         branch->path = apr_pstrdup(ctx->pool, path);
-        backend_notify_branch_found(&ctx->backend, branch);
-        trie_insert(ctx->branches, branch->path, branch);
+        is_new_branch = 1;
     }
 
     if (copyfrom_branch == NULL && copyfrom_path != NULL) {
@@ -300,12 +300,23 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
             branch->name = apr_pstrdup(ctx->pool, subpath);
             branch->path = apr_pstrdup(ctx->pool, path);
         }
-        backend_notify_branch_found(&ctx->backend, branch);
-        trie_insert(ctx->branches, branch->path, branch);
+        is_new_branch = 1;
     }
 
     if (branch == NULL) {
         return SVN_NO_ERROR;
+    }
+
+    if (kind == KIND_DIR && action == ACTION_ADD && copyfrom_path == NULL) {
+        return SVN_NO_ERROR;
+    }
+
+    if (is_new_branch) {
+        err = backend_notify_branch_found(&ctx->backend, branch);
+        if (err) {
+            return svn_generic_error();
+        }
+        trie_insert(ctx->branches, branch->path, branch);
     }
 
     commit = apr_hash_get(rev->commits, branch, sizeof(branch_t *));
@@ -319,13 +330,6 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     if (nodes == NULL) {
         nodes = apr_array_make(ctx->rev_ctx->pool, 8, sizeof(node_t));
         apr_hash_set(ctx->rev_ctx->nodes, commit, sizeof(commit_t *), nodes);
-    }
-
-    kind = get_node_kind(headers);
-    action = get_node_action(headers);
-
-    if (kind == KIND_DIR && action == ACTION_ADD && copyfrom_path == NULL) {
-        return SVN_NO_ERROR;
     }
 
     node = &APR_ARRAY_PUSH(nodes, node_t);

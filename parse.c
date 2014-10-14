@@ -72,6 +72,11 @@ typedef struct
     node_t *node;
 } parser_ctx_t;
 
+static svn_error_t *
+svn_generic_error() {
+    return svn_error_create(SVN_ERR_BASE, NULL, NULL);
+}
+
 #if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
 static svn_error_t *
 magic_header_record(int version, void *ctx, apr_pool_t *pool)
@@ -340,7 +345,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     if (node->kind == KIND_FILE) {
         err = get_node_blob(&node->content.data.blob, headers, ctx);
         if (err) {
-            return svn_error_create(SVN_ERR_BASE, NULL, NULL);
+            return svn_generic_error();
         }
         if (node->content.data.blob != NULL) {
             node->content.kind = CONTENT_BLOB;
@@ -364,7 +369,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
 
             err = backend_get_checksum(&ctx->backend, node->content.data.checksum, copyfrom_commit, copyfrom_subpath);
             if (err) {
-                return svn_error_create(SVN_ERR_BASE, NULL, NULL);
+                return svn_generic_error();
             }
 
             node->content.kind = CONTENT_CHECKSUM;
@@ -472,7 +477,7 @@ set_fulltext(svn_stream_t **stream, void *n_ctx)
 
     err = backend_write_blob_header(&ctx->backend, blob);
     if (err) {
-        return svn_error_create(SVN_ERR_BASE, NULL, NULL);
+        return svn_generic_error();
     }
 
     return SVN_NO_ERROR;
@@ -506,7 +511,7 @@ close_revision(void *r_ctx)
     if (rev->revnum == 0 || apr_hash_count(rev->commits) == 0) {
         err = backend_notify_revision_skipped(&ctx->backend, rev->revnum);
         if (err) {
-            return svn_error_create(SVN_ERR_BASE, NULL, NULL);
+            return svn_generic_error();
         }
         return SVN_NO_ERROR;
     }
@@ -526,12 +531,12 @@ close_revision(void *r_ctx)
 
         err = backend_write_commit(&ctx->backend, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp);
         if (err) {
-            return svn_error_create(SVN_ERR_BASE, NULL, NULL);
+            return svn_generic_error();
         }
 
         err = backend_notify_branch_updated(&ctx->backend, commit->branch);
         if (err) {
-            return svn_error_create(SVN_ERR_BASE, NULL, NULL);
+            return svn_generic_error();
         }
 
         commit->branch->last_commit = commit;
@@ -539,7 +544,7 @@ close_revision(void *r_ctx)
 
     err = backend_notify_revision_imported(&ctx->backend, rev->revnum);
     if (err) {
-        return svn_error_create(SVN_ERR_BASE, NULL, NULL);
+        return svn_generic_error();
     }
 
     apr_hash_set(ctx->revisions, &rev->revnum, sizeof(revnum_t), rev);

@@ -199,10 +199,12 @@ get_node_blob(blob_t **dst, apr_hash_t *headers, parser_ctx_t *ctx)
     const char *content_sha1, *content_length;
     checksum_t checksum;
     blob_t *blob;
+    int is_copyfrom = 0;
 
     content_sha1 = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_SHA1, APR_HASH_KEY_STRING);
     if (content_sha1 == NULL) {
         content_sha1 = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_COPY_SOURCE_SHA1, APR_HASH_KEY_STRING);
+        is_copyfrom = 1;
     }
 
     if (content_sha1 == NULL) {
@@ -217,6 +219,10 @@ get_node_blob(blob_t **dst, apr_hash_t *headers, parser_ctx_t *ctx)
     blob = apr_hash_get(ctx->blobs, checksum, sizeof(checksum_t));
 
     if (blob == NULL) {
+        // Do not create new blobs for copied paths.
+        if (is_copyfrom) {
+            return GIT_SVN_SUCCESS;
+        }
         blob = apr_pcalloc(ctx->pool, sizeof(blob_t));
         memcpy(blob->checksum, checksum, sizeof(checksum_t));
 

@@ -247,7 +247,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     node_action_t action = get_node_action(headers);
     node_kind_t kind = get_node_kind(headers);
     git_svn_status_t err;
-    int is_new_branch;
+    int is_new_branch = 0;
 
     *n_ctx = ctx;
 
@@ -372,11 +372,9 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
             }
 
             err = backend_get_checksum(&ctx->backend, node->content.data.checksum, copyfrom_commit, copyfrom_subpath);
-            if (err) {
-                return svn_generic_error();
+            if (!err) {
+                node->content.kind = CONTENT_CHECKSUM;
             }
-
-            node->content.kind = CONTENT_CHECKSUM;
         }
     }
 

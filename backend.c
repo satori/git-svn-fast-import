@@ -224,7 +224,7 @@ parse_checksum(uint8_t *dst, const char *src) {
 
     // Check if path is missing
     if (*src == 'm') {
-        handle_error(src);
+        handle_warning(src);
         return GIT_SVN_FAILURE;
     }
 

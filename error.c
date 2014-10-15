@@ -27,13 +27,19 @@
 void
 handle_svn_error(svn_error_t *err)
 {
-    svn_handle_error2(err, stderr, FALSE, "svn-fast-export: ");
+    svn_handle_error2(err, stderr, FALSE, "svn-fast-export: ERR: ");
 }
 
 void
 handle_error(const char *msg)
 {
-    fprintf(stderr, "svn-fast-export: %s\n", msg);
+    fprintf(stderr, "svn-fast-export: ERR: %s\n", msg);
+}
+
+void
+handle_warning(const char *msg)
+{
+    fprintf(stderr, "svn-fast-export: WARN: %s\n", msg);
 }
 
 void

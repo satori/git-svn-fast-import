@@ -24,15 +24,19 @@
 #define GIT_SVN_FAST_IMPORT_OPTIONS_H_
 
 #include "error.h"
+#include "tree.h"
 
 #include <apr_pools.h>
 
 typedef struct
 {
     int verbose;
+    // Trunk path prefix.
     const char *trunk;
-    const char *branches;
-    const char *tags;
+    // Branches path prefixes.
+    tree_t *branches_pfx;
+    // Tags path prefixes.
+    tree_t *tags_pfx;
 } git_svn_options_t;
 
 git_svn_status_t

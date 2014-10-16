@@ -37,6 +37,7 @@ typedef struct
 {
     const char *name;
     const char *path;
+    int is_saved;
     struct commit_t *last_commit;
 } branch_t;
 

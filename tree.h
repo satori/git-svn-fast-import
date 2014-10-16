@@ -20,32 +20,29 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef GIT_SVN_FAST_IMPORT_TRIE_H_
-#define GIT_SVN_FAST_IMPORT_TRIE_H_
+#ifndef GIT_SVN_FAST_IMPORT_TREE_H_
+#define GIT_SVN_FAST_IMPORT_TREE_H_
 
-#include "error.h"
-
+#include <apr_hash.h>
 #include <apr_pools.h>
 
-#define TRIE_SIZE 256
-
-typedef struct trie_t
+typedef struct
 {
     apr_pool_t *pool;
-    void *value;
-    struct trie_t *chars[TRIE_SIZE];
-} trie_t;
+    apr_hash_t *nodes;
+    const void *value;
+} tree_t;
 
-trie_t *
-trie_create(apr_pool_t *pool);
+tree_t *
+tree_create(apr_pool_t *pool);
 
 void
-trie_insert(trie_t *t, const char *key, void *value);
+tree_insert(tree_t *t, const char *key, const void *value);
 
-void *
-trie_find_longest_prefix(trie_t *t, const char *key);
+const void *
+tree_find_longest_prefix(const tree_t *t, const char *key);
 
-void *
-trie_find_exact(trie_t *t, const char *key);
+const void *
+tree_find_exact(const tree_t *t, const char *key);
 
-#endif // GIT_SVN_FAST_IMPORT_TRIE_H_
+#endif // GIT_SVN_FAST_IMPORT_TREE_H_

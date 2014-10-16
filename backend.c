@@ -204,7 +204,8 @@ git_svn_status_t
 backend_notify_branch_found(backend_t *be, const branch_t *branch)
 {
     if (be->verbose) {
-        return io_printf(be->out, "progress Found branch at %s\n", branch->path);
+        return io_printf(be->out, "progress Found branch %s (at %s)\n",
+                         branch->name, branch->path);
     }
     return GIT_SVN_SUCCESS;
 }
@@ -213,7 +214,8 @@ git_svn_status_t
 backend_notify_branch_updated(backend_t *be, const branch_t *branch)
 {
     if (be->verbose) {
-        return io_printf(be->out, "progress Updated branch %s\n", branch->name);
+        return io_printf(be->out, "progress Updating branch %s (at %s)\n",
+                         branch->name, branch->path);
     }
     return GIT_SVN_SUCCESS;
 }

@@ -38,6 +38,7 @@ typedef struct
     const char *name;
     const char *path;
     int is_saved;
+    int is_tag;
     struct commit_t *last_commit;
 } branch_t;
 

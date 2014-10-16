@@ -46,8 +46,8 @@ git_svn_parse_options(git_svn_options_t *options, int argc, const char **argv, a
 
     options->verbose = 0;
     options->trunk = "";
-    options->branches_pfx = tree_create(pool);
-    options->tags_pfx = tree_create(pool);
+    options->branches = tree_create(pool);
+    options->tags = tree_create(pool);
 
     while (1) {
         int opt_id;
@@ -64,17 +64,17 @@ git_svn_parse_options(git_svn_options_t *options, int argc, const char **argv, a
         switch (opt_id) {
         case 's':
             options->trunk = "trunk";
-            tree_insert(options->branches_pfx, "branches", "branches");
-            tree_insert(options->tags_pfx, "tags", "tags");
+            tree_insert(options->branches, "branches", "branches");
+            tree_insert(options->tags, "tags", "tags");
             break;
         case 'T':
             options->trunk = opt_arg;
             break;
         case 't':
-            tree_insert(options->tags_pfx, opt_arg, opt_arg);
+            tree_insert(options->tags, opt_arg, opt_arg);
             break;
         case 'b':
-            tree_insert(options->branches_pfx, opt_arg, opt_arg);
+            tree_insert(options->branches, opt_arg, opt_arg);
             break;
         case 'v':
             options->verbose = 1;

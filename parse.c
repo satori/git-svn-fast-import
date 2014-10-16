@@ -244,15 +244,17 @@ find_branch(const parser_ctx_t *ctx, const char *path)
 {
     branch_t *branch;
     const char *prefix, *root, *subpath;
+    int is_tag = 0;
 
     branch = (branch_t *) tree_find_longest_prefix(ctx->branches, path);
     if (branch != NULL) {
         return branch;
     }
 
-    prefix = tree_find_longest_prefix(ctx->options->branches_pfx, path);
+    prefix = tree_find_longest_prefix(ctx->options->branches, path);
     if (prefix == NULL) {
-        prefix = tree_find_longest_prefix(ctx->options->tags_pfx, path);
+        prefix = tree_find_longest_prefix(ctx->options->tags, path);
+        is_tag = 1;
     }
 
     if (prefix == NULL) {
@@ -273,6 +275,7 @@ find_branch(const parser_ctx_t *ctx, const char *path)
     }
 
     branch = apr_pcalloc(ctx->pool, sizeof(branch_t));
+    branch->is_tag = is_tag;
 
     root = strchr(subpath, '/');
     if (root == NULL) {

@@ -34,9 +34,9 @@ typedef struct
     // Trunk path prefix.
     const char *trunk;
     // Branches path prefixes.
-    tree_t *branches_pfx;
+    tree_t *branches;
     // Tags path prefixes.
-    tree_t *tags_pfx;
+    tree_t *tags;
 } git_svn_options_t;
 
 git_svn_status_t

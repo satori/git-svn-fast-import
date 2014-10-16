@@ -32,9 +32,14 @@ write_commit_header(int fd,
                     const char *message,
                     int64_t timestamp)
 {
+    const char *prefix = "";
     git_svn_status_t err;
 
-    err = io_printf(fd, "commit refs/heads/%s\n", commit->branch->name);
+    if (commit->branch->is_tag) {
+        prefix = "tags/";
+    }
+
+    err = io_printf(fd, "commit refs/heads/%s%s\n", prefix, commit->branch->name);
     if (err) {
         return err;
     }
@@ -200,12 +205,22 @@ backend_notify_revision_imported(backend_t *be, revnum_t revnum)
     return io_printf(be->out, "progress Imported revision %d\n", revnum);
 }
 
+static const char *
+branch_type(const branch_t *branch)
+{
+    if (branch->is_tag) {
+        return "tag";
+    }
+
+    return "branch";
+}
+
 git_svn_status_t
 backend_notify_branch_found(backend_t *be, const branch_t *branch)
 {
     if (be->verbose) {
-        return io_printf(be->out, "progress Found branch %s (at %s)\n",
-                         branch->name, branch->path);
+        return io_printf(be->out, "progress Found %s \"%s\" (at \"%s\")\n",
+                         branch_type(branch), branch->name, branch->path);
     }
     return GIT_SVN_SUCCESS;
 }
@@ -214,8 +229,8 @@ git_svn_status_t
 backend_notify_branch_updated(backend_t *be, const branch_t *branch)
 {
     if (be->verbose) {
-        return io_printf(be->out, "progress Updating branch %s (at %s)\n",
-                         branch->name, branch->path);
+        return io_printf(be->out, "progress Updating %s \"%s\" (at \"%s\")\n",
+                         branch_type(branch), branch->name, branch->path);
     }
     return GIT_SVN_SUCCESS;
 }

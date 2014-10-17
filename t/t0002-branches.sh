@@ -380,12 +380,12 @@ test_expect_success 'Commit new tag from trunk' '
 test_export_import
 
 cat >expect <<EOF
-  release-1.0
+  tags/release-1.0
 EOF
 
 test_expect_success 'Validate tag create' '
 (cd repo.git &&
-	git branch --list release-1.0 >actual &&
+	git branch --list tags/release-1.0 >actual &&
 	test_cmp ../expect actual)
 '
 
@@ -592,12 +592,12 @@ test_expect_success 'Validate tag create from branch' '
 test_export_import
 
 cat >expect <<EOF
-  some-feature-before-remove
+  tags/some-feature-before-remove
 EOF
 
 test_expect_success 'Validate tag create' '
 (cd repo.git &&
-	git branch --list some-feature-before-remove >actual &&
+	git branch --list tags/some-feature-before-remove >actual &&
 	test_cmp ../expect actual)
 '
 

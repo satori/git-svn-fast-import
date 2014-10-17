@@ -25,6 +25,8 @@
 #include "io.h"
 #include "utils.h"
 
+#define NULL_SHA1 "0000000000000000000000000000000000000000"
+
 static git_svn_status_t
 write_commit_header(int fd,
                     const commit_t *commit,
@@ -32,14 +34,9 @@ write_commit_header(int fd,
                     const char *message,
                     int64_t timestamp)
 {
-    const char *prefix = "";
     git_svn_status_t err;
 
-    if (commit->branch->is_tag) {
-        prefix = "tags/";
-    }
-
-    err = io_printf(fd, "commit refs/heads/%s%s\n", prefix, commit->branch->name);
+    err = io_printf(fd, "commit refs/heads/%s\n", commit->branch->ref_name);
     if (err) {
         return err;
     }
@@ -145,7 +142,7 @@ handle_node(int fd, const node_t *node)
 }
 
 git_svn_status_t
-backend_write_commit(backend_t *be,
+backend_write_commit(const backend_t *be,
                      const commit_t *commit,
                      const apr_array_header_t *nodes,
                      const char *author,
@@ -171,7 +168,7 @@ backend_write_commit(backend_t *be,
 }
 
 git_svn_status_t
-backend_write_blob_header(backend_t *be, const blob_t *blob)
+backend_write_blob_header(const backend_t *be, const blob_t *blob)
 {
     git_svn_status_t err;
 
@@ -194,13 +191,31 @@ backend_write_blob_header(backend_t *be, const blob_t *blob)
 }
 
 git_svn_status_t
-backend_notify_revision_skipped(backend_t *be, revnum_t revnum)
+backend_remove_branch(const backend_t *be, const branch_t *branch)
+{
+    git_svn_status_t err;
+
+    err = io_printf(be->out, "reset refs/heads/%s\n", branch->ref_name);
+    if (err) {
+        return err;
+    }
+
+    err = io_printf(be->out, "from %s\n", NULL_SHA1);
+    if (err) {
+        return err;
+    }
+
+    return GIT_SVN_SUCCESS;
+}
+
+git_svn_status_t
+backend_notify_revision_skipped(const backend_t *be, revnum_t revnum)
 {
     return io_printf(be->out, "progress Skipped revision %d\n", revnum);
 }
 
 git_svn_status_t
-backend_notify_revision_imported(backend_t *be, revnum_t revnum)
+backend_notify_revision_imported(const backend_t *be, revnum_t revnum)
 {
     return io_printf(be->out, "progress Imported revision %d\n", revnum);
 }
@@ -216,7 +231,7 @@ branch_type(const branch_t *branch)
 }
 
 git_svn_status_t
-backend_notify_branch_found(backend_t *be, const branch_t *branch)
+backend_notify_branch_found(const backend_t *be, const branch_t *branch)
 {
     if (be->verbose) {
         return io_printf(be->out, "progress Found %s \"%s\" (at \"%s\")\n",
@@ -226,10 +241,20 @@ backend_notify_branch_found(backend_t *be, const branch_t *branch)
 }
 
 git_svn_status_t
-backend_notify_branch_updated(backend_t *be, const branch_t *branch)
+backend_notify_branch_updated(const backend_t *be, const branch_t *branch)
 {
     if (be->verbose) {
-        return io_printf(be->out, "progress Updating %s \"%s\" (at \"%s\")\n",
+        return io_printf(be->out, "progress Updated %s \"%s\" (at \"%s\")\n",
+                         branch_type(branch), branch->name, branch->path);
+    }
+    return GIT_SVN_SUCCESS;
+}
+
+git_svn_status_t
+backend_notify_branch_removed(const backend_t *be, const branch_t *branch)
+{
+    if (be->verbose) {
+        return io_printf(be->out, "progress Removed %s \"%s\" (at \"%s\")\n",
                          branch_type(branch), branch->name, branch->path);
     }
     return GIT_SVN_SUCCESS;
@@ -257,7 +282,7 @@ parse_checksum(uint8_t *dst, const char *src) {
 }
 
 git_svn_status_t
-backend_get_checksum(backend_t *be,
+backend_get_checksum(const backend_t *be,
                      uint8_t *dst,
                      const commit_t *commit,
                      const char *path)
@@ -283,7 +308,7 @@ backend_get_checksum(backend_t *be,
 }
 
 git_svn_status_t
-backend_finished(backend_t *be)
+backend_finished(const backend_t *be)
 {
     return io_printf(be->out, "done\n");
 }

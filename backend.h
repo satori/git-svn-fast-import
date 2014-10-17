@@ -37,7 +37,7 @@ typedef struct
 } backend_t;
 
 git_svn_status_t
-backend_write_commit(backend_t *be,
+backend_write_commit(const backend_t *be,
                      const commit_t *commit,
                      const apr_array_header_t *nodes,
                      const char *author,
@@ -45,27 +45,33 @@ backend_write_commit(backend_t *be,
                      int64_t timestamp);
 
 git_svn_status_t
-backend_write_blob_header(backend_t *be, const blob_t *blob);
+backend_write_blob_header(const backend_t *be, const blob_t *blob);
 
 git_svn_status_t
-backend_notify_branch_found(backend_t *be, const branch_t *branch);
+backend_remove_branch(const backend_t *be, const branch_t *branch);
 
 git_svn_status_t
-backend_notify_branch_updated(backend_t *be, const branch_t *branch);
+backend_notify_branch_found(const backend_t *be, const branch_t *branch);
 
 git_svn_status_t
-backend_notify_revision_skipped(backend_t *be, revnum_t revnum);
+backend_notify_branch_updated(const backend_t *be, const branch_t *branch);
 
 git_svn_status_t
-backend_notify_revision_imported(backend_t *be, revnum_t revnum);
+backend_notify_branch_removed(const backend_t *be, const branch_t *branch);
 
 git_svn_status_t
-backend_get_checksum(backend_t *be,
+backend_notify_revision_skipped(const backend_t *be, revnum_t revnum);
+
+git_svn_status_t
+backend_notify_revision_imported(const backend_t *be, revnum_t revnum);
+
+git_svn_status_t
+backend_get_checksum(const backend_t *be,
                      uint8_t *dst,
                      const commit_t *commit,
                      const char *path);
 
 git_svn_status_t
-backend_finished(backend_t *be);
+backend_finished(const backend_t *be);
 
 #endif // GIT_SVN_FAST_IMPORT_BACKEND_H_

@@ -26,7 +26,6 @@
 #include "tree.h"
 #include "utils.h"
 
-#include <apr_portable.h>
 #include <svn_props.h>
 #include <svn_repos.h>
 #include <svn_time.h>
@@ -40,12 +39,17 @@
 #define MODE_SYMLINK    0120000
 #define MODE_DIR        0040000
 
+static const int one = 1;
+static const void *NOT_NULL = &one;
+
 typedef struct
 {
     // Subversion revision number
     revnum_t revnum;
     // branch_t to commit_t mapping
     apr_hash_t *commits;
+    // branch_t remove set
+    apr_hash_t *remove;
 } revision_t;
 
 typedef struct
@@ -101,6 +105,7 @@ new_revision_record(void **r_ctx, apr_hash_t *headers, void *p_ctx, apr_pool_t *
     revision_t *rev = apr_pcalloc(ctx->pool, sizeof(revision_t));
     rev->revnum = SVN_INVALID_REVNUM;
     rev->commits = apr_hash_make(ctx->pool);
+    rev->remove = apr_hash_make(ctx->pool);
 
     revnum = apr_hash_get(headers, SVN_REPOS_DUMPFILE_REVISION_NUMBER, APR_HASH_KEY_STRING);
     if (revnum != NULL) {
@@ -184,7 +189,7 @@ get_copyfrom_commit(apr_hash_t *headers, parser_ctx_t *ctx, branch_t *copyfrom_b
         commit_t *commit;
         commit = apr_hash_get(rev->commits, copyfrom_branch, sizeof(branch_t *));
 
-        if (commit != NULL && strcmp(commit->branch->name, copyfrom_branch->name) == 0) {
+        if (commit != NULL && strcmp(commit->branch->ref_name, copyfrom_branch->ref_name) == 0) {
             return commit;
         }
     }
@@ -280,12 +285,21 @@ find_branch(const parser_ctx_t *ctx, const char *path)
     root = strchr(subpath, '/');
     if (root == NULL) {
         branch->name = apr_pstrdup(ctx->pool, subpath);
+        branch->ref_name = branch->name;
+        if (branch->is_tag) {
+            branch->ref_name = apr_psprintf(ctx->pool, "tags/%s", branch->name);
+        }
         branch->path = apr_pstrdup(ctx->pool, path);
         return branch;
     }
 
     branch->name = apr_pstrndup(ctx->pool, subpath, root - subpath);
     branch->path = apr_pstrndup(ctx->pool, path, root - path);
+
+    branch->ref_name = branch->name;
+    if (branch->is_tag) {
+        branch->ref_name = apr_psprintf(ctx->pool, "tags/%s", branch->name);
+    }
 
     return branch;
 }
@@ -310,11 +324,16 @@ store_branch(parser_ctx_t *ctx, branch_t *branch)
     return GIT_SVN_SUCCESS;
 }
 
+static int
+is_branch_root(const branch_t *branch, const char *path)
+{
+    return strcmp(branch->path, path) == 0;
+}
+
 static svn_error_t *
 new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
 {
-    const char *path, *subpath;
-    const char *copyfrom_path;
+    const char *path, *copyfrom_path, *node_path;
     parser_ctx_t *ctx = r_ctx;
     revision_t *rev = ctx->rev_ctx->rev;
     commit_t *commit, *copyfrom_commit = NULL;
@@ -351,6 +370,20 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         return svn_generic_error();
     }
 
+    if (kind == KIND_UNKNOWN && action == ACTION_DELETE && is_branch_root(branch, path)) {
+        apr_hash_set(rev->remove, branch, sizeof(branch_t *), NOT_NULL);
+        return SVN_NO_ERROR;
+    }
+
+    node_path = cstring_skip_prefix(path, branch->path);
+    if (node_path == NULL) {
+        return SVN_NO_ERROR;
+    }
+
+    if (*node_path == '/') {
+        node_path++;
+    }
+
     commit = apr_hash_get(rev->commits, branch, sizeof(branch_t *));
     if (commit == NULL) {
         commit = apr_pcalloc(ctx->pool, sizeof(commit_t));
@@ -368,15 +401,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     node->mode = get_node_default_mode(kind);
     node->kind = kind;
     node->action = action;
-    node->path = "";
-
-    subpath = cstring_skip_prefix(path, branch->path);
-    if (subpath != NULL) {
-        if (*subpath == '/') {
-            subpath++;
-        }
-        node->path = apr_pstrdup(ctx->rev_ctx->pool, subpath);
-    }
+    node->path = apr_pstrdup(ctx->rev_ctx->pool, node_path);
 
     if (node->kind == KIND_FILE) {
         err = get_node_blob(&node->content.data.blob, headers, ctx);
@@ -542,7 +567,7 @@ close_revision(void *r_ctx)
     revision_t *rev = rev_ctx->rev;
     apr_hash_index_t *idx;
 
-    if (rev->revnum == 0 || apr_hash_count(rev->commits) == 0) {
+    if (apr_hash_count(rev->commits) == 0 && apr_hash_count(rev->remove) == 0) {
         err = backend_notify_revision_skipped(&ctx->backend, rev->revnum);
         if (err) {
             return svn_generic_error();
@@ -552,11 +577,9 @@ close_revision(void *r_ctx)
 
     for (idx = apr_hash_first(ctx->rev_ctx->pool, rev->commits); idx; idx = apr_hash_next(idx)) {
         commit_t *commit;
-        const void *key;
-        ssize_t keylen = sizeof(branch_t *);
         void *value;
 
-        apr_hash_this(idx, &key, &keylen, &value);
+        apr_hash_this(idx, NULL, NULL, &value);
         commit = value;
 
         apr_array_header_t *nodes = apr_hash_get(ctx->rev_ctx->nodes, commit, sizeof(commit_t *));
@@ -574,6 +597,25 @@ close_revision(void *r_ctx)
         }
 
         commit->branch->last_commit = commit;
+    }
+
+    for (idx = apr_hash_first(ctx->rev_ctx->pool, rev->remove); idx; idx = apr_hash_next(idx)) {
+        branch_t *branch;
+        const void *key;
+        ssize_t keylen = sizeof(branch_t *);
+
+        apr_hash_this(idx, &key, &keylen, NULL);
+        branch = (branch_t *) key;
+
+        err = backend_remove_branch(&ctx->backend, branch);
+        if (err) {
+            return svn_generic_error();
+        }
+
+        err = backend_notify_branch_removed(&ctx->backend, branch);
+        if (err) {
+            return svn_generic_error();
+        }
     }
 
     err = backend_notify_revision_imported(&ctx->backend, rev->revnum);
@@ -636,6 +678,7 @@ git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
 
     branch_t *master = apr_pcalloc(pool, sizeof(*master));
     master->name = "master";
+    master->ref_name = "master";
     master->path = options->trunk;
 
     tree_insert(ctx.branches, master->path, master);

@@ -617,7 +617,7 @@ test_export_import
 cat >expect <<EOF
 EOF
 
-test_expect_failure 'Validate branch remove' '
+test_expect_success 'Validate branch remove' '
 (cd repo.git &&
 	git branch --list some-feature >actual &&
 	test_cmp ../expect actual)
@@ -794,7 +794,7 @@ test_export_import
 cat >expect <<EOF
 EOF
 
-test_expect_failure 'Validate old branch name disappeared' '
+test_expect_success 'Validate old branch name disappeared' '
 (cd repo.git &&
 	git branch --list no-features >actual &&
 	test_cmp ../expect actual)

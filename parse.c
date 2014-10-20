@@ -285,21 +285,14 @@ find_branch(const parser_ctx_t *ctx, const char *path)
     root = strchr(subpath, '/');
     if (root == NULL) {
         branch->name = apr_pstrdup(ctx->pool, subpath);
-        branch->ref_name = branch->name;
-        if (branch->is_tag) {
-            branch->ref_name = apr_psprintf(ctx->pool, "tags/%s", branch->name);
-        }
         branch->path = apr_pstrdup(ctx->pool, path);
-        return branch;
+    }
+    else {
+        branch->name = apr_pstrndup(ctx->pool, subpath, root - subpath);
+        branch->path = apr_pstrndup(ctx->pool, path, root - path);
     }
 
-    branch->name = apr_pstrndup(ctx->pool, subpath, root - subpath);
-    branch->path = apr_pstrndup(ctx->pool, path, root - path);
-
-    branch->ref_name = branch->name;
-    if (branch->is_tag) {
-        branch->ref_name = apr_psprintf(ctx->pool, "tags/%s", branch->name);
-    }
+    branch->ref_name = apr_psprintf(ctx->pool, "refs/heads/%s", branch->path);
 
     return branch;
 }
@@ -586,7 +579,7 @@ close_revision(void *r_ctx)
 
         commit->mark = ctx->last_mark++;
 
-        err = backend_write_commit(&ctx->backend, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp);
+        err = backend_write_commit(&ctx->backend, commit->branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp);
         if (err) {
             return svn_generic_error();
         }
@@ -678,7 +671,7 @@ git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
 
     branch_t *master = apr_pcalloc(pool, sizeof(*master));
     master->name = "master";
-    master->ref_name = "master";
+    master->ref_name = "refs/heads/master";
     master->path = options->trunk;
 
     tree_insert(ctx.branches, master->path, master);

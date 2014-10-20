@@ -38,6 +38,7 @@ typedef struct
 
 git_svn_status_t
 backend_write_commit(const backend_t *be,
+                     const branch_t *branch,
                      const commit_t *commit,
                      const apr_array_header_t *nodes,
                      const char *author,

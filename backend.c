@@ -29,6 +29,7 @@
 
 static git_svn_status_t
 write_commit_header(int fd,
+                    const branch_t *branch,
                     const commit_t *commit,
                     const char *author,
                     const char *message,
@@ -36,7 +37,7 @@ write_commit_header(int fd,
 {
     git_svn_status_t err;
 
-    err = io_printf(fd, "commit refs/heads/%s\n", commit->branch->ref_name);
+    err = io_printf(fd, "commit %s\n", branch->ref_name);
     if (err) {
         return err;
     }
@@ -143,6 +144,7 @@ handle_node(int fd, const node_t *node)
 
 git_svn_status_t
 backend_write_commit(const backend_t *be,
+                     const branch_t *branch,
                      const commit_t *commit,
                      const apr_array_header_t *nodes,
                      const char *author,
@@ -151,7 +153,7 @@ backend_write_commit(const backend_t *be,
 {
     git_svn_status_t err;
 
-    err = write_commit_header(be->out, commit, author, message, timestamp);
+    err = write_commit_header(be->out, branch, commit, author, message, timestamp);
     if (err) {
         return err;
     }
@@ -195,7 +197,7 @@ backend_remove_branch(const backend_t *be, const branch_t *branch)
 {
     git_svn_status_t err;
 
-    err = io_printf(be->out, "reset refs/heads/%s\n", branch->ref_name);
+    err = io_printf(be->out, "reset %s\n", branch->ref_name);
     if (err) {
         return err;
     }

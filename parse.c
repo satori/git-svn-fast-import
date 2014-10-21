@@ -189,7 +189,7 @@ get_copyfrom_commit(apr_hash_t *headers, parser_ctx_t *ctx, branch_t *copyfrom_b
         commit_t *commit;
         commit = apr_hash_get(rev->commits, copyfrom_branch, sizeof(branch_t *));
 
-        if (commit != NULL && strcmp(commit->branch->ref_name, copyfrom_branch->ref_name) == 0) {
+        if (commit != NULL && strcmp(commit->branch->refname, copyfrom_branch->refname) == 0) {
             return commit;
         }
     }
@@ -284,15 +284,13 @@ find_branch(const parser_ctx_t *ctx, const char *path)
 
     root = strchr(subpath, '/');
     if (root == NULL) {
-        branch->name = apr_pstrdup(ctx->pool, subpath);
         branch->path = apr_pstrdup(ctx->pool, path);
     }
     else {
-        branch->name = apr_pstrndup(ctx->pool, subpath, root - subpath);
         branch->path = apr_pstrndup(ctx->pool, path, root - path);
     }
 
-    branch->ref_name = apr_psprintf(ctx->pool, "refs/heads/%s", branch->path);
+    branch->refname = apr_psprintf(ctx->pool, "refs/heads/%s", branch->path);
 
     return branch;
 }
@@ -670,8 +668,7 @@ git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
     ctx.branches = tree_create(pool);
 
     branch_t *master = apr_pcalloc(pool, sizeof(*master));
-    master->name = "master";
-    master->ref_name = "refs/heads/master";
+    master->refname = "refs/heads/master";
     master->path = options->trunk;
 
     tree_insert(ctx.branches, master->path, master);

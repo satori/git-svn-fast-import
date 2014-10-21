@@ -37,7 +37,7 @@ write_commit_header(int fd,
 {
     git_svn_status_t err;
 
-    err = io_printf(fd, "commit %s\n", branch->ref_name);
+    err = io_printf(fd, "commit %s\n", branch->refname);
     if (err) {
         return err;
     }
@@ -197,7 +197,7 @@ backend_remove_branch(const backend_t *be, const branch_t *branch)
 {
     git_svn_status_t err;
 
-    err = io_printf(be->out, "reset %s\n", branch->ref_name);
+    err = io_printf(be->out, "reset %s\n", branch->refname);
     if (err) {
         return err;
     }
@@ -222,22 +222,11 @@ backend_notify_revision_imported(const backend_t *be, revnum_t revnum)
     return io_printf(be->out, "progress Imported revision %d\n", revnum);
 }
 
-static const char *
-branch_type(const branch_t *branch)
-{
-    if (branch->is_tag) {
-        return "tag";
-    }
-
-    return "branch";
-}
-
 git_svn_status_t
 backend_notify_branch_found(const backend_t *be, const branch_t *branch)
 {
     if (be->verbose) {
-        return io_printf(be->out, "progress Found %s \"%s\" (at \"%s\")\n",
-                         branch_type(branch), branch->name, branch->path);
+        return io_printf(be->out, "progress Found %s\n", branch->refname);
     }
     return GIT_SVN_SUCCESS;
 }
@@ -246,8 +235,7 @@ git_svn_status_t
 backend_notify_branch_updated(const backend_t *be, const branch_t *branch)
 {
     if (be->verbose) {
-        return io_printf(be->out, "progress Updated %s \"%s\" (at \"%s\")\n",
-                         branch_type(branch), branch->name, branch->path);
+        return io_printf(be->out, "progress Updated %s\n", branch->refname);
     }
     return GIT_SVN_SUCCESS;
 }
@@ -256,8 +244,7 @@ git_svn_status_t
 backend_notify_branch_removed(const backend_t *be, const branch_t *branch)
 {
     if (be->verbose) {
-        return io_printf(be->out, "progress Removed %s \"%s\" (at \"%s\")\n",
-                         branch_type(branch), branch->name, branch->path);
+        return io_printf(be->out, "progress Removed %s\n", branch->refname);
     }
     return GIT_SVN_SUCCESS;
 }

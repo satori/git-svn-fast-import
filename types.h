@@ -35,8 +35,7 @@ struct commit_t;
 
 typedef struct
 {
-    const char *name;
-    const char *ref_name;
+    const char *refname;
     const char *path;
     int is_saved;
     int is_tag;

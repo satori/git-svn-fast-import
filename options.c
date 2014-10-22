@@ -29,6 +29,7 @@ static struct apr_getopt_option_t cmdline_options[] = {
     {"trunk", 'T', 1, ""},
     {"tags", 't', 1, ""},
     {"branches", 'b', 1, ""},
+    {"ignore-path", 'I', 1, ""},
     {"verbose", 'v', 0, ""},
     {0, 0, 0, 0}
 };
@@ -48,6 +49,7 @@ git_svn_parse_options(git_svn_options_t *options, int argc, const char **argv, a
     options->trunk = "";
     options->branches = tree_create(pool);
     options->tags = tree_create(pool);
+    options->ignore = tree_create(pool);
 
     while (1) {
         int opt_id;
@@ -75,6 +77,9 @@ git_svn_parse_options(git_svn_options_t *options, int argc, const char **argv, a
             break;
         case 'b':
             tree_insert(options->branches, opt_arg, opt_arg);
+            break;
+        case 'I':
+            tree_insert(options->ignore, opt_arg, opt_arg);
             break;
         case 'v':
             options->verbose = 1;

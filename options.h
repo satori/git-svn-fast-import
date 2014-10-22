@@ -37,6 +37,8 @@ typedef struct
     tree_t *branches;
     // Tags path prefixes.
     tree_t *tags;
+    // Ignore path prefixes.
+    tree_t *ignore;
 } git_svn_options_t;
 
 git_svn_status_t

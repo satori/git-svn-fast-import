@@ -29,7 +29,7 @@ test_description='Test branch history support'
 test_export_import() {
 	test_expect_success 'Import dump into Git' '
 	svnadmin dump repo >repo.dump &&
-		(cd repo.git && git-svn-fast-import --stdlayout --verbose <../repo.dump)
+		(cd repo.git && git-svn-fast-import --stdlayout --verbose -I data <../repo.dump)
 	'
 }
 
@@ -369,6 +369,62 @@ test_expect_success 'Validate directory remove' '
 
 test_tick
 
+mkdir -p repo.svn/trunk/data
+dd if=/dev/random of=repo.svn/trunk/data/bigfile bs=1024 count=10k 2>/dev/null
+
+test_expect_success 'Commit new large blob' '
+(cd repo.svn &&
+    svn add trunk/data &&
+    svn commit -m "Added large blob" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+(cd repo.git &&
+    git describe --always > ../expect)
+
+test_export_import
+
+test_expect_success 'Validate ignored path skipped' '
+(cd repo.git &&
+    git describe --always >actual &&
+    test_cmp ../expect actual)
+'
+
+test_tick
+
+dd if=/dev/random of=repo.svn/trunk/data/bigfile2 bs=1024 count=10k 2>/dev/null
+cat >repo.svn/trunk/lib/main.c <<EOF
+#include <stdio.h>
+
+int main() {
+    printf("Hello, cruel world\n");
+    return 0;
+}
+EOF
+
+test_expect_success 'Commit new large blob with modification' '
+(cd repo.svn &&
+    svn add trunk/data/bigfile2 &&
+    svn commit -m "Added large blob" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:100644 100644 0e5f181f94f2ff9f984b4807887c4d2c6f642723 26b3eb1f244444c2ad967539ca2dd17476b23ee9 M	lib/main.c
+EOF
+
+test_expect_success 'Validate ignored path skipped' '
+(cd repo.git &&
+    git diff-tree -r master^ master >actual &&
+    test_cmp ../expect actual)
+'
+
+test_tick
+
 test_expect_success 'Commit new tag from trunk' '
 (cd repo.svn &&
 	svn cp trunk tags/release-1.0 &&
@@ -412,7 +468,7 @@ test_expect_success 'Validate branch create' '
 '
 
 cat >expect <<EOF
-02ceb18 New feature branch created
+24dbbcf New feature branch created
 EOF
 
 test_expect_success 'Validate branch last commit' '

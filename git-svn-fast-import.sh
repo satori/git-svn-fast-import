@@ -29,6 +29,7 @@ s,stdlayout     set trunk,tags,branches as the relative paths, which is Subversi
 T,trunk=        set trunk to a relative repository path
 t,tags=         set tags to a relative repository path, can be specified multiple times
 b,branches=     set branches to a relative repository path, can be specified multiple times
+I,ignore-path=  ignore a relative repository path, can be specified multiple times
 v,verbose       verbose output mode"
 
 eval "$(echo "$OPTIONS_SPEC" | git rev-parse --parseopt -- $@ || echo exit $?)"

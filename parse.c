@@ -324,7 +324,7 @@ is_branch_root(const branch_t *branch, const char *path)
 static svn_error_t *
 new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
 {
-    const char *path, *copyfrom_path, *node_path;
+    const char *path, *copyfrom_path, *node_path, *ignored;
     parser_ctx_t *ctx = r_ctx;
     revision_t *rev = ctx->rev_ctx->rev;
     commit_t *commit, *copyfrom_commit = NULL;
@@ -373,6 +373,11 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
 
     if (*node_path == '/') {
         node_path++;
+    }
+
+    ignored = tree_find_longest_prefix(ctx->options->ignore, node_path);
+    if (ignored != NULL) {
+        return SVN_NO_ERROR;
     }
 
     commit = apr_hash_get(rev->commits, branch, sizeof(branch_t *));

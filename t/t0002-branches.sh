@@ -370,7 +370,7 @@ test_expect_success 'Validate directory remove' '
 test_tick
 
 mkdir -p repo.svn/trunk/data
-dd if=/dev/random of=repo.svn/trunk/data/bigfile bs=1024 count=10k 2>/dev/null
+dd if=/dev/urandom of=repo.svn/trunk/data/bigfile bs=1024 count=10k 2>/dev/null
 
 test_expect_success 'Commit new large blob' '
 (cd repo.svn &&
@@ -393,7 +393,7 @@ test_expect_success 'Validate ignored path skipped' '
 
 test_tick
 
-dd if=/dev/random of=repo.svn/trunk/data/bigfile2 bs=1024 count=10k 2>/dev/null
+dd if=/dev/urandom of=repo.svn/trunk/data/bigfile2 bs=1024 count=10k 2>/dev/null
 cat >repo.svn/trunk/lib/main.c <<EOF
 #include <stdio.h>
 

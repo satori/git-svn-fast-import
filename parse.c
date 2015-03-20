@@ -31,7 +31,7 @@
 #include <svn_time.h>
 #include <svn_version.h>
 
-#define OUT_FILENO 1
+#define OUT_FILENO  1
 #define BACK_FILENO 3
 
 #define MODE_NORMAL     0100644
@@ -189,12 +189,12 @@ get_copyfrom_commit(apr_hash_t *headers, parser_ctx_t *ctx, branch_t *copyfrom_b
         commit_t *commit;
         commit = apr_hash_get(rev->commits, copyfrom_branch, sizeof(branch_t *));
 
-        if (commit != NULL && strcmp(commit->branch->refname, copyfrom_branch->refname) == 0) {
+        if (commit != NULL) {
             return commit;
         }
     }
 
-    return copyfrom_branch->last_commit;
+    return copyfrom_branch->head;
 }
 
 static git_svn_status_t
@@ -327,7 +327,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     const char *path, *copyfrom_path, *node_path, *ignored;
     parser_ctx_t *ctx = r_ctx;
     revision_t *rev = ctx->rev_ctx->rev;
-    commit_t *commit, *copyfrom_commit = NULL;
+    commit_t *commit;
     branch_t *branch = NULL, *copyfrom_branch = NULL;
     apr_array_header_t *nodes;
     node_t *node;
@@ -383,14 +383,14 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     commit = apr_hash_get(rev->commits, branch, sizeof(branch_t *));
     if (commit == NULL) {
         commit = apr_pcalloc(ctx->pool, sizeof(commit_t));
-        commit->branch = branch;
-        apr_hash_set(rev->commits, commit->branch, sizeof(branch_t *), commit);
+        commit->parent = branch->head;
+        apr_hash_set(rev->commits, branch, sizeof(branch_t *), commit);
     }
 
-    nodes = apr_hash_get(ctx->rev_ctx->nodes, commit, sizeof(commit_t *));
+    nodes = apr_hash_get(ctx->rev_ctx->nodes, branch, sizeof(branch_t *));
     if (nodes == NULL) {
         nodes = apr_array_make(ctx->rev_ctx->pool, 8, sizeof(node_t));
-        apr_hash_set(ctx->rev_ctx->nodes, commit, sizeof(commit_t *), nodes);
+        apr_hash_set(ctx->rev_ctx->nodes, branch, sizeof(branch_t *), nodes);
     }
 
     node = &APR_ARRAY_PUSH(nodes, node_t);
@@ -409,21 +409,33 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         }
     }
 
-    if (node->content.kind == CONTENT_UNKNOWN && copyfrom_branch != NULL) {
-        copyfrom_commit = get_copyfrom_commit(headers, ctx, copyfrom_branch);
+    if (node->content.kind == CONTENT_UNKNOWN) {
+        const char *copyfrom_subpath;
+        commit_t *copyfrom_commit = NULL;
+
+        if (copyfrom_branch != NULL) {
+            copyfrom_commit = get_copyfrom_commit(headers, ctx, copyfrom_branch);
+
+            if (copyfrom_commit != NULL) {
+                copyfrom_subpath = cstring_skip_prefix(copyfrom_path, copyfrom_branch->path);
+
+                if (*copyfrom_subpath == '/') {
+                    copyfrom_subpath++;
+                }
+
+                if (*copyfrom_subpath == '\0') {
+                    commit->copyfrom = copyfrom_commit;
+                }
+            }
+        } else {
+            // In case of file mode modification without content modification
+            // Subversion does not dump its' checksum, so we have to look
+            // for it in the previous commit
+            copyfrom_commit = commit->parent;
+            copyfrom_subpath = node->path;
+        }
 
         if (copyfrom_commit != NULL) {
-            const char *copyfrom_subpath;
-
-            copyfrom_subpath = cstring_skip_prefix(copyfrom_path, copyfrom_branch->path);
-            if (*copyfrom_subpath == '/') {
-                copyfrom_subpath++;
-            }
-
-            if (*copyfrom_subpath == '\0') {
-                commit->copyfrom = copyfrom_commit;
-            }
-
             err = backend_get_checksum(&ctx->backend, node->content.data.checksum, copyfrom_commit, copyfrom_subpath);
             if (!err) {
                 node->content.kind = CONTENT_CHECKSUM;
@@ -562,6 +574,8 @@ close_revision(void *r_ctx)
     revision_ctx_t *rev_ctx = ctx->rev_ctx;
     revision_t *rev = rev_ctx->rev;
     apr_hash_index_t *idx;
+    branch_t *branch;
+    ssize_t keylen = sizeof(branch_t *);
 
     if (apr_hash_count(rev->commits) == 0 && apr_hash_count(rev->remove) == 0) {
         err = backend_notify_revision_skipped(&ctx->backend, rev->revnum);
@@ -572,33 +586,33 @@ close_revision(void *r_ctx)
     }
 
     for (idx = apr_hash_first(ctx->rev_ctx->pool, rev->commits); idx; idx = apr_hash_next(idx)) {
+        const void *key;
         commit_t *commit;
         void *value;
 
-        apr_hash_this(idx, NULL, NULL, &value);
+        apr_hash_this(idx, &key, &keylen, &value);
+        branch = (branch_t *) key;
         commit = value;
 
-        apr_array_header_t *nodes = apr_hash_get(ctx->rev_ctx->nodes, commit, sizeof(commit_t *));
+        apr_array_header_t *nodes = apr_hash_get(ctx->rev_ctx->nodes, branch, sizeof(branch_t *));
 
         commit->mark = ctx->last_mark++;
 
-        err = backend_write_commit(&ctx->backend, commit->branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp);
+        err = backend_write_commit(&ctx->backend, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp);
         if (err) {
             return svn_generic_error();
         }
 
-        err = backend_notify_branch_updated(&ctx->backend, commit->branch);
+        err = backend_notify_branch_updated(&ctx->backend, branch);
         if (err) {
             return svn_generic_error();
         }
 
-        commit->branch->last_commit = commit;
+        branch->head = commit;
     }
 
     for (idx = apr_hash_first(ctx->rev_ctx->pool, rev->remove); idx; idx = apr_hash_next(idx)) {
-        branch_t *branch;
         const void *key;
-        ssize_t keylen = sizeof(branch_t *);
 
         apr_hash_this(idx, &key, &keylen, NULL);
         branch = (branch_t *) key;

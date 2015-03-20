@@ -175,7 +175,7 @@ cat >expect <<EOF
 :100644 100755 0e5f181f94f2ff9f984b4807887c4d2c6f642723 0e5f181f94f2ff9f984b4807887c4d2c6f642723 M	main.c
 EOF
 
-test_expect_failure 'Validate file mode modify' '
+test_expect_success 'Validate file mode modify' '
 (cd repo.git &&
 	git diff-tree master^ master >actual &&
 	test_cmp ../expect actual)
@@ -197,7 +197,7 @@ cat >expect <<EOF
 :100755 100644 0e5f181f94f2ff9f984b4807887c4d2c6f642723 0e5f181f94f2ff9f984b4807887c4d2c6f642723 M	main.c
 EOF
 
-test_expect_failure 'Validate file mode modify' '
+test_expect_success 'Validate file mode modify' '
 (cd repo.git &&
 	git diff-tree master^ master >actual &&
 	test_cmp ../expect actual)
@@ -468,7 +468,7 @@ test_expect_success 'Validate branch create' '
 '
 
 cat >expect <<EOF
-24dbbcf New feature branch created
+484e537 New feature branch created
 EOF
 
 test_expect_success 'Validate branch last commit' '

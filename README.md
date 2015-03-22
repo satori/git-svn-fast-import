@@ -33,7 +33,7 @@ Use the `make` command:
 
 ## Copyright
 
-Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>.
+Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>.
 
 *git-svn-fast-import* released under MIT License.
 See [LICENSE](https://github.com/satori/go.uuid/blob/master/LICENSE) for details.

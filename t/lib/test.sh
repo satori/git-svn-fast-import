@@ -332,7 +332,7 @@ test_run_() {
 	if test -z "$immediate" || test $eval_ret = 0 || test -n "$expecting_failure"; then
 		test_eval_ "$test_cleanup"
 	fi
-	if test "$verbose" = "t" && test -m "$HARNESS_ACTIVE"; then
+	if test "$verbose" = "t" && test -n "$HARNESS_ACTIVE"; then
 		echo ""
 	fi
 	return "$eval_ret"

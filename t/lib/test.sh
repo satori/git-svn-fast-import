@@ -1,6 +1,6 @@
 # Copyright (c) 2005 Junio C Hamano
 # Copyright (c) 2011-2012 Mathias Lafeldt
-# Copyright (c) 2014 Maxim Bublis
+# Copyright (c) 2014-2015 Maxim Bublis
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

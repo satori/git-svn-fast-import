@@ -866,4 +866,154 @@ test_expect_success 'Validate branch with new name appeared' '
 	test_cmp ../expect actual)
 '
 
+test_tick
+
+test_expect_success 'Remove branch' '
+(cd repo.svn &&
+    svn rm branches/new-feature-2 &&
+    svn commit -m "Remove branch new-feature-2" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+EOF
+
+test_expect_success 'Validate branch removed' '
+(cd repo.git &&
+    git branch --list branches/new-feature-2 >actual &&
+    test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Restore branch using svn merge' '
+(cd repo.svn &&
+    svn update &&
+    svn merge -r COMMITTED:PREV . &&
+    svn commit -m "Revert previous commit" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+  branches/new-feature-2
+EOF
+
+test_expect_success 'Validate branch restored' '
+(cd repo.git &&
+    git branch --list branches/new-feature-2 >actual &&
+    test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Remove trunk' '
+(cd repo.svn &&
+    svn rm trunk &&
+    svn commit -m "Remove trunk" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+EOF
+
+test_expect_success 'Validate master branch removed' '
+(cd repo.git &&
+    git branch --list master >actual &&
+    test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Restore trunk using svn merge' '
+(cd repo.svn &&
+    svn update &&
+    svn merge -r COMMITTED:PREV . &&
+    svn commit -m "Revert previous commit" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+* master
+EOF
+
+test_expect_success 'Validate master branch restored' '
+(cd repo.git &&
+    git branch --list master >actual &&
+    test_cmp ../expect actual)
+'
+
+test_tick
+
+SAVED_REVISION=$(cd repo.svn && svn -q update && svn info | grep Revision | cut -d " " -f 2)
+export SAVED_REVISION
+
+test_expect_success 'Remove trunk' '
+(cd repo.svn &&
+    svn rm trunk &&
+    svn commit -m "Remove trunk" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+EOF
+
+test_expect_success 'Validate master branch removed' '
+(cd repo.git &&
+    git branch --list master >actual &&
+    test_cmp ../expect actual)
+'
+
+test_tick
+
+mkdir -p repo.svn/trunk
+
+test_expect_success 'Commit new empty trunk' '
+(cd repo.svn &&
+    svn add trunk &&
+    svn commit -m "Add new empty trunk" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+test_tick
+
+test_expect_success 'Restore trunk using svn cp' '
+(cd repo.svn &&
+    svn update &&
+    svn rm trunk &&
+    svn cp trunk@$SAVED_REVISION . &&
+    svn commit -m "Restore trunk" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+* master
+EOF
+
+test_expect_success 'Validate master branch restored' '
+(cd repo.git &&
+    git branch --list master >actual &&
+    test_cmp ../expect actual)
+'
+
 test_done

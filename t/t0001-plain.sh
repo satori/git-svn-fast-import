@@ -382,7 +382,7 @@ cat >expect <<EOF
 :000000 120000 0000000000000000000000000000000000000000 a9f09b0144c9a5e76fcf1d1ed40c7b918928afd8 A	main.c
 EOF
 
-test_expect_failure 'Validate symlink added' '
+test_expect_success 'Validate symlink added' '
 (cd repo.git &&
     git diff-tree -r master^ master >actual &&
     test_cmp ../expect actual)
@@ -406,7 +406,7 @@ cat >expect <<EOF
 :000000 120000 0000000000000000000000000000000000000000 60166b0ccc37228e4ea93d89247bccd0992be4fd A	lib/sym.c
 EOF
 
-test_expect_failure 'Validate symlink added' '
+test_expect_success 'Validate symlink added' '
 (cd repo.git &&
     git diff-tree -r master^ master >actual &&
     test_cmp ../expect actual)

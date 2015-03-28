@@ -1,4 +1,4 @@
-# Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
+# Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -35,7 +35,7 @@ CPPFLAGS +=$(APR_INCLUDES) $(APR_CPPFLAGS)
 
 GIT_SVN_FAST_IMPORT := git-svn-fast-import
 SVN_FAST_EXPORT := svn-fast-export
-OBJECTS := svn-fast-export.o backend.o error.o io.o options.o parse.o tree.o utils.o
+OBJECTS := svn-fast-export.o backend.o error.o io.o options.o parse.o symlink.o tree.o utils.o
 
 all: $(GIT_SVN_FAST_IMPORT) $(SVN_FAST_EXPORT)
 

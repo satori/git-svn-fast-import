@@ -23,6 +23,7 @@
 #include "parse.h"
 
 #include "backend.h"
+#include "symlink.h"
 #include "tree.h"
 #include "utils.h"
 
@@ -541,6 +542,14 @@ set_fulltext(svn_stream_t **stream, void *n_ctx)
 
     blob->mark = ctx->last_mark++;
     SVN_ERR(svn_stream_for_stdout(stream, ctx->rev_ctx->pool));
+
+    if (node->mode == MODE_SYMLINK) {
+        // We need to wrap the output stream with a special stream
+        // which will strip a symlink marker from the beginning of a content.
+        *stream = symlink_content_stream_create(*stream, ctx->rev_ctx->pool);
+        // Subtract a symlink marker length from the blob length.
+        blob->length -= sizeof(SYMLINK_CONTENT_PREFIX);
+    }
 
     err = backend_write_blob_header(&ctx->backend, blob);
     if (err) {

@@ -1016,4 +1016,52 @@ test_expect_success 'Validate master branch restored' '
     test_cmp ../expect actual)
 '
 
+test_tick
+
+ln -s lib/lib.c repo.svn/trunk/lib.c
+
+test_expect_success 'Add symlink' '
+(cd repo.svn &&
+    svn add trunk/lib.c &&
+    svn commit -m "Added symlink" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:000000 120000 0000000000000000000000000000000000000000 8eb927bb6649093b461f131f45b249c2104f0061 A	lib.c
+EOF
+
+test_expect_failure 'Validate symlink added' '
+(cd repo.git &&
+    git diff-tree -r master^ master >actual &&
+    test_cmp ../expect actual)
+'
+
+test_tick
+
+ln -s ../main.c repo.svn/trunk/lib/sym.c
+
+test_expect_success 'Add another symlink' '
+(cd repo.svn &&
+    svn add trunk/lib/sym.c &&
+    svn commit -m "Added another symlink" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:000000 120000 0000000000000000000000000000000000000000 60166b0ccc37228e4ea93d89247bccd0992be4fd A	lib/sym.c
+EOF
+
+test_expect_failure 'Validate symlink added' '
+(cd repo.git &&
+    git diff-tree -r master^ master >actual &&
+    test_cmp ../expect actual)
+'
+
 test_done

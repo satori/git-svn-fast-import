@@ -364,4 +364,52 @@ test_expect_success 'Validate ignored path skipped' '
     test_cmp ../expect actual)
 '
 
+test_tick
+
+ln -s lib/main.c repo.svn/main.c
+
+test_expect_success 'Add symlink' '
+(cd repo.svn &&
+    svn add main.c &&
+    svn commit -m "Added symlink" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:000000 120000 0000000000000000000000000000000000000000 a9f09b0144c9a5e76fcf1d1ed40c7b918928afd8 A	main.c
+EOF
+
+test_expect_failure 'Validate symlink added' '
+(cd repo.git &&
+    git diff-tree -r master^ master >actual &&
+    test_cmp ../expect actual)
+'
+
+test_tick
+
+ln -s ../main.c repo.svn/lib/sym.c
+
+test_expect_success 'Add another symlink' '
+(cd repo.svn &&
+    svn add lib/sym.c &&
+    svn commit -m "Added another symlink" &&
+    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+    svn propset svn:author --revprop -r HEAD author1)
+'
+
+test_export_import
+
+cat >expect <<EOF
+:000000 120000 0000000000000000000000000000000000000000 60166b0ccc37228e4ea93d89247bccd0992be4fd A	lib/sym.c
+EOF
+
+test_expect_failure 'Validate symlink added' '
+(cd repo.git &&
+    git diff-tree -r master^ master >actual &&
+    test_cmp ../expect actual)
+'
+
 test_done

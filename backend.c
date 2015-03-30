@@ -160,7 +160,7 @@ backend_write_commit(const backend_t *be,
     }
 
     for (int i = 0; i < nodes->nelts; i++) {
-        node_t *node = &APR_ARRAY_IDX(nodes, i, node_t);
+        const node_t *node = &APR_ARRAY_IDX(nodes, i, node_t);
         err = handle_node(be->out, node);
         if (err) {
             return err;

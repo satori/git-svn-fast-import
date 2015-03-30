@@ -1,4 +1,4 @@
-# Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
+# Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -27,6 +27,7 @@ test_tick() {
 	else
 		test_tick=$(($test_tick + 60))
 	fi
+
 	case "$uname_S" in
 	Linux)
 		COMMIT_DATE=$(date -u -d "@$test_tick" "+%Y-%m-%dT%H:%M:%S.000000Z")
@@ -38,5 +39,15 @@ test_tick() {
 		error "Unsupported OS: $uname_S"
 		;;
 	esac
+
 	export COMMIT_DATE
+}
+
+svn_commit() {
+	test "$#" = 1 ||
+		error "bug in the test script: not 1 parameter to svn_commit"
+
+	svn commit -m "$1" &&
+		svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
+		svn propset svn:author --revprop -r HEAD author1
 }

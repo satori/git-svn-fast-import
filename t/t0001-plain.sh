@@ -41,20 +41,18 @@ svnadmin create repo &&
 	git init repo.git
 '
 
+test_tick
+
 cat >repo.svn/main.c <<EOF
 int main() {
 	return 0;
 }
 EOF
 
-test_tick
-
 test_expect_success 'Commit new file' '
 (cd repo.svn &&
 	svn add main.c &&
-	svn commit -m "Initial revision" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Initial revision")
 '
 
 test_export_import
@@ -83,9 +81,7 @@ test_tick
 
 test_expect_success 'Commit file content modification' '
 (cd repo.svn &&
-	svn commit -m "Some modification" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Some modification")
 '
 
 test_export_import
@@ -105,9 +101,7 @@ test_tick
 test_expect_success 'Commit file mode executable' '
 (cd repo.svn &&
 	svn propset svn:executable on main.c &&
-	svn commit -m "Change mode to executable" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Change mode to executable")
 '
 
 test_export_import
@@ -127,9 +121,7 @@ test_tick
 test_expect_success 'Commit file mode normal' '
 (cd repo.svn &&
 	svn propdel svn:executable main.c &&
-	svn commit -m "Change mode to normal" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Change mode to normal")
 '
 
 test_export_import
@@ -157,9 +149,7 @@ test_expect_success 'Commit empty dir and new file' '
 (cd repo.svn &&
 	svn add lib &&
 	svn add lib.c &&
-	svn commit -m "Empty dir added" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Empty dir added")
 '
 
 test_export_import
@@ -179,9 +169,7 @@ test_tick
 test_expect_success 'Commit file move' '
 (cd repo.svn &&
 	svn mv lib.c lib &&
-	svn commit -m "File moved to dir" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "File moved to dir")
 '
 
 test_export_import
@@ -201,9 +189,7 @@ test_tick
 test_expect_success 'Commit file copy' '
 (cd repo.svn &&
 	svn cp main.c lib &&
-	svn commit -m "File copied to dir" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "File copied to dir")
 '
 
 test_export_import
@@ -223,9 +209,7 @@ test_tick
 test_expect_success 'Commit file delete' '
 (cd repo.svn &&
 	svn rm main.c &&
-	svn commit -m "File removed" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "File removed")
 '
 
 test_export_import
@@ -246,9 +230,7 @@ test_expect_success 'Commit directory move' '
 (cd repo.svn &&
 	svn update &&
 	svn mv lib src &&
-	svn commit -m "Directory renamed" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Directory renamed")
 '
 
 test_export_import
@@ -269,9 +251,7 @@ test_tick
 test_expect_success 'Commit directory copy' '
 (cd repo.svn &&
 	svn cp src lib &&
-	svn commit -m "Directory copied" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Directory copied")
 '
 
 test_export_import
@@ -291,9 +271,7 @@ test_tick
 test_expect_success 'Commit directory delete' '
 (cd repo.svn &&
 	svn rm src &&
-	svn commit -m "Directory removed" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Directory removed")
 '
 
 test_export_import
@@ -315,21 +293,19 @@ dd if=/dev/urandom of=repo.svn/data/bigfile bs=1024 count=10k 2>/dev/null
 
 test_expect_success 'Commit new large blob' '
 (cd repo.svn &&
-    svn add data &&
-    svn commit -m "Added large blob" &&
-    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-    svn propset svn:author --revprop -r HEAD author1)
+	svn add data &&
+	svn_commit "Added large blob")
 '
 
 (cd repo.git &&
-    git describe --always > ../expect)
+	git describe --always > ../expect)
 
 test_export_import
 
 test_expect_success 'Validate ignored path skipped' '
 (cd repo.git &&
-    git describe --always >actual &&
-    test_cmp ../expect actual)
+	git describe --always >actual &&
+	test_cmp ../expect actual)
 '
 
 test_tick
@@ -339,29 +315,27 @@ cat >repo.svn/lib/main.c <<EOF
 #include <stdio.h>
 
 int main() {
-    printf("Hello, cruel world\n");
-    return 0;
+	printf("Hello, cruel world\n");
+	return 0;
 }
 EOF
 
 test_expect_success 'Commit new large blob with modification' '
 (cd repo.svn &&
-    svn add data/bigfile2 &&
-    svn commit -m "Added large blob" &&
-    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-    svn propset svn:author --revprop -r HEAD author1)
+	svn add data/bigfile2 &&
+	svn_commit "Added large blob with file modification")
 '
 
 test_export_import
 
 cat >expect <<EOF
-:100644 100644 0e5f181f94f2ff9f984b4807887c4d2c6f642723 26b3eb1f244444c2ad967539ca2dd17476b23ee9 M	lib/main.c
+:100644 100644 0e5f181f94f2ff9f984b4807887c4d2c6f642723 90c933208dc8c6b307c53005493008bad1945e65 M	lib/main.c
 EOF
 
 test_expect_success 'Validate ignored path skipped' '
 (cd repo.git &&
-    git diff-tree -r master^ master >actual &&
-    test_cmp ../expect actual)
+	git diff-tree -r master^ master >actual &&
+	test_cmp ../expect actual)
 '
 
 test_tick
@@ -370,10 +344,8 @@ ln -s lib/main.c repo.svn/main.c
 
 test_expect_success 'Add symlink' '
 (cd repo.svn &&
-    svn add main.c &&
-    svn commit -m "Added symlink" &&
-    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-    svn propset svn:author --revprop -r HEAD author1)
+	svn add main.c &&
+	svn_commit "Added symlink")
 '
 
 test_export_import
@@ -384,8 +356,8 @@ EOF
 
 test_expect_success 'Validate symlink added' '
 (cd repo.git &&
-    git diff-tree -r master^ master >actual &&
-    test_cmp ../expect actual)
+	git diff-tree -r master^ master >actual &&
+	test_cmp ../expect actual)
 '
 
 test_tick
@@ -394,10 +366,8 @@ ln -s ../main.c repo.svn/lib/sym.c
 
 test_expect_success 'Add another symlink' '
 (cd repo.svn &&
-    svn add lib/sym.c &&
-    svn commit -m "Added another symlink" &&
-    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-    svn propset svn:author --revprop -r HEAD author1)
+	svn add lib/sym.c &&
+	svn_commit "Added another symlink")
 '
 
 test_export_import
@@ -408,8 +378,8 @@ EOF
 
 test_expect_success 'Validate symlink added' '
 (cd repo.git &&
-    git diff-tree -r master^ master >actual &&
-    test_cmp ../expect actual)
+	git diff-tree -r master^ master >actual &&
+	test_cmp ../expect actual)
 '
 
 test_done

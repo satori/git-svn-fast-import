@@ -36,8 +36,8 @@ test_export_import() {
 test_init_repos() {
 	test_expect_success 'Initialize repositories' '
 	rm -rf repo repo.svn repo.git &&
-	    svnadmin create repo &&
-	    echo "#!/bin/sh" >repo/hooks/pre-revprop-change &&
+		svnadmin create repo &&
+		echo "#!/bin/sh" >repo/hooks/pre-revprop-change &&
 		chmod +x repo/hooks/pre-revprop-change &&
 		svn checkout file:///$(pwd)/repo repo.svn &&
 		git init repo.git
@@ -52,9 +52,7 @@ test_expect_success 'Commit standard directories layout' '
 (cd repo.svn &&
 	mkdir -p branches tags trunk &&
 	svn add branches tags trunk &&
-	svn commit -m "Standard project directories initialized." &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Standard project directories initialized")
 '
 
 test_export_import
@@ -68,9 +66,7 @@ EOF
 test_expect_success 'Create branch without parent' '
 (cd repo.svn &&
 	svn add branches/without_parent &&
-	svn commit -m "Add branch without parent" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Add branch without parent")
 '
 
 test_export_import
@@ -93,9 +89,7 @@ test_expect_success 'Commit standard directories layout' '
 (cd repo.svn &&
 	mkdir -p branches tags trunk &&
 	svn add branches tags trunk &&
-	svn commit -m "Standard project directories initialized." &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Standard project directories initialized")
 '
 
 test_export_import
@@ -111,9 +105,7 @@ EOF
 test_expect_success 'Commit new file into trunk' '
 (cd repo.svn &&
 	svn add trunk/main.c &&
-	svn commit -m "Initial revision" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Initial revision")
 '
 
 test_export_import
@@ -142,9 +134,7 @@ test_tick
 
 test_expect_success 'Commit file modify into trunk' '
 (cd repo.svn &&
-	svn commit -m "Modify file" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Modify file")
 '
 
 test_export_import
@@ -164,9 +154,7 @@ test_tick
 test_expect_success 'Commit file mode executable' '
 (cd repo.svn &&
 	svn propset svn:executable on trunk/main.c &&
-	svn commit -m "Change mode to executable" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Change mode to executable")
 '
 
 test_export_import
@@ -186,9 +174,7 @@ test_tick
 test_expect_success 'Commit file mode normal' '
 (cd repo.svn &&
 	svn propdel svn:executable trunk/main.c &&
-	svn commit -m "Change mode to normal" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Change mode to normal")
 '
 
 test_export_import
@@ -216,9 +202,7 @@ test_expect_success 'Commit empty dir and new file' '
 (cd repo.svn &&
 	svn add trunk/lib &&
 	svn add trunk/lib.c &&
-	svn commit -m "Empty dir added" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Empty dir added")
 '
 
 test_export_import
@@ -238,9 +222,7 @@ test_tick
 test_expect_success 'Commit file move' '
 (cd repo.svn &&
 	svn mv trunk/lib.c trunk/lib &&
-	svn commit -m "File moved to dir" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "File moved to dir")
 '
 
 test_export_import
@@ -260,9 +242,7 @@ test_tick
 test_expect_success 'Commit file copy' '
 (cd repo.svn &&
 	svn cp trunk/main.c trunk/lib &&
-	svn commit -m "File copied to dir" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "File copied to dir")
 '
 
 test_export_import
@@ -282,9 +262,7 @@ test_tick
 test_expect_success 'Commit file delete' '
 (cd repo.svn &&
 	svn rm trunk/main.c &&
-	svn commit -m "File removed" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "File removed")
 '
 
 test_export_import
@@ -305,9 +283,7 @@ test_expect_success 'Commit directory move' '
 (cd repo.svn &&
 	svn update &&
 	svn mv trunk/lib trunk/src &&
-	svn commit -m "Directory renamed" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Directory renamed")
 '
 
 test_export_import
@@ -328,9 +304,7 @@ test_tick
 test_expect_success 'Commit directory copy' '
 (cd repo.svn &&
 	svn cp trunk/src trunk/lib &&
-	svn commit -m "Directory copied" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Directory copied")
 '
 
 test_export_import
@@ -350,9 +324,7 @@ test_tick
 test_expect_success 'Commit directory delete' '
 (cd repo.svn &&
 	svn rm trunk/src &&
-	svn commit -m "Directory removed" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Directory removed")
 '
 
 test_export_import
@@ -374,21 +346,19 @@ dd if=/dev/urandom of=repo.svn/trunk/data/bigfile bs=1024 count=10k 2>/dev/null
 
 test_expect_success 'Commit new large blob' '
 (cd repo.svn &&
-    svn add trunk/data &&
-    svn commit -m "Added large blob" &&
-    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-    svn propset svn:author --revprop -r HEAD author1)
+	svn add trunk/data &&
+	svn_commit "Added large blob")
 '
 
 (cd repo.git &&
-    git describe --always > ../expect)
+	git describe --always > ../expect)
 
 test_export_import
 
 test_expect_success 'Validate ignored path skipped' '
 (cd repo.git &&
-    git describe --always >actual &&
-    test_cmp ../expect actual)
+	git describe --always >actual &&
+	test_cmp ../expect actual)
 '
 
 test_tick
@@ -398,17 +368,15 @@ cat >repo.svn/trunk/lib/main.c <<EOF
 #include <stdio.h>
 
 int main() {
-    printf("Hello, cruel world\n");
-    return 0;
+	printf("Hello, cruel world\n");
+	return 0;
 }
 EOF
 
 test_expect_success 'Commit new large blob with modification' '
 (cd repo.svn &&
-    svn add trunk/data/bigfile2 &&
-    svn commit -m "Added large blob" &&
-    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-    svn propset svn:author --revprop -r HEAD author1)
+	svn add trunk/data/bigfile2 &&
+	svn_commit "Added large blob")
 '
 
 test_export_import
@@ -419,8 +387,8 @@ EOF
 
 test_expect_success 'Validate ignored path skipped' '
 (cd repo.git &&
-    git diff-tree -r master^ master >actual &&
-    test_cmp ../expect actual)
+	git diff-tree -r master^ master >actual &&
+	test_cmp ../expect actual)
 '
 
 test_tick
@@ -428,9 +396,7 @@ test_tick
 test_expect_success 'Commit new tag from trunk' '
 (cd repo.svn &&
 	svn cp trunk tags/release-1.0 &&
-	svn commit -m "New tag" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "New tag")
 '
 
 test_export_import
@@ -450,9 +416,7 @@ test_tick
 test_expect_success 'Commit new branch' '
 (cd repo.svn &&
 	svn cp trunk branches/some-feature &&
-	svn commit -m "New feature branch created" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "New feature branch created")
 '
 
 test_export_import
@@ -490,9 +454,7 @@ EOF
 test_expect_success 'Commit new file into branch' '
 (cd repo.svn &&
 	svn add branches/some-feature/main.c &&
-	svn commit -m "Add new file into branch" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Add new file into branch")
 '
 
 test_export_import
@@ -520,9 +482,7 @@ EOF
 
 test_expect_success 'Commit file modify into branch' '
 (cd repo.svn &&
-	svn commit -m "Modify file in branch" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Modify file in branch")
 '
 
 test_export_import
@@ -554,9 +514,7 @@ EOF
 test_expect_success 'Commit new dir with file into branch' '
 (cd repo.svn &&
 	svn add branches/some-feature/lib2 &&
-	svn commit -m "Add new dir and file" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Add new dir and file")
 '
 
 test_export_import
@@ -586,9 +544,7 @@ test_tick
 test_expect_success 'Merge file from branch into trunk' '
 (cd repo.svn &&
 	svn cp branches/some-feature/main.c trunk &&
-	svn commit -m "Merge file addition from branch" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Merge file addition from branch")
 '
 
 test_export_import
@@ -608,9 +564,7 @@ test_tick
 test_expect_success 'Merge directory from branch into trunk' '
 (cd repo.svn &&
 	svn cp branches/some-feature/lib2 trunk &&
-	svn commit -m "Merge directory addition from branch" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Merge directory addition from branch")
 '
 
 test_export_import
@@ -640,9 +594,7 @@ test_tick
 test_expect_success 'Validate tag create from branch' '
 (cd repo.svn &&
 	svn cp branches/some-feature tags/some-feature-before-remove &&
-	svn commit -m "Create another tag" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Create another tag")
 '
 
 test_export_import
@@ -663,9 +615,7 @@ test_expect_success 'Remove branch' '
 (cd repo.svn &&
 	svn update &&
 	svn rm branches/some-feature &&
-	svn commit -m "Remove branch" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Remove branch")
 '
 
 test_export_import
@@ -684,9 +634,7 @@ test_tick
 test_expect_success 'Create new branch' '
 (cd repo.svn &&
 	svn cp trunk branches/new-feature &&
-	svn commit -m "Add new branch" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Add new branch")
 '
 
 test_export_import
@@ -713,9 +661,7 @@ test_tick
 test_expect_success 'Create another branch' '
 (cd repo.svn &&
 	svn cp trunk branches/new-feature-2 &&
-	svn commit -m "Add another branch" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Add another branch")
 '
 
 test_export_import
@@ -742,9 +688,7 @@ test_tick
 test_expect_success 'Create one more branch' '
 (cd repo.svn &&
 	svn cp branches/new-feature-2 branches/another-feature &&
-	svn commit -m "Add one more branch" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Add one more branch")
 '
 
 test_export_import
@@ -773,9 +717,7 @@ mkdir -p repo.svn/garbage
 test_expect_success 'Commit out-of-branches garbage' '
 (cd repo.svn &&
 	svn add garbage &&
-	svn commit -m "Add garbage commit" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Add garbage commit")
 '
 
 test_export_import
@@ -785,9 +727,7 @@ test_tick
 test_expect_success 'Commit garbage remove' '
 (cd repo.svn &&
 	svn rm garbage &&
-	svn commit -m "Remove garbage" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Remove garbage")
 '
 
 test_export_import
@@ -798,9 +738,7 @@ test_expect_success 'Create branch after garbage removal' '
 (cd repo.svn &&
 	svn update &&
 	svn cp branches/another-feature branches/no-features &&
-	svn commit -m "Create branch after garbage removal" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Create branch after garbage removal")
 '
 
 test_export_import
@@ -836,9 +774,7 @@ test_expect_success 'Commit into multiple branches' '
 (cd repo.svn &&
 	svn add branches/another-feature/doc.txt &&
 	svn add branches/new-feature/README &&
-	svn commit -m "Commit into multiple branches" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Commit into multiple branches")
 '
 
 test_export_import
@@ -868,9 +804,7 @@ test_tick
 test_expect_success 'Commit branch rename' '
 (cd repo.svn &&
 	svn mv branches/no-features branches/mega-features &&
-	svn commit -m "Rename branch no-features into mega-features" &&
-	svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-	svn propset svn:author --revprop -r HEAD author1)
+	svn_commit "Rename branch no-features into mega-features")
 '
 
 test_export_import
@@ -902,10 +836,8 @@ test_tick
 
 test_expect_success 'Remove branch' '
 (cd repo.svn &&
-    svn rm branches/new-feature-2 &&
-    svn commit -m "Remove branch new-feature-2" &&
-    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-    svn propset svn:author --revprop -r HEAD author1)
+	svn rm branches/new-feature-2 &&
+	svn_commit "Remove branch new-feature-2")
 '
 
 test_export_import
@@ -915,19 +847,17 @@ EOF
 
 test_expect_success 'Validate branch removed' '
 (cd repo.git &&
-    git branch --list branches/new-feature-2 >actual &&
-    test_cmp ../expect actual)
+	git branch --list branches/new-feature-2 >actual &&
+	test_cmp ../expect actual)
 '
 
 test_tick
 
 test_expect_success 'Restore branch using svn merge' '
 (cd repo.svn &&
-    svn update &&
-    svn merge -r COMMITTED:PREV . &&
-    svn commit -m "Revert previous commit" &&
-    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-    svn propset svn:author --revprop -r HEAD author1)
+	svn update &&
+	svn merge -r COMMITTED:PREV . &&
+	svn_commit "Revert previous commit")
 '
 
 test_export_import
@@ -938,8 +868,8 @@ EOF
 
 test_expect_success 'Validate branch restored' '
 (cd repo.git &&
-    git branch --list branches/new-feature-2 >actual &&
-    test_cmp ../expect actual)
+	git branch --list branches/new-feature-2 >actual &&
+	test_cmp ../expect actual)
 '
 
 test_expect_success 'Compare branch commit-ish before and after restoration' '
@@ -955,10 +885,8 @@ test_tick
 
 test_expect_success 'Remove trunk' '
 (cd repo.svn &&
-    svn rm trunk &&
-    svn commit -m "Remove trunk" &&
-    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-    svn propset svn:author --revprop -r HEAD author1)
+	svn rm trunk &&
+	svn_commit "Remove trunk")
 '
 
 test_export_import
@@ -968,19 +896,17 @@ EOF
 
 test_expect_success 'Validate master branch removed' '
 (cd repo.git &&
-    git branch --list master >actual &&
-    test_cmp ../expect actual)
+	git branch --list master >actual &&
+	test_cmp ../expect actual)
 '
 
 test_tick
 
 test_expect_success 'Restore trunk using svn merge' '
 (cd repo.svn &&
-    svn update &&
-    svn merge -r COMMITTED:PREV . &&
-    svn commit -m "Revert previous commit" &&
-    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-    svn propset svn:author --revprop -r HEAD author1)
+	svn update &&
+	svn merge -r COMMITTED:PREV . &&
+	svn_commit "Revert previous commit")
 '
 
 test_export_import
@@ -991,8 +917,8 @@ EOF
 
 test_expect_success 'Validate master branch restored' '
 (cd repo.git &&
-    git branch --list master >actual &&
-    test_cmp ../expect actual)
+	git branch --list master >actual &&
+	test_cmp ../expect actual)
 '
 
 test_expect_success 'Compare master commit-ish before and after restoration' '
@@ -1008,10 +934,8 @@ export SAVED_REVISION
 
 test_expect_success 'Remove trunk' '
 (cd repo.svn &&
-    svn rm trunk &&
-    svn commit -m "Remove trunk" &&
-    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-    svn propset svn:author --revprop -r HEAD author1)
+	svn rm trunk &&
+	svn_commit "Remove trunk")
 '
 
 test_export_import
@@ -1021,8 +945,8 @@ EOF
 
 test_expect_success 'Validate master branch removed' '
 (cd repo.git &&
-    git branch --list master >actual &&
-    test_cmp ../expect actual)
+	git branch --list master >actual &&
+	test_cmp ../expect actual)
 '
 
 test_tick
@@ -1031,10 +955,8 @@ mkdir -p repo.svn/trunk
 
 test_expect_success 'Commit new empty trunk' '
 (cd repo.svn &&
-    svn add trunk &&
-    svn commit -m "Add new empty trunk" &&
-    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-    svn propset svn:author --revprop -r HEAD author1)
+	svn add trunk &&
+	svn_commit "Add new empty trunk")
 '
 
 test_export_import
@@ -1043,12 +965,10 @@ test_tick
 
 test_expect_success 'Restore trunk using svn cp' '
 (cd repo.svn &&
-    svn update &&
-    svn rm trunk &&
-    svn cp trunk@$SAVED_REVISION . &&
-    svn commit -m "Restore trunk" &&
-    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-    svn propset svn:author --revprop -r HEAD author1)
+	svn update &&
+	svn rm trunk &&
+	svn cp trunk@$SAVED_REVISION . &&
+	svn_commit "Restore trunk")
 '
 
 test_export_import
@@ -1059,11 +979,11 @@ EOF
 
 test_expect_success 'Validate master branch restored' '
 (cd repo.git &&
-    git branch --list master >actual &&
-    test_cmp ../expect actual)
+	git branch --list master >actual &&
+	test_cmp ../expect actual)
 '
 
-test_expect_failure 'Validate master sha equals before and after restoration' '
+test_expect_failure 'Compare master commit-ish before and after restoration' '
 (cd repo.git &&
 	git describe --always master >actual &&
 	test_cmp master-before-remove actual)
@@ -1075,10 +995,8 @@ ln -s lib/lib.c repo.svn/trunk/lib.c
 
 test_expect_success 'Add symlink' '
 (cd repo.svn &&
-    svn add trunk/lib.c &&
-    svn commit -m "Added symlink" &&
-    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-    svn propset svn:author --revprop -r HEAD author1)
+	svn add trunk/lib.c &&
+	svn_commit "Added symlink")
 '
 
 test_export_import
@@ -1089,8 +1007,8 @@ EOF
 
 test_expect_success 'Validate symlink added' '
 (cd repo.git &&
-    git diff-tree -r master^ master >actual &&
-    test_cmp ../expect actual)
+	git diff-tree -r master^ master >actual &&
+	test_cmp ../expect actual)
 '
 
 test_tick
@@ -1099,10 +1017,8 @@ ln -s ../main.c repo.svn/trunk/lib/sym.c
 
 test_expect_success 'Add another symlink' '
 (cd repo.svn &&
-    svn add trunk/lib/sym.c &&
-    svn commit -m "Added another symlink" &&
-    svn propset svn:date --revprop -r HEAD $COMMIT_DATE &&
-    svn propset svn:author --revprop -r HEAD author1)
+	svn add trunk/lib/sym.c &&
+	svn_commit "Added another symlink")
 '
 
 test_export_import
@@ -1113,8 +1029,8 @@ EOF
 
 test_expect_success 'Validate symlink added' '
 (cd repo.git &&
-    git diff-tree -r master^ master >actual &&
-    test_cmp ../expect actual)
+	git diff-tree -r master^ master >actual &&
+	test_cmp ../expect actual)
 '
 
 test_done

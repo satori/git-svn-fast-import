@@ -382,7 +382,7 @@ test_expect_success 'Commit new large blob with modification' '
 test_export_import
 
 cat >expect <<EOF
-:100644 100644 0e5f181f94f2ff9f984b4807887c4d2c6f642723 26b3eb1f244444c2ad967539ca2dd17476b23ee9 M	lib/main.c
+:100644 100644 0e5f181f94f2ff9f984b4807887c4d2c6f642723 90c933208dc8c6b307c53005493008bad1945e65 M	lib/main.c
 EOF
 
 test_expect_success 'Validate ignored path skipped' '
@@ -432,7 +432,7 @@ test_expect_success 'Validate branch create' '
 '
 
 cat >expect <<EOF
-484e537 New feature branch created
+abd1221 New feature branch created
 EOF
 
 test_expect_success 'Validate branch last commit' '

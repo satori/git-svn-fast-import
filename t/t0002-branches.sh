@@ -701,6 +701,13 @@ test_expect_success 'Validate branch creation' '
 	test_cmp ../expect actual)
 '
 
+test_expect_failure 'Validate source and target sha equal' '
+(cd repo.git &&
+	git describe --always master >expect &&
+	git describe --always branches/new-feature >actual &&
+	test_cmp expect actual)
+'
+
 test_tick
 
 test_expect_success 'Create another branch' '
@@ -723,6 +730,13 @@ test_expect_success 'Validate branch creation' '
 	test_cmp ../expect actual)
 '
 
+test_expect_failure 'Validate source and target sha equal' '
+(cd repo.git &&
+	git describe --always master >expect &&
+	git describe --always branches/new-feature-2 >actual &&
+	test_cmp expect actual)
+'
+
 test_tick
 
 test_expect_success 'Create one more branch' '
@@ -743,6 +757,13 @@ test_expect_success 'Validate branch creation' '
 (cd repo.git &&
 	git branch --list branches/another-feature >actual &&
 	test_cmp ../expect actual)
+'
+
+test_expect_failure 'Validate source and target sha equal' '
+(cd repo.git &&
+	git describe --always branches/new-feature-2 >expect &&
+	git describe --always branches/another-feature >actual &&
+	test_cmp expect actual)
 '
 
 test_tick
@@ -792,6 +813,13 @@ test_expect_success 'Validate branch creation' '
 (cd repo.git &&
 	git branch --list branches/no-features >actual &&
 	test_cmp ../expect actual)
+'
+
+test_expect_failure 'Validate source and target sha equal' '
+(cd repo.git &&
+	git describe --always branches/another-feature >expect &&
+	git describe --always branches/no-features >actual &&
+	test_cmp expect actual)
 '
 
 test_tick
@@ -868,6 +896,10 @@ test_expect_success 'Validate branch with new name appeared' '
 
 test_tick
 
+(cd repo.git &&
+	git describe --always branches/new-feature-2 >branch-before-remove)
+
+
 test_expect_success 'Remove branch' '
 (cd repo.svn &&
     svn rm branches/new-feature-2 &&
@@ -910,7 +942,16 @@ test_expect_success 'Validate branch restored' '
     test_cmp ../expect actual)
 '
 
+test_expect_failure 'Validate branch sha equals before and after restoration' '
+(cd repo.git &&
+	git describe --always branches/new-feature-2 >actual &&
+	test_cmp branch-before-remove actual)
+'
+
 test_tick
+
+(cd repo.git &&
+	git describe --always master >master-before-remove)
 
 test_expect_success 'Remove trunk' '
 (cd repo.svn &&
@@ -952,6 +993,12 @@ test_expect_success 'Validate master branch restored' '
 (cd repo.git &&
     git branch --list master >actual &&
     test_cmp ../expect actual)
+'
+
+test_expect_failure 'Validate master sha equals before and after restoration' '
+(cd repo.git &&
+	git describe --always master >actual &&
+	test_cmp master-before-remove actual)
 '
 
 test_tick
@@ -1014,6 +1061,12 @@ test_expect_success 'Validate master branch restored' '
 (cd repo.git &&
     git branch --list master >actual &&
     test_cmp ../expect actual)
+'
+
+test_expect_failure 'Validate master sha equals before and after restoration' '
+(cd repo.git &&
+	git describe --always master >actual &&
+	test_cmp master-before-remove actual)
 '
 
 test_tick

@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
+/* Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -64,7 +64,8 @@ write_commit_header(int fd,
     }
 
     if (commit->copyfrom != NULL) {
-        err = io_printf(fd, "from :%d\n", commit->copyfrom->mark);
+        const commit_t *copyfrom = commit_get_effective_commit(commit->copyfrom);
+        err = io_printf(fd, "from :%d\n", copyfrom->mark);
         if (err) {
             return err;
         }
@@ -167,6 +168,23 @@ backend_write_commit(const backend_t *be,
     }
 
     return GIT_SVN_SUCCESS;
+}
+
+git_svn_status_t
+backend_reset_branch(const backend_t *be,
+                     const branch_t *branch,
+                     const commit_t *commit)
+{
+    git_svn_status_t err;
+
+    err = io_printf(be->out, "reset %s\n", branch->refname);
+    if (err) {
+        return err;
+    }
+
+    commit = commit_get_effective_commit(commit);
+
+    return io_printf(be->out, "from :%d\n", commit->mark);
 }
 
 git_svn_status_t
@@ -278,6 +296,8 @@ backend_get_checksum(const backend_t *be,
 {
     char *line;
     git_svn_status_t err;
+
+    commit = commit_get_effective_commit(commit);
 
     err = io_printf(be->out, "ls :%d \"%s\"\n", commit->mark, path);
     if (err) {

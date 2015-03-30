@@ -605,11 +605,25 @@ close_revision(void *r_ctx)
 
         apr_array_header_t *nodes = apr_hash_get(ctx->rev_ctx->nodes, branch, sizeof(branch_t *));
 
-        commit->mark = ctx->last_mark++;
+        if (nodes->nelts == 1 && commit->copyfrom != NULL) {
+            // In case there is only one node in a commit and this node is
+            // a root directory copied from another branch, mark this commit
+            // as dummy, set copyfrom commit as its parent and reset branch to it.
+            commit->is_dummy = 1;
+            commit->parent = commit->copyfrom;
 
-        err = backend_write_commit(&ctx->backend, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp);
-        if (err) {
-            return svn_generic_error();
+            err = backend_reset_branch(&ctx->backend, branch, commit);
+            if (err) {
+                return svn_generic_error();
+            }
+        }
+        else {
+            commit->mark = ctx->last_mark++;
+
+            err = backend_write_commit(&ctx->backend, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp);
+            if (err) {
+                return svn_generic_error();
+            }
         }
 
         err = backend_notify_branch_updated(&ctx->backend, branch);

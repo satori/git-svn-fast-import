@@ -36,6 +36,7 @@ struct commit_t;
 typedef struct commit_t
 {
     mark_t mark;
+    int is_dummy;
     struct commit_t *parent;
     struct commit_t *copyfrom;
 } commit_t;
@@ -95,5 +96,8 @@ typedef struct
         } data;
     } content;
 } node_t;
+
+const commit_t *
+commit_get_effective_commit(const commit_t *commit);
 
 #endif // GIT_SVN_FAST_IMPORT_TYPES_H_

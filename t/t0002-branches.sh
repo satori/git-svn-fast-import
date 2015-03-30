@@ -701,7 +701,7 @@ test_expect_success 'Validate branch creation' '
 	test_cmp ../expect actual)
 '
 
-test_expect_failure 'Validate source and target sha equal' '
+test_expect_success 'Compare source and target commit-ish' '
 (cd repo.git &&
 	git describe --always master >expect &&
 	git describe --always branches/new-feature >actual &&
@@ -730,7 +730,7 @@ test_expect_success 'Validate branch creation' '
 	test_cmp ../expect actual)
 '
 
-test_expect_failure 'Validate source and target sha equal' '
+test_expect_success 'Compare source and target commit-ish' '
 (cd repo.git &&
 	git describe --always master >expect &&
 	git describe --always branches/new-feature-2 >actual &&
@@ -759,7 +759,7 @@ test_expect_success 'Validate branch creation' '
 	test_cmp ../expect actual)
 '
 
-test_expect_failure 'Validate source and target sha equal' '
+test_expect_success 'Compare source and target commit-ish' '
 (cd repo.git &&
 	git describe --always branches/new-feature-2 >expect &&
 	git describe --always branches/another-feature >actual &&
@@ -815,7 +815,7 @@ test_expect_success 'Validate branch creation' '
 	test_cmp ../expect actual)
 '
 
-test_expect_failure 'Validate source and target sha equal' '
+test_expect_success 'Compare source and target commit-ish' '
 (cd repo.git &&
 	git describe --always branches/another-feature >expect &&
 	git describe --always branches/no-features >actual &&
@@ -942,7 +942,7 @@ test_expect_success 'Validate branch restored' '
     test_cmp ../expect actual)
 '
 
-test_expect_failure 'Validate branch sha equals before and after restoration' '
+test_expect_success 'Compare branch commit-ish before and after restoration' '
 (cd repo.git &&
 	git describe --always branches/new-feature-2 >actual &&
 	test_cmp branch-before-remove actual)
@@ -995,7 +995,7 @@ test_expect_success 'Validate master branch restored' '
     test_cmp ../expect actual)
 '
 
-test_expect_failure 'Validate master sha equals before and after restoration' '
+test_expect_success 'Compare master commit-ish before and after restoration' '
 (cd repo.git &&
 	git describe --always master >actual &&
 	test_cmp master-before-remove actual)

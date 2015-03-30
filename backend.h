@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
+/* Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -44,6 +44,11 @@ backend_write_commit(const backend_t *be,
                      const char *author,
                      const char *message,
                      int64_t timestamp);
+
+git_svn_status_t
+backend_reset_branch(const backend_t *be,
+                     const branch_t *branch,
+                     const commit_t *commit);
 
 git_svn_status_t
 backend_write_blob_header(const backend_t *be, const blob_t *blob);

@@ -198,12 +198,11 @@ get_copyfrom_commit(apr_hash_t *headers, parser_ctx_t *ctx, branch_t *copyfrom_b
     return copyfrom_branch->head;
 }
 
-static git_svn_status_t
+static svn_error_t *
 get_node_blob(blob_t **dst, apr_hash_t *headers, parser_ctx_t *ctx)
 {
-    git_svn_status_t err;
     const char *content_sha1, *content_length;
-    checksum_t checksum;
+    svn_checksum_t *checksum;
     blob_t *blob;
     int is_copyfrom = 0;
 
@@ -214,30 +213,25 @@ get_node_blob(blob_t **dst, apr_hash_t *headers, parser_ctx_t *ctx)
     }
 
     if (content_sha1 == NULL) {
-        return GIT_SVN_SUCCESS;
+        return SVN_NO_ERROR;
     }
 
-    err = hex_to_bytes(checksum, content_sha1, CHECKSUM_BYTES_LENGTH);
-    if (err) {
-        return err;
-    }
+    SVN_ERR(svn_checksum_parse_hex(&checksum, svn_checksum_sha1,
+                                   content_sha1, ctx->rev_ctx->pool));
 
-    blob = apr_hash_get(ctx->blobs, checksum, sizeof(checksum_t));
+    blob = apr_hash_get(ctx->blobs, checksum->digest, svn_checksum_size(checksum));
 
-    if (blob == NULL) {
-        // Do not create new blobs for copied paths.
-        if (is_copyfrom) {
-            return GIT_SVN_SUCCESS;
-        }
+    if (blob == NULL && !is_copyfrom) {
         blob = apr_pcalloc(ctx->pool, sizeof(blob_t));
-        memcpy(blob->checksum, checksum, sizeof(checksum_t));
+        blob->checksum = svn_checksum_dup(checksum, ctx->pool);
 
         content_length = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_LENGTH, APR_HASH_KEY_STRING);
         if (content_length != NULL) {
             blob->length = svn__atoui64(content_length);
         }
 
-        apr_hash_set(ctx->blobs, blob->checksum, sizeof(checksum_t), blob);
+        apr_hash_set(ctx->blobs, blob->checksum->digest,
+                     svn_checksum_size(blob->checksum), blob);
     }
 
     *dst = blob;
@@ -401,10 +395,8 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     node->path = apr_pstrdup(ctx->rev_ctx->pool, node_path);
 
     if (node->kind == KIND_FILE) {
-        err = get_node_blob(&node->content.data.blob, headers, ctx);
-        if (err) {
-            return svn_generic_error();
-        }
+        SVN_ERR(get_node_blob(&node->content.data.blob, headers, ctx));
+
         if (node->content.data.blob != NULL) {
             node->content.kind = CONTENT_BLOB;
         }
@@ -437,7 +429,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         }
 
         if (copyfrom_commit != NULL) {
-            err = backend_get_checksum(&ctx->backend, node->content.data.checksum, copyfrom_commit, copyfrom_subpath);
+            err = backend_get_checksum(&node->content.data.checksum, &ctx->backend, copyfrom_commit, copyfrom_subpath, ctx->rev_ctx->pool);
             if (!err) {
                 node->content.kind = CONTENT_CHECKSUM;
             }
@@ -620,7 +612,7 @@ close_revision(void *r_ctx)
         else {
             commit->mark = ctx->last_mark++;
 
-            err = backend_write_commit(&ctx->backend, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp);
+            err = backend_write_commit(&ctx->backend, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp, rev_ctx->pool);
             if (err) {
                 return svn_generic_error();
             }

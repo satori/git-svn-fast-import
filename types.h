@@ -24,9 +24,7 @@
 #define GIT_SVN_FAST_IMPORT_TYPES_H_
 
 #include "compat.h"
-
-#define CHECKSUM_BYTES_LENGTH 20
-#define CHECKSUM_CHARS_LENGTH 40
+#include <svn_checksum.h>
 
 typedef uint32_t mark_t;
 typedef int32_t revnum_t;
@@ -50,13 +48,11 @@ typedef struct
     commit_t *head;
 } branch_t;
 
-typedef uint8_t checksum_t[CHECKSUM_BYTES_LENGTH];
-
 typedef struct
 {
     mark_t mark;
     size_t length;
-    checksum_t checksum;
+    svn_checksum_t *checksum;
 } blob_t;
 
 typedef enum
@@ -91,7 +87,7 @@ typedef struct
     struct {
         content_kind_t kind;
         union {
-            checksum_t checksum;
+            svn_checksum_t *checksum;
             blob_t *blob;
         } data;
     } content;

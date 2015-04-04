@@ -43,7 +43,8 @@ backend_write_commit(const backend_t *be,
                      const apr_array_header_t *nodes,
                      const char *author,
                      const char *message,
-                     int64_t timestamp);
+                     int64_t timestamp,
+                     apr_pool_t *pool);
 
 git_svn_status_t
 backend_reset_branch(const backend_t *be,
@@ -72,10 +73,11 @@ git_svn_status_t
 backend_notify_revision_imported(const backend_t *be, revnum_t revnum);
 
 git_svn_status_t
-backend_get_checksum(const backend_t *be,
-                     uint8_t *dst,
+backend_get_checksum(svn_checksum_t **dst,
+                     const backend_t *be,
                      const commit_t *commit,
-                     const char *path);
+                     const char *path,
+                     apr_pool_t *pool);
 
 git_svn_status_t
 backend_finished(const backend_t *be);

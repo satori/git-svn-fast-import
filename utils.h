@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
+/* Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -24,15 +24,8 @@
 #define GIT_SVN_FAST_IMPORT_UTILS_H_
 
 #include "compat.h"
-#include "error.h"
 
 const char *
 cstring_skip_prefix(const char *src, const char *prefix);
-
-git_svn_status_t
-hex_to_bytes(uint8_t *bytes, const char *src, size_t bytesLen);
-
-git_svn_status_t
-bytes_to_hex(char *dst, const uint8_t *bytes, size_t bytesLen);
 
 #endif // GIT_SVN_FAST_IMPORT_UTILS_H_

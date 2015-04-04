@@ -83,26 +83,20 @@ node_modify_blob(int fd, const node_t *node)
 }
 
 static git_svn_status_t
-node_modify_checksum(int fd, const node_t *node)
+node_modify_checksum(int fd, const node_t *node, apr_pool_t *pool)
 {
-    git_svn_status_t err;
-    char checksum[CHECKSUM_CHARS_LENGTH + 1];
-    checksum[CHECKSUM_CHARS_LENGTH] = '\0';
-
-    err = bytes_to_hex(checksum, node->content.data.checksum, CHECKSUM_BYTES_LENGTH);
-    if (err) {
-        return err;
-    }
+    const char *checksum;
+    checksum = svn_checksum_to_cstring_display(node->content.data.checksum, pool);
 
     return io_printf(fd, "M %o %s \"%s\"\n", node->mode, checksum, node->path);
 }
 
 static git_svn_status_t
-node_modify(int fd, const node_t *node)
+node_modify(int fd, const node_t *node, apr_pool_t *pool)
 {
     switch (node->content.kind) {
     case CONTENT_CHECKSUM:
-        return node_modify_checksum(fd, node);
+        return node_modify_checksum(fd, node, pool);
     case CONTENT_BLOB:
         return node_modify_blob(fd, node);
     default:
@@ -117,27 +111,27 @@ node_delete(int fd, const node_t *node)
 }
 
 static git_svn_status_t
-node_replace(int fd, const node_t *node)
+node_replace(int fd, const node_t *node, apr_pool_t *pool)
 {
     git_svn_status_t err;
     err = node_delete(fd, node);
     if (err) {
         return err;
     }
-    return node_modify(fd, node);
+    return node_modify(fd, node, pool);
 }
 
 static git_svn_status_t
-handle_node(int fd, const node_t *node)
+handle_node(int fd, const node_t *node, apr_pool_t *pool)
 {
     switch (node->action) {
     case ACTION_ADD:
     case ACTION_CHANGE:
-        return node_modify(fd, node);
+        return node_modify(fd, node, pool);
     case ACTION_DELETE:
         return node_delete(fd, node);
     case ACTION_REPLACE:
-        return node_replace(fd, node);
+        return node_replace(fd, node, pool);
     default:
         return GIT_SVN_SUCCESS;
     }
@@ -150,7 +144,8 @@ backend_write_commit(const backend_t *be,
                      const apr_array_header_t *nodes,
                      const char *author,
                      const char *message,
-                     int64_t timestamp)
+                     int64_t timestamp,
+                     apr_pool_t *pool)
 {
     git_svn_status_t err;
 
@@ -161,7 +156,7 @@ backend_write_commit(const backend_t *be,
 
     for (int i = 0; i < nodes->nelts; i++) {
         const node_t *node = &APR_ARRAY_IDX(nodes, i, node_t);
-        err = handle_node(be->out, node);
+        err = handle_node(be->out, node, pool);
         if (err) {
             return err;
         }
@@ -268,8 +263,12 @@ backend_notify_branch_removed(const backend_t *be, const branch_t *branch)
 }
 
 static git_svn_status_t
-parse_checksum(uint8_t *dst, const char *src) {
+parse_checksum(svn_checksum_t **dst,
+               const char *src,
+               apr_pool_t *pool)
+{
     const char *next, *prev;
+    svn_error_t *err;
 
     // Check if path is missing
     if (*src == 'm') {
@@ -285,14 +284,21 @@ parse_checksum(uint8_t *dst, const char *src) {
         next++;
     }
 
-    return hex_to_bytes(dst, prev, CHECKSUM_BYTES_LENGTH);
+    err = svn_checksum_parse_hex(dst, svn_checksum_sha1, prev, pool);
+    if (err) {
+        handle_svn_error(err);
+        return GIT_SVN_FAILURE;
+    }
+
+    return GIT_SVN_SUCCESS;
 }
 
 git_svn_status_t
-backend_get_checksum(const backend_t *be,
-                     uint8_t *dst,
+backend_get_checksum(svn_checksum_t **dst,
+                     const backend_t *be,
                      const commit_t *commit,
-                     const char *path)
+                     const char *path,
+                     apr_pool_t *pool)
 {
     char *line;
     git_svn_status_t err;
@@ -309,7 +315,7 @@ backend_get_checksum(const backend_t *be,
         return err;
     }
 
-    err = parse_checksum(dst, line);
+    err = parse_checksum(dst, line, pool);
 
     free(line);
 

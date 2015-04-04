@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
+/* Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -28,8 +28,5 @@
 
 git_svn_status_t
 io_printf(int fd, const char *fmt, ...);
-
-git_svn_status_t
-io_readline(int fd, char **dst);
 
 #endif // GIT_SVN_FAST_IMPORT_IO_H_

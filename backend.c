@@ -262,21 +262,20 @@ backend_notify_branch_removed(const backend_t *be, const branch_t *branch)
     return GIT_SVN_SUCCESS;
 }
 
-static git_svn_status_t
+static svn_error_t *
 parse_checksum(svn_checksum_t **dst,
-               const char *src,
+               const svn_stringbuf_t *src,
                apr_pool_t *pool)
 {
     const char *next, *prev;
-    svn_error_t *err;
 
     // Check if path is missing
-    if (*src == 'm') {
-        handle_warning(src);
-        return GIT_SVN_FAILURE;
+    if (*src->data == 'm') {
+        handle_warning(src->data);
+        return SVN_NO_ERROR;
     }
 
-    next = src;
+    next = src->data;
 
     for (int i = 0; i < 3; i++) {
         prev = next;
@@ -284,13 +283,9 @@ parse_checksum(svn_checksum_t **dst,
         next++;
     }
 
-    err = svn_checksum_parse_hex(dst, svn_checksum_sha1, prev, pool);
-    if (err) {
-        handle_svn_error(err);
-        return GIT_SVN_FAILURE;
-    }
+    SVN_ERR(svn_checksum_parse_hex(dst, svn_checksum_sha1, prev, pool));
 
-    return GIT_SVN_SUCCESS;
+    return SVN_NO_ERROR;
 }
 
 git_svn_status_t
@@ -298,10 +293,13 @@ backend_get_checksum(svn_checksum_t **dst,
                      const backend_t *be,
                      const commit_t *commit,
                      const char *path,
-                     apr_pool_t *pool)
+                     apr_pool_t *result_pool,
+                     apr_pool_t *scratch_pool)
 {
-    char *line;
     git_svn_status_t err;
+    svn_boolean_t eof;
+    svn_error_t *svn_err;
+    svn_stringbuf_t *buf;
 
     commit = commit_get_effective_commit(commit);
 
@@ -310,16 +308,19 @@ backend_get_checksum(svn_checksum_t **dst,
         return err;
     }
 
-    err = io_readline(be->back, &line);
-    if (err) {
-        return err;
+    svn_err = svn_stream_readline(be->back, &buf, "\n", &eof, scratch_pool);
+    if (svn_err) {
+        handle_svn_error(svn_err);
+        return GIT_SVN_FAILURE;
     }
 
-    err = parse_checksum(dst, line, pool);
+    svn_err = parse_checksum(dst, buf, result_pool);
+    if (svn_err) {
+        handle_svn_error(svn_err);
+        return GIT_SVN_FAILURE;
+    }
 
-    free(line);
-
-    return err;
+    return GIT_SVN_SUCCESS;
 }
 
 git_svn_status_t

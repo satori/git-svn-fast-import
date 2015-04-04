@@ -25,13 +25,14 @@
 
 #include "error.h"
 #include "types.h"
+#include <svn_io.h>
 
 typedef struct
 {
     // Output fileno.
     int out;
-    // Response fileno.
-    int back;
+    // Response stream.
+    svn_stream_t *back;
     // Verbose mode.
     int verbose;
 } backend_t;
@@ -77,7 +78,8 @@ backend_get_checksum(svn_checksum_t **dst,
                      const backend_t *be,
                      const commit_t *commit,
                      const char *path,
-                     apr_pool_t *pool);
+                     apr_pool_t *result_pool,
+                     apr_pool_t *scratch_pool);
 
 git_svn_status_t
 backend_finished(const backend_t *be);

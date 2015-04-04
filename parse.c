@@ -26,7 +26,7 @@
 #include "symlink.h"
 #include "tree.h"
 #include "utils.h"
-
+#include <apr_portable.h>
 #include <svn_props.h>
 #include <svn_repos.h>
 #include <svn_time.h>
@@ -429,8 +429,17 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         }
 
         if (copyfrom_commit != NULL) {
-            err = backend_get_checksum(&node->content.data.checksum, &ctx->backend, copyfrom_commit, copyfrom_subpath, ctx->rev_ctx->pool);
-            if (!err) {
+            err = backend_get_checksum(&node->content.data.checksum,
+                                         &ctx->backend,
+                                         copyfrom_commit, copyfrom_subpath,
+                                         ctx->rev_ctx->pool,
+                                         ctx->rev_ctx->pool);
+
+            if (err) {
+                return svn_generic_error();
+            }
+
+            if (node->content.data.checksum != NULL) {
                 node->content.kind = CONTENT_CHECKSUM;
             }
         }
@@ -684,8 +693,11 @@ static const svn_repos_parse_fns2_t callbacks = {
 git_svn_status_t
 git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
 {
+    apr_status_t apr_err;
     svn_error_t *svn_err;
     svn_stream_t *input;
+    int back_fd = BACK_FILENO;
+    apr_file_t *back_file;
 
     // Read the input from stdin
     svn_err = svn_stream_for_stdin(&input, pool);
@@ -712,8 +724,13 @@ git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
 
     // Write to stdout
     ctx.backend.out = OUT_FILENO;
+
     // Read backend answers
-    ctx.backend.back = BACK_FILENO;
+    apr_err = apr_os_file_put(&back_file, &back_fd, APR_FOPEN_READ, pool);
+    if (apr_err) {
+        return apr_err;
+    }
+    ctx.backend.back = svn_stream_from_aprfile2(back_file, false, pool);
 
 #if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
     svn_err = svn_repos_parse_dumpstream3(input, &callbacks, &ctx, FALSE, check_cancel, NULL, pool);

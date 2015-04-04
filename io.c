@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
+/* Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -43,45 +43,4 @@ io_printf(int fd, const char *fmt, ...)
     }
 
     return GIT_SVN_SUCCESS;
-}
-
-git_svn_status_t
-io_readline(int fd, char **dst)
-{
-    size_t capacity = BUFSIZE, len = 0;
-    char *buf = calloc(capacity, sizeof(char));
-
-    while (1) {
-        char c;
-        ssize_t n;
-
-        n = read(fd, &c, 1);
-        if (n != 1) {
-            goto error;
-        }
-        if (c == '\n') {
-            break;
-        }
-        buf[len++] = c;
-
-        if (len == capacity) {
-            char *newbuf;
-            newbuf = realloc(buf, capacity << 1);
-            if (newbuf == NULL) {
-                goto error;
-            }
-            buf = newbuf;
-            capacity = capacity << 1;
-        }
-    }
-
-    *dst = buf;
-    return GIT_SVN_SUCCESS;
-
-error:
-    if (errno) {
-        handle_errno(errno);
-    }
-    free(buf);
-    return GIT_SVN_FAILURE;
 }

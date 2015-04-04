@@ -21,7 +21,6 @@
  */
 
 #include "parse.h"
-
 #include "backend.h"
 #include "symlink.h"
 #include "tree.h"
@@ -683,7 +682,7 @@ git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
     ctx.backend.back = svn_stream_from_aprfile2(back_file, false, pool);
 
 #if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
-    svn_err = svn_repos_parse_dumpstream3(input, &callbacks, &ctx, FALSE, check_cancel, NULL, pool);
+    svn_err = svn_repos_parse_dumpstream3(input, &callbacks, &ctx, false, check_cancel, NULL, pool);
 #else
     svn_err = svn_repos_parse_dumpstream2(input, &callbacks, &ctx, check_cancel, NULL, pool);
 #endif

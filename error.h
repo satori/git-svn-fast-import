@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
+/* Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -23,6 +23,7 @@
 #ifndef GIT_SVN_FAST_IMPORT_ERROR_H_
 #define GIT_SVN_FAST_IMPORT_ERROR_H_
 
+#include "compat.h"
 #include <svn_error.h>
 
 typedef int git_svn_status_t;

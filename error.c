@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
+/* Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -27,7 +27,7 @@
 void
 handle_svn_error(svn_error_t *err)
 {
-    svn_handle_error2(err, stderr, FALSE, "svn-fast-export: ERR: ");
+    svn_handle_error2(err, stderr, false, "svn-fast-export: ERR: ");
 }
 
 void

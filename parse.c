@@ -221,7 +221,7 @@ get_node_blob(blob_t **dst, apr_hash_t *headers, parser_ctx_t *ctx)
 
         content_length = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_LENGTH, APR_HASH_KEY_STRING);
         if (content_length != NULL) {
-            blob->length = svn__atoui64(content_length);
+            SVN_ERR(svn_cstring_atoui64(&blob->length, content_length));
         }
 
         apr_hash_set(ctx->blobs, blob->checksum->digest,

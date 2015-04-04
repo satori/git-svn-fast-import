@@ -35,7 +35,7 @@ CPPFLAGS +=$(APR_INCLUDES) $(APR_CPPFLAGS)
 
 GIT_SVN_FAST_IMPORT := git-svn-fast-import
 SVN_FAST_EXPORT := svn-fast-export
-OBJECTS := svn-fast-export.o backend.o error.o io.o options.o parse.o symlink.o tree.o types.o utils.o
+OBJECTS := svn-fast-export.o backend.o error.o options.o parse.o symlink.o tree.o types.o utils.o
 
 all: $(GIT_SVN_FAST_IMPORT) $(SVN_FAST_EXPORT)
 

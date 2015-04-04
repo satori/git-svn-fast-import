@@ -77,11 +77,6 @@ typedef struct
     node_t *node;
 } parser_ctx_t;
 
-static svn_error_t *
-svn_generic_error() {
-    return svn_error_create(SVN_ERR_BASE, NULL, NULL);
-}
-
 #if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
 static svn_error_t *
 magic_header_record(int version, void *ctx, apr_pool_t *pool)
@@ -290,26 +285,6 @@ find_branch(const parser_ctx_t *ctx, const char *path)
     return branch;
 }
 
-static git_svn_status_t
-store_branch(parser_ctx_t *ctx, branch_t *branch)
-{
-    git_svn_status_t err;
-
-    if (branch->is_saved) {
-        return GIT_SVN_SUCCESS;
-    }
-
-    err = backend_notify_branch_found(&ctx->backend, branch);
-    if (err) {
-        return err;
-    }
-
-    tree_insert(ctx->branches, branch->path, branch);
-    branch->is_saved = 1;
-
-    return GIT_SVN_SUCCESS;
-}
-
 static int
 is_branch_root(const branch_t *branch, const char *path)
 {
@@ -328,7 +303,6 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     node_t *node;
     node_action_t action = get_node_action(headers);
     node_kind_t kind = get_node_kind(headers);
-    git_svn_status_t err;
 
     *n_ctx = ctx;
 
@@ -351,9 +325,11 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         return SVN_NO_ERROR;
     }
 
-    err = store_branch(ctx, branch);
-    if (err) {
-        return svn_generic_error();
+    if (!branch->is_saved) {
+        SVN_ERR(backend_notify_branch_found(&ctx->backend, branch, pool));
+
+        tree_insert(ctx->branches, branch->path, branch);
+        branch->is_saved = 1;
     }
 
     if (kind == KIND_UNKNOWN && action == ACTION_DELETE && is_branch_root(branch, path)) {
@@ -429,15 +405,11 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         }
 
         if (copyfrom_commit != NULL) {
-            err = backend_get_checksum(&node->content.data.checksum,
+            SVN_ERR(backend_get_checksum(&node->content.data.checksum,
                                          &ctx->backend,
                                          copyfrom_commit, copyfrom_subpath,
                                          ctx->rev_ctx->pool,
-                                         ctx->rev_ctx->pool);
-
-            if (err) {
-                return svn_generic_error();
-            }
+                                         ctx->rev_ctx->pool));
 
             if (node->content.data.checksum != NULL) {
                 node->content.kind = CONTENT_CHECKSUM;
@@ -526,7 +498,6 @@ delete_node_property(void *n_ctx, const char *name)
 static svn_error_t *
 set_fulltext(svn_stream_t **stream, void *n_ctx)
 {
-    git_svn_status_t err;
     parser_ctx_t *ctx = n_ctx;
     node_t *node = ctx->node;
 
@@ -552,10 +523,7 @@ set_fulltext(svn_stream_t **stream, void *n_ctx)
         blob->length -= sizeof(SYMLINK_CONTENT_PREFIX);
     }
 
-    err = backend_write_blob_header(&ctx->backend, blob);
-    if (err) {
-        return svn_generic_error();
-    }
+    SVN_ERR(backend_write_blob_header(&ctx->backend, blob, ctx->rev_ctx->pool));
 
     return SVN_NO_ERROR;
 }
@@ -579,7 +547,6 @@ close_node(void *n_ctx)
 static svn_error_t *
 close_revision(void *r_ctx)
 {
-    git_svn_status_t err;
     parser_ctx_t *ctx = r_ctx;
     revision_ctx_t *rev_ctx = ctx->rev_ctx;
     revision_t *rev = rev_ctx->rev;
@@ -588,10 +555,8 @@ close_revision(void *r_ctx)
     ssize_t keylen = sizeof(branch_t *);
 
     if (apr_hash_count(rev->commits) == 0 && apr_hash_count(rev->remove) == 0) {
-        err = backend_notify_revision_skipped(&ctx->backend, rev->revnum);
-        if (err) {
-            return svn_generic_error();
-        }
+        SVN_ERR(backend_notify_revision_skipped(&ctx->backend, rev->revnum, rev_ctx->pool));
+
         return SVN_NO_ERROR;
     }
 
@@ -613,24 +578,15 @@ close_revision(void *r_ctx)
             commit->is_dummy = 1;
             commit->parent = commit->copyfrom;
 
-            err = backend_reset_branch(&ctx->backend, branch, commit);
-            if (err) {
-                return svn_generic_error();
-            }
+            SVN_ERR(backend_reset_branch(&ctx->backend, branch, commit, rev_ctx->pool));
         }
         else {
             commit->mark = ctx->last_mark++;
 
-            err = backend_write_commit(&ctx->backend, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp, rev_ctx->pool);
-            if (err) {
-                return svn_generic_error();
-            }
+            SVN_ERR(backend_write_commit(&ctx->backend, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp, rev_ctx->pool));
         }
 
-        err = backend_notify_branch_updated(&ctx->backend, branch);
-        if (err) {
-            return svn_generic_error();
-        }
+        SVN_ERR(backend_notify_branch_updated(&ctx->backend, branch, rev_ctx->pool));
 
         branch->head = commit;
     }
@@ -641,21 +597,11 @@ close_revision(void *r_ctx)
         apr_hash_this(idx, &key, &keylen, NULL);
         branch = (branch_t *) key;
 
-        err = backend_remove_branch(&ctx->backend, branch);
-        if (err) {
-            return svn_generic_error();
-        }
-
-        err = backend_notify_branch_removed(&ctx->backend, branch);
-        if (err) {
-            return svn_generic_error();
-        }
+        SVN_ERR(backend_remove_branch(&ctx->backend, branch, rev_ctx->pool));
+        SVN_ERR(backend_notify_branch_removed(&ctx->backend, branch, rev_ctx->pool));
     }
 
-    err = backend_notify_revision_imported(&ctx->backend, rev->revnum);
-    if (err) {
-        return svn_generic_error();
-    }
+    SVN_ERR(backend_notify_revision_imported(&ctx->backend, rev->revnum, rev_ctx->pool));
 
     apr_hash_set(ctx->revisions, &rev->revnum, sizeof(revnum_t), rev);
     ctx->rev_ctx = NULL;
@@ -696,8 +642,8 @@ git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
     apr_status_t apr_err;
     svn_error_t *svn_err;
     svn_stream_t *input;
-    int back_fd = BACK_FILENO;
-    apr_file_t *back_file;
+    int out_fd = OUT_FILENO, back_fd = BACK_FILENO;
+    apr_file_t *out_file, *back_file;
 
     // Read the input from stdin
     svn_err = svn_stream_for_stdin(&input, pool);
@@ -723,7 +669,11 @@ git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
     ctx.backend.verbose = options->verbose;
 
     // Write to stdout
-    ctx.backend.out = OUT_FILENO;
+    apr_err = apr_os_file_put(&out_file, &out_fd, APR_FOPEN_WRITE, pool);
+    if (apr_err) {
+        return apr_err;
+    }
+    ctx.backend.out = svn_stream_from_aprfile2(out_file, false, pool);
 
     // Read backend answers
     apr_err = apr_os_file_put(&back_file, &back_fd, APR_FOPEN_READ, pool);
@@ -742,7 +692,7 @@ git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
         return GIT_SVN_FAILURE;
     }
 
-    backend_finished(&ctx.backend);
+    backend_finished(&ctx.backend, pool);
 
     return GIT_SVN_SUCCESS;
 }

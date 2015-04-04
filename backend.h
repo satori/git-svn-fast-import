@@ -29,15 +29,15 @@
 
 typedef struct
 {
-    // Output fileno.
-    int out;
+    // Output stream.
+    svn_stream_t *out;
     // Response stream.
     svn_stream_t *back;
     // Verbose mode.
     int verbose;
 } backend_t;
 
-git_svn_status_t
+svn_error_t *
 backend_write_commit(const backend_t *be,
                      const branch_t *branch,
                      const commit_t *commit,
@@ -47,33 +47,48 @@ backend_write_commit(const backend_t *be,
                      int64_t timestamp,
                      apr_pool_t *pool);
 
-git_svn_status_t
+svn_error_t *
 backend_reset_branch(const backend_t *be,
                      const branch_t *branch,
-                     const commit_t *commit);
+                     const commit_t *commit,
+                     apr_pool_t *pool);
 
-git_svn_status_t
-backend_write_blob_header(const backend_t *be, const blob_t *blob);
+svn_error_t *
+backend_write_blob_header(const backend_t *be,
+                          const blob_t *blob,
+                          apr_pool_t *pool);
 
-git_svn_status_t
-backend_remove_branch(const backend_t *be, const branch_t *branch);
+svn_error_t *
+backend_remove_branch(const backend_t *be,
+                      const branch_t *branch,
+                      apr_pool_t *pool);
 
-git_svn_status_t
-backend_notify_branch_found(const backend_t *be, const branch_t *branch);
+svn_error_t *
+backend_notify_branch_found(const backend_t *be,
+                            const branch_t *branch,
+                            apr_pool_t *pool);
 
-git_svn_status_t
-backend_notify_branch_updated(const backend_t *be, const branch_t *branch);
+svn_error_t *
+backend_notify_branch_updated(const backend_t *be,
+                              const branch_t *branch,
+                              apr_pool_t *pool);
 
-git_svn_status_t
-backend_notify_branch_removed(const backend_t *be, const branch_t *branch);
+svn_error_t *
+backend_notify_branch_removed(const backend_t *be,
+                              const branch_t *branch,
+                              apr_pool_t *pool);
 
-git_svn_status_t
-backend_notify_revision_skipped(const backend_t *be, revnum_t revnum);
+svn_error_t *
+backend_notify_revision_skipped(const backend_t *be,
+                                revnum_t revnum,
+                                apr_pool_t *pool);
 
-git_svn_status_t
-backend_notify_revision_imported(const backend_t *be, revnum_t revnum);
+svn_error_t *
+backend_notify_revision_imported(const backend_t *be,
+                                 revnum_t revnum,
+                                 apr_pool_t *pool);
 
-git_svn_status_t
+svn_error_t *
 backend_get_checksum(svn_checksum_t **dst,
                      const backend_t *be,
                      const commit_t *commit,
@@ -81,7 +96,7 @@ backend_get_checksum(svn_checksum_t **dst,
                      apr_pool_t *result_pool,
                      apr_pool_t *scratch_pool);
 
-git_svn_status_t
-backend_finished(const backend_t *be);
+svn_error_t *
+backend_finished(const backend_t *be, apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_BACKEND_H_

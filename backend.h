@@ -23,7 +23,6 @@
 #ifndef GIT_SVN_FAST_IMPORT_BACKEND_H_
 #define GIT_SVN_FAST_IMPORT_BACKEND_H_
 
-#include "error.h"
 #include "types.h"
 #include <svn_io.h>
 

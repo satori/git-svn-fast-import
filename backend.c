@@ -21,6 +21,7 @@
  */
 
 #include "backend.h"
+#include "error.h"
 
 #define NULL_SHA1 "0000000000000000000000000000000000000000"
 
@@ -54,7 +55,7 @@ node_modify(svn_stream_t *out, const node_t *node, apr_pool_t *pool)
     case CONTENT_BLOB:
         return node_modify_blob(out, node, pool);
     default:
-        return GIT_SVN_SUCCESS;
+        return SVN_NO_ERROR;
     }
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
+/* Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -23,12 +23,13 @@
 #ifndef GIT_SVN_FAST_IMPORT_PARSE_H_
 #define GIT_SVN_FAST_IMPORT_PARSE_H_
 
-#include "error.h"
 #include "options.h"
+#include <svn_io.h>
 
-#include <apr_pools.h>
-
-git_svn_status_t
-git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool);
+svn_error_t *
+git_svn_parse_dumpstream(svn_stream_t *dst,
+                         svn_stream_t *src,
+                         git_svn_options_t *options,
+                         apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_PARSE_H_

@@ -31,7 +31,6 @@
 #include <svn_time.h>
 #include <svn_version.h>
 
-#define OUT_FILENO  1
 #define BACK_FILENO 3
 
 #define MODE_NORMAL     0100644
@@ -635,21 +634,15 @@ static const svn_repos_parse_fns2_t callbacks = {
     close_revision
 };
 
-git_svn_status_t
-git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
+svn_error_t *
+git_svn_parse_dumpstream(svn_stream_t *dst,
+                         svn_stream_t *src,
+                         git_svn_options_t *options,
+                         apr_pool_t *pool)
 {
     apr_status_t apr_err;
-    svn_error_t *svn_err;
-    svn_stream_t *input;
-    int out_fd = OUT_FILENO, back_fd = BACK_FILENO;
-    apr_file_t *out_file, *back_file;
-
-    // Read the input from stdin
-    svn_err = svn_stream_for_stdin(&input, pool);
-    if (svn_err != NULL) {
-        handle_svn_error(svn_err);
-        return GIT_SVN_FAILURE;
-    }
+    int back_fd = BACK_FILENO;
+    apr_file_t *back_file;
 
     parser_ctx_t ctx = {};
     ctx.pool = pool;
@@ -666,32 +659,22 @@ git_svn_parse_dumpstream(git_svn_options_t *options, apr_pool_t *pool)
     ctx.options = options;
 
     ctx.backend.verbose = options->verbose;
-
-    // Write to stdout
-    apr_err = apr_os_file_put(&out_file, &out_fd, APR_FOPEN_WRITE, pool);
-    if (apr_err) {
-        return apr_err;
-    }
-    ctx.backend.out = svn_stream_from_aprfile2(out_file, false, pool);
+    ctx.backend.out = dst;
 
     // Read backend answers
     apr_err = apr_os_file_put(&back_file, &back_fd, APR_FOPEN_READ, pool);
     if (apr_err) {
-        return apr_err;
+        return svn_error_wrap_apr(apr_err, NULL);
     }
     ctx.backend.back = svn_stream_from_aprfile2(back_file, false, pool);
 
 #if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
-    svn_err = svn_repos_parse_dumpstream3(input, &callbacks, &ctx, false, check_cancel, NULL, pool);
+    SVN_ERR(svn_repos_parse_dumpstream3(src, &callbacks, &ctx, false, check_cancel, NULL, pool));
 #else
-    svn_err = svn_repos_parse_dumpstream2(input, &callbacks, &ctx, check_cancel, NULL, pool);
+    SVN_ERR(svn_repos_parse_dumpstream2(src, &callbacks, &ctx, check_cancel, NULL, pool));
 #endif
-    if (svn_err != NULL) {
-        handle_svn_error(svn_err);
-        return GIT_SVN_FAILURE;
-    }
 
-    backend_finished(&ctx.backend, pool);
+    SVN_ERR(backend_finished(&ctx.backend, pool));
 
     return GIT_SVN_SUCCESS;
 }

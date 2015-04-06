@@ -40,7 +40,4 @@ handle_error(const char *msg);
 void
 handle_warning(const char *msg);
 
-void
-handle_errno(int err);
-
 #endif // GIT_SVN_FAST_IMPORT_ERROR_H_

@@ -22,8 +22,6 @@
 
 #include "error.h"
 
-#include <string.h>
-
 void
 handle_svn_error(svn_error_t *err)
 {
@@ -40,11 +38,4 @@ void
 handle_warning(const char *msg)
 {
     fprintf(stderr, "svn-fast-export: WARN: %s\n", msg);
-}
-
-void
-handle_errno(int err)
-{
-    const char *msg = strerror(err);
-    handle_error(msg);
 }

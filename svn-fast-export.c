@@ -31,7 +31,7 @@ main(int argc, const char **argv)
     apr_pool_t *pool;
     apr_status_t apr_err;
     git_svn_status_t err;
-    git_svn_options_t options;
+    git_svn_options_t options = {};
     svn_stream_t *input, *output;
     svn_error_t *svn_err;
 

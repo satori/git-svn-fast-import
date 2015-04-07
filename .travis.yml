@@ -11,5 +11,6 @@ install:
     - sudo apt-get install -y libapr1-dev
     - sudo apt-get install -y libsvn-dev
     - sudo apt-get install -y git
+env: GIT_SVN_TEST_OPTS=--verbose
 script:
     - make && make test

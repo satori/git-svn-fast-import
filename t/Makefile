@@ -1,4 +1,4 @@
-# Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
+# Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -23,6 +23,7 @@
 
 RM ?= rm -f
 PROVE ?= prove
+GIT_SVN_TEST_OPTS ?=
 
 TESTS = $(sort $(wildcard t[0-9][0-9][0-9][0-9]-*.sh))
 
@@ -38,7 +39,7 @@ prove:
 
 $(TESTS):
 	@echo "*** $@ ***"
-	$(SHELL) $@
+	$(SHELL) $@ $(GIT_SVN_TEST_OPTS)
 
 clean:
 	$(RM) -r trash.*

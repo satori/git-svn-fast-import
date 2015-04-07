@@ -28,4 +28,10 @@
 const char *
 cstring_skip_prefix(const char *src, const char *prefix);
 
+const char *
+cstring_skip_whitespace(const char *src);
+
+const char *
+cstring_rskip_whitespace(const char *src);
+
 #endif // GIT_SVN_FAST_IMPORT_UTILS_H_

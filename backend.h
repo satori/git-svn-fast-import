@@ -23,8 +23,8 @@
 #ifndef GIT_SVN_FAST_IMPORT_BACKEND_H_
 #define GIT_SVN_FAST_IMPORT_BACKEND_H_
 
+#include "author.h"
 #include "types.h"
-#include <svn_io.h>
 
 typedef struct
 {
@@ -41,7 +41,7 @@ backend_write_commit(const backend_t *be,
                      const branch_t *branch,
                      const commit_t *commit,
                      const apr_array_header_t *nodes,
-                     const char *author,
+                     const author_t *author,
                      const char *message,
                      int64_t timestamp,
                      apr_pool_t *pool);

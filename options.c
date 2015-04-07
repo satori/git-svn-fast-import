@@ -1,4 +1,4 @@
-/* Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
+/* Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -30,6 +30,7 @@ static struct apr_getopt_option_t cmdline_options[] = {
     {"tags", 't', 1, ""},
     {"branches", 'b', 1, ""},
     {"ignore-path", 'I', 1, ""},
+    {"authors-file", 'A', 1, ""},
     {"verbose", 'v', 0, ""},
     {0, 0, 0, 0}
 };
@@ -80,6 +81,9 @@ git_svn_parse_options(git_svn_options_t *options, int argc, const char **argv, a
             break;
         case 'I':
             tree_insert(options->ignore, opt_arg, opt_arg);
+            break;
+        case 'A':
+            options->authors = opt_arg;
             break;
         case 'v':
             options->verbose = 1;

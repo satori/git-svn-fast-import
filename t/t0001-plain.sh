@@ -26,10 +26,15 @@ test_description='Test plain history support'
 . ./helpers.sh
 . ./lib/test.sh
 
+cat > authors.txt <<EOF
+author1 = A U Thor <author@example.com>
+author2 = Com Mit Ter <committer@example.com>
+EOF
+
 test_export_import() {
 	test_expect_success 'Import dump into Git' '
 	svnadmin dump repo >repo.dump &&
-		(cd repo.git && git-svn-fast-import -I data <../repo.dump)
+		(cd repo.git && git-svn-fast-import -I data -A ../authors.txt <../repo.dump)
 	'
 }
 
@@ -58,7 +63,7 @@ test_expect_success 'Commit new file' '
 test_export_import
 
 cat >expect <<EOF
-bcd5f99c825242e10b409f125f49d7cc931d55bc
+fa2585301e0cda41a660d2fff8e684d213514d2b
 :000000 100644 0000000000000000000000000000000000000000 cb3f7482fa46d2ac25648a694127f23c1976b696 A	main.c
 EOF
 

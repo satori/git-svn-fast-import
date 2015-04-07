@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
+# Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -40,6 +40,70 @@ svnadmin dump repo >repo.dump
 test_expect_success 'Import dump into Git' '
 (cd repo.git &&
 	git-svn-fast-import <../repo.dump)
+'
+
+cat > authors.txt <<EOF
+author1 = A U Thor <author@example.com>
+EOF
+
+export_import() {
+	(cd repo.git &&
+		git-svn-fast-import --authors-file=../authors.txt <../repo.dump)
+}
+
+test_expect_success 'Import dump using authors mapping' '
+export_import
+'
+
+cat > authors.txt <<EOF
+A U Thor <author@example.com>
+EOF
+
+test_expect_success 'Failure on malformed authors mapping' '
+test_must_fail export_import
+'
+
+cat > authors.txt <<EOF
+ = A U Thor <author@example.com>
+EOF
+
+test_expect_success 'Failure on malformed authors mapping' '
+test_must_fail export_import
+'
+
+
+cat > authors.txt <<EOF
+author1 = <author@example.com>
+EOF
+
+test_expect_success 'Failure on malformed authors mapping' '
+test_must_fail export_import
+'
+
+cat > authors.txt <<EOF
+author1 = A U Thor
+EOF
+
+test_expect_success 'Failure on malformed authors mapping' '
+test_must_fail export_import
+'
+
+cat > authors.txt <<EOF
+author1 = A U Thor <>
+EOF
+
+test_expect_success 'Failure on malformed authors mapping' '
+test_must_fail export_import
+'
+
+cat > authors.txt <<EOF
+# some comment
+
+author1 = A U Thor <author1@example.com>
+EOF
+
+test_expect_success 'Skip comments and empty lines in authors mapping' '
+export_import
 '
 
 test_done

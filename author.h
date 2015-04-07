@@ -1,4 +1,4 @@
-/* Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>
+/* Copyright (C) 2015 by Maxim Bublis <b@codemonkey.ru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -20,31 +20,24 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef GIT_SVN_FAST_IMPORT_OPTIONS_H_
-#define GIT_SVN_FAST_IMPORT_OPTIONS_H_
+#ifndef GIT_SVN_FAST_IMPORT_AUTHOR_H_
+#define GIT_SVN_FAST_IMPORT_AUTHOR_H_
 
-#include "error.h"
-#include "tree.h"
-
-#include <apr_pools.h>
+#include <svn_io.h>
 
 typedef struct
 {
-    int verbose;
-    // Trunk path prefix.
-    const char *trunk;
-    // Branches path prefixes.
-    tree_t *branches;
-    // Tags path prefixes.
-    tree_t *tags;
-    // Ignore path prefixes.
-    tree_t *ignore;
-    // Path to a file containing mapping of
-    // Subversion committers to Git authors.
-    const char *authors;
-} git_svn_options_t;
+    // Subversion name
+    const char *svn_name;
+    // Commit author name
+    const char *name;
+    // Commit author email
+    const char *email;
+} author_t;
 
-git_svn_status_t
-git_svn_parse_options(git_svn_options_t *options, int argc, const char **argv, apr_pool_t *pool);
+svn_error_t *
+git_svn_parse_authors(apr_hash_t *dst,
+                      svn_stream_t *src,
+                      apr_pool_t *pool);
 
-#endif // GIT_SVN_FAST_IMPORT_OPTIONS_H_
+#endif // GIT_SVN_FAST_IMPORT_AUTHOR_H_

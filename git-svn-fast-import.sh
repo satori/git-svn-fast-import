@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (C) 2014 by Maxim Bublis <b@codemonkey.ru>
+# Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
@@ -30,6 +30,7 @@ T,trunk=        set trunk to a relative repository path
 t,tags=         set tags to a relative repository path, can be specified multiple times
 b,branches=     set branches to a relative repository path, can be specified multiple times
 I,ignore-path=  ignore a relative repository path, can be specified multiple times
+A,authors-file= use a mapping of Subversion committer names to Git commit authors
 v,verbose       verbose output mode"
 
 eval "$(echo "$OPTIONS_SPEC" | git rev-parse --parseopt -- $@ || echo exit $?)"

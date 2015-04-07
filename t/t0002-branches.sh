@@ -26,10 +26,15 @@ test_description='Test branch history support'
 . ./helpers.sh
 . ./lib/test.sh
 
+cat > authors.txt <<EOF
+author1 = A U Thor <author@example.com>
+author2 = Com Mit Ter <committer@example.com>
+EOF
+
 test_export_import() {
 	test_expect_success 'Import dump into Git' '
 	svnadmin dump repo >repo.dump &&
-		(cd repo.git && git-svn-fast-import --stdlayout --verbose -I data <../repo.dump)
+		(cd repo.git && git-svn-fast-import --stdlayout -I data -A ../authors.txt <../repo.dump)
 	'
 }
 
@@ -111,7 +116,7 @@ test_expect_success 'Commit new file into trunk' '
 test_export_import
 
 cat >expect <<EOF
-a465abbdea786cf1f59ae9ce1ac53cb034bffb7e
+2b6b24602064b0569f3b3cd4fe807e306f1cee29
 :000000 100644 0000000000000000000000000000000000000000 cb3f7482fa46d2ac25648a694127f23c1976b696 A	main.c
 EOF
 
@@ -432,7 +437,7 @@ test_expect_success 'Validate branch create' '
 '
 
 cat >expect <<EOF
-abd1221 New feature branch created
+01b010f New feature branch created
 EOF
 
 test_expect_success 'Validate branch last commit' '

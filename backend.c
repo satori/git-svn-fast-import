@@ -72,7 +72,7 @@ backend_write_commit(const backend_t *be,
                      const branch_t *branch,
                      const commit_t *commit,
                      const apr_array_header_t *nodes,
-                     const char *author,
+                     const author_t *author,
                      const char *message,
                      int64_t timestamp,
                      apr_pool_t *pool)
@@ -81,8 +81,8 @@ backend_write_commit(const backend_t *be,
 
     SVN_ERR(svn_stream_printf(out, pool, "commit %s\n", branch->refname));
     SVN_ERR(svn_stream_printf(out, pool, "mark :%d\n", commit->mark));
-    SVN_ERR(svn_stream_printf(out, pool, "committer %s <%s@local> %"PRId64" +0000\n",
-                              author, author, timestamp));
+    SVN_ERR(svn_stream_printf(out, pool, "committer %s <%s> %"PRId64" +0000\n",
+                              author->name, author->email, timestamp));
     SVN_ERR(svn_stream_printf(out, pool, "data %ld\n", strlen(message)));
     SVN_ERR(svn_stream_printf(out, pool, "%s\n", message));
 

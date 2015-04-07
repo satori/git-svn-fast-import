@@ -21,6 +21,7 @@
  */
 
 #include "parse.h"
+#include "author.h"
 #include "backend.h"
 #include "symlink.h"
 #include "tree.h"
@@ -55,7 +56,7 @@ typedef struct
 {
     apr_pool_t *pool;
     const char *message;
-    const char *author;
+    const author_t *author;
     int64_t timestamp;
     revision_t *rev;
     // commit_t to apr_array_header_t mapping
@@ -68,8 +69,9 @@ typedef struct
     backend_t backend;
     mark_t last_mark;
     git_svn_options_t *options;
-    apr_hash_t *blobs;
+    apr_hash_t *authors;
     apr_hash_t *revisions;
+    apr_hash_t *blobs;
     tree_t *branches;
     revision_ctx_t *rev_ctx;
     node_t *node;
@@ -420,6 +422,23 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     return SVN_NO_ERROR;
 }
 
+static const author_t *
+find_author(const parser_ctx_t *ctx, const char *svn_name)
+{
+    author_t *author;
+
+    author = apr_hash_get(ctx->authors, svn_name, APR_HASH_KEY_STRING);
+    if (author == NULL) {
+        author = apr_pcalloc(ctx->pool, sizeof(author_t));
+        author->svn_name = apr_pstrdup(ctx->pool, svn_name);
+        author->name = "unknown";
+        author->email = apr_psprintf(ctx->pool, "%s@local", author->svn_name);
+        apr_hash_set(ctx->authors, author->svn_name, APR_HASH_KEY_STRING, author);
+    }
+
+    return author;
+}
+
 static svn_error_t *
 set_revision_property(void *r_ctx, const char *name, const svn_string_t *value)
 {
@@ -427,7 +446,7 @@ set_revision_property(void *r_ctx, const char *name, const svn_string_t *value)
     apr_pool_t *pool = ctx->rev_ctx->pool;
 
     if (strcmp(name, SVN_PROP_REVISION_AUTHOR) == 0) {
-        ctx->rev_ctx->author = apr_pstrdup(pool, value->data);
+        ctx->rev_ctx->author = find_author(ctx, value->data);
     }
     else if (strcmp(name, SVN_PROP_REVISION_DATE) == 0) {
         apr_time_t timestamp;
@@ -646,10 +665,23 @@ git_svn_parse_dumpstream(svn_stream_t *dst,
 
     parser_ctx_t ctx = {};
     ctx.pool = pool;
-    ctx.blobs = apr_hash_make(pool);
+    ctx.authors = apr_hash_make(pool);
     ctx.revisions = apr_hash_make(pool);
-    ctx.last_mark = 1;
+    ctx.blobs = apr_hash_make(pool);
     ctx.branches = tree_create(pool);
+    ctx.last_mark = 1;
+
+    if (options->authors != NULL) {
+        svn_stream_t *authors;
+        svn_error_t *err;
+        SVN_ERR(svn_stream_open_readonly(&authors, options->authors,
+                                         pool, pool));
+        err = git_svn_parse_authors(ctx.authors, authors, pool);
+        if (err) {
+            return svn_error_quick_wrap(err, "Malformed authors file");
+        }
+        SVN_ERR(svn_stream_close(authors));
+    }
 
     branch_t *master = apr_pcalloc(pool, sizeof(*master));
     master->refname = "refs/heads/master";

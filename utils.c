@@ -21,8 +21,8 @@
  */
 
 #include "utils.h"
-
 #include <string.h>
+#include <svn_ctype.h>
 
 const char *
 cstring_skip_prefix(const char *src, const char *prefix)
@@ -34,4 +34,24 @@ cstring_skip_prefix(const char *src, const char *prefix)
     }
 
     return NULL;
+}
+
+const char *
+cstring_skip_whitespace(const char *src)
+{
+    while (svn_ctype_isspace(*src)) {
+        src++;
+    }
+
+    return src;
+}
+
+const char *
+cstring_rskip_whitespace(const char *src)
+{
+    while (svn_ctype_isspace(*src)) {
+        src--;
+    }
+
+    return src;
 }

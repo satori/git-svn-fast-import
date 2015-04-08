@@ -36,4 +36,4 @@ Use the `make` command:
 Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>.
 
 *git-svn-fast-import* released under MIT License.
-See [LICENSE](https://github.com/satori/go.uuid/blob/master/LICENSE) for details.
+See [LICENSE](https://github.com/satori/git-svn-fast-import/blob/master/LICENSE) for details.

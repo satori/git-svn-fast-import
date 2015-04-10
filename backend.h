@@ -24,6 +24,7 @@
 #define GIT_SVN_FAST_IMPORT_BACKEND_H_
 
 #include "author.h"
+#include "branch.h"
 #include "types.h"
 
 typedef struct
@@ -61,11 +62,6 @@ svn_error_t *
 backend_remove_branch(const backend_t *be,
                       const branch_t *branch,
                       apr_pool_t *pool);
-
-svn_error_t *
-backend_notify_branch_found(const backend_t *be,
-                            const branch_t *branch,
-                            apr_pool_t *pool);
 
 svn_error_t *
 backend_notify_branch_updated(const backend_t *be,

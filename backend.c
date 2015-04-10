@@ -79,7 +79,8 @@ backend_write_commit(const backend_t *be,
 {
     svn_stream_t *out = be->out;
 
-    SVN_ERR(svn_stream_printf(out, pool, "commit %s\n", branch->refname));
+    SVN_ERR(svn_stream_printf(out, pool, "commit %s\n",
+                              branch_refname_get(branch)));
     SVN_ERR(svn_stream_printf(out, pool, "mark :%d\n", commit->mark));
     SVN_ERR(svn_stream_printf(out, pool, "committer %s <%s> %"PRId64" +0000\n",
                               author->name, author->email, timestamp));
@@ -123,7 +124,8 @@ backend_reset_branch(const backend_t *be,
     svn_stream_t *out = be->out;
     commit = commit_get_effective_commit(commit);
 
-    SVN_ERR(svn_stream_printf(out, pool, "reset %s\n", branch->refname));
+    SVN_ERR(svn_stream_printf(out, pool, "reset %s\n",
+                              branch_refname_get(branch)));
     SVN_ERR(svn_stream_printf(out, pool, "from :%d\n", commit->mark));
 
     return SVN_NO_ERROR;
@@ -150,7 +152,8 @@ backend_remove_branch(const backend_t *be,
 {
     svn_stream_t *out = be->out;
 
-    SVN_ERR(svn_stream_printf(out, pool, "reset %s\n", branch->refname));
+    SVN_ERR(svn_stream_printf(out, pool, "reset %s\n",
+                              branch_refname_get(branch)));
     SVN_ERR(svn_stream_printf(out, pool, "from %s\n", NULL_SHA1));
 
     return SVN_NO_ERROR;
@@ -177,24 +180,13 @@ backend_notify_revision_imported(const backend_t *be,
 }
 
 svn_error_t *
-backend_notify_branch_found(const backend_t *be,
-                            const branch_t *branch,
-                            apr_pool_t *pool)
-{
-    if (be->verbose) {
-        SVN_ERR(svn_stream_printf(be->out, pool, "progress Found %s\n", branch->refname));
-    }
-
-    return SVN_NO_ERROR;
-}
-
-svn_error_t *
 backend_notify_branch_updated(const backend_t *be,
                               const branch_t *branch,
                               apr_pool_t *pool)
 {
     if (be->verbose) {
-        SVN_ERR(svn_stream_printf(be->out, pool, "progress Updated %s\n", branch->refname));
+        SVN_ERR(svn_stream_printf(be->out, pool, "progress Updated %s\n",
+                                  branch_refname_get(branch)));
     }
 
     return SVN_NO_ERROR;
@@ -206,7 +198,8 @@ backend_notify_branch_removed(const backend_t *be,
                               apr_pool_t *pool)
 {
     if (be->verbose) {
-        SVN_ERR(svn_stream_printf(be->out, pool, "progress Removed %s\n", branch->refname));
+        SVN_ERR(svn_stream_printf(be->out, pool, "progress Removed %s\n",
+                                  branch_refname_get(branch)));
     }
 
     return SVN_NO_ERROR;

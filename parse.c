@@ -23,6 +23,7 @@
 #include "parse.h"
 #include "author.h"
 #include "backend.h"
+#include "branch.h"
 #include "symlink.h"
 #include "tree.h"
 #include "utils.h"
@@ -67,12 +68,13 @@ typedef struct
 {
     apr_pool_t *pool;
     backend_t backend;
+    // Branch storage.
+    branch_storage_t *bs;
     mark_t last_mark;
     git_svn_options_t *options;
     apr_hash_t *authors;
     apr_hash_t *revisions;
     apr_hash_t *blobs;
-    tree_t *branches;
     revision_ctx_t *rev_ctx;
     node_t *node;
 } parser_ctx_t;
@@ -190,7 +192,7 @@ get_copyfrom_commit(apr_hash_t *headers, parser_ctx_t *ctx, branch_t *copyfrom_b
         }
     }
 
-    return copyfrom_branch->head;
+    return branch_head_get(copyfrom_branch);
 }
 
 static svn_error_t *
@@ -234,63 +236,6 @@ get_node_blob(blob_t **dst, apr_hash_t *headers, parser_ctx_t *ctx)
     return GIT_SVN_SUCCESS;
 }
 
-static branch_t *
-find_branch(const parser_ctx_t *ctx, const char *path)
-{
-    branch_t *branch;
-    const char *prefix, *root, *subpath;
-    int is_tag = 0;
-
-    branch = (branch_t *) tree_find_longest_prefix(ctx->branches, path);
-    if (branch != NULL) {
-        return branch;
-    }
-
-    prefix = tree_find_longest_prefix(ctx->options->branches, path);
-    if (prefix == NULL) {
-        prefix = tree_find_longest_prefix(ctx->options->tags, path);
-        is_tag = 1;
-    }
-
-    if (prefix == NULL) {
-        return NULL;
-    }
-
-    subpath = cstring_skip_prefix(path, prefix);
-    if (subpath == NULL) {
-        return NULL;
-    }
-
-    if (*subpath == '/') {
-        subpath++;
-    }
-
-    if (*subpath == '\0') {
-        return NULL;
-    }
-
-    branch = apr_pcalloc(ctx->pool, sizeof(branch_t));
-    branch->is_tag = is_tag;
-
-    root = strchr(subpath, '/');
-    if (root == NULL) {
-        branch->path = apr_pstrdup(ctx->pool, path);
-    }
-    else {
-        branch->path = apr_pstrndup(ctx->pool, path, root - path);
-    }
-
-    branch->refname = apr_psprintf(ctx->pool, "refs/heads/%s", branch->path);
-
-    return branch;
-}
-
-static int
-is_branch_root(const branch_t *branch, const char *path)
-{
-    return strcmp(branch->path, path) == 0;
-}
-
 static svn_error_t *
 new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
 {
@@ -313,10 +258,10 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
 
     copyfrom_path = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_COPYFROM_PATH, APR_HASH_KEY_STRING);
     if (copyfrom_path != NULL) {
-        copyfrom_branch = (branch_t *) tree_find_longest_prefix(ctx->branches, copyfrom_path);
+        copyfrom_branch = branch_storage_lookup_path(ctx->bs, copyfrom_path);
     }
 
-    branch = find_branch(ctx, path);
+    branch = branch_storage_lookup_path(ctx->bs, path);
     if (branch == NULL) {
         return SVN_NO_ERROR;
     }
@@ -325,19 +270,12 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         return SVN_NO_ERROR;
     }
 
-    if (!branch->is_saved) {
-        SVN_ERR(backend_notify_branch_found(&ctx->backend, branch, pool));
-
-        tree_insert(ctx->branches, branch->path, branch);
-        branch->is_saved = 1;
-    }
-
-    if (kind == KIND_UNKNOWN && action == ACTION_DELETE && is_branch_root(branch, path)) {
+    if (kind == KIND_UNKNOWN && action == ACTION_DELETE && branch_path_is_root(branch, path)) {
         apr_hash_set(rev->remove, branch, sizeof(branch_t *), NOT_NULL);
         return SVN_NO_ERROR;
     }
 
-    node_path = cstring_skip_prefix(path, branch->path);
+    node_path = branch_skip_prefix(branch, path);
     if (node_path == NULL) {
         return SVN_NO_ERROR;
     }
@@ -354,7 +292,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     commit = apr_hash_get(rev->commits, branch, sizeof(branch_t *));
     if (commit == NULL) {
         commit = apr_pcalloc(ctx->pool, sizeof(commit_t));
-        commit->parent = branch->head;
+        commit->parent = branch_head_get(branch);
         apr_hash_set(rev->commits, branch, sizeof(branch_t *), commit);
     }
 
@@ -386,7 +324,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
             copyfrom_commit = get_copyfrom_commit(headers, ctx, copyfrom_branch);
 
             if (copyfrom_commit != NULL) {
-                copyfrom_subpath = cstring_skip_prefix(copyfrom_path, copyfrom_branch->path);
+                copyfrom_subpath = branch_skip_prefix(copyfrom_branch, copyfrom_path);
 
                 if (*copyfrom_subpath == '/') {
                     copyfrom_subpath++;
@@ -605,7 +543,7 @@ close_revision(void *r_ctx)
 
         SVN_ERR(backend_notify_branch_updated(&ctx->backend, branch, rev_ctx->pool));
 
-        branch->head = commit;
+        branch_head_set(branch, commit);
     }
 
     for (idx = apr_hash_first(ctx->rev_ctx->pool, rev->remove); idx; idx = apr_hash_next(idx)) {
@@ -666,9 +604,9 @@ git_svn_parse_dumpstream(svn_stream_t *dst,
     parser_ctx_t ctx = {};
     ctx.pool = pool;
     ctx.authors = apr_hash_make(pool);
+    ctx.bs = branch_storage_create(pool, options->branches, options->tags);
     ctx.revisions = apr_hash_make(pool);
     ctx.blobs = apr_hash_make(pool);
-    ctx.branches = tree_create(pool);
     ctx.last_mark = 1;
 
     if (options->authors != NULL) {
@@ -683,11 +621,7 @@ git_svn_parse_dumpstream(svn_stream_t *dst,
         SVN_ERR(svn_stream_close(authors));
     }
 
-    branch_t *master = apr_pcalloc(pool, sizeof(*master));
-    master->refname = "refs/heads/master";
-    master->path = options->trunk;
-
-    tree_insert(ctx.branches, master->path, master);
+    branch_storage_add_branch(ctx.bs, "refs/heads/master", options->trunk);
     ctx.options = options;
 
     ctx.backend.verbose = options->verbose;

@@ -41,15 +41,6 @@ typedef struct commit_t
 
 typedef struct
 {
-    const char *refname;
-    const char *path;
-    int is_saved;
-    int is_tag;
-    commit_t *head;
-} branch_t;
-
-typedef struct
-{
     mark_t mark;
     size_t length;
     svn_checksum_t *checksum;

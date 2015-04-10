@@ -23,30 +23,79 @@
 #include "author.h"
 #include "utils.h"
 
+// author_t implementation.
+struct author_t
+{
+    // SVN name
+    const char *svn_name;
+    // Commit author name
+    const char *name;
+    // Commit author email
+    const char *email;
+};
+
+const char *
+author_to_cstring(const author_t *a, apr_pool_t *pool)
+{
+    return apr_psprintf(pool, "%s <%s>", a->name, a->email);
+}
+
+// author_storage_t implementation.
+struct author_storage_t
+{
+    apr_pool_t *pool;
+    apr_hash_t *authors;
+};
+
+author_storage_t *
+author_storage_create(apr_pool_t *pool)
+{
+    author_storage_t *as = apr_pcalloc(pool, sizeof(author_storage_t));
+    as->pool = pool;
+    as->authors = apr_hash_make(pool);
+
+    return as;
+}
+
+const author_t *
+author_storage_lookup(const author_storage_t *as, const char *name)
+{
+    author_t *author;
+
+    author = apr_hash_get(as->authors, name, APR_HASH_KEY_STRING);
+    if (author == NULL) {
+        author = apr_pcalloc(as->pool, sizeof(author_t));
+        author->svn_name = apr_pstrdup(as->pool, name);
+        author->name = "unknown";
+        author->email = apr_psprintf(as->pool, "%s@local", name);
+        apr_hash_set(as->authors, author->svn_name, APR_HASH_KEY_STRING, author);
+    }
+
+    return author;
+}
 
 static svn_error_t *
-svn_malformed_file_error(svn_stream_t *src, int lineno, const char *line) {
+svn_malformed_file_error(int lineno, const char *line)
+{
     return svn_error_createf(SVN_ERR_MALFORMED_FILE, NULL,
                              "line %d: %s",
                              lineno, line);
 }
 
-
 svn_error_t *
-git_svn_parse_authors(apr_hash_t *dst,
-                      svn_stream_t *src,
-                      apr_pool_t *scratch_pool)
+author_storage_load(const author_storage_t *as,
+                    svn_stream_t *src,
+                    apr_pool_t *pool)
 {
-    apr_pool_t *pool = apr_hash_pool_get(dst);
     svn_boolean_t eof;
     int lineno = 0;
 
     while (true) {
-        author_t *author = apr_pcalloc(pool, sizeof(author_t));
+        author_t *author = apr_pcalloc(as->pool, sizeof(author_t));
         const char *next, *prev, *end;
         svn_stringbuf_t *buf;
 
-        SVN_ERR(svn_stream_readline(src, &buf, "\n", &eof, scratch_pool));
+        SVN_ERR(svn_stream_readline(src, &buf, "\n", &eof, pool));
         if (eof) {
             break;
         }
@@ -61,10 +110,10 @@ git_svn_parse_authors(apr_hash_t *dst,
         }
         next = strchr(prev, '=');
         if (next == NULL || next == prev) {
-            return svn_malformed_file_error(src, lineno, buf->data);
+            return svn_malformed_file_error(lineno, buf->data);
         }
         end = cstring_rskip_whitespace(next - 1);
-        author->svn_name = apr_pstrndup(pool, prev, end - prev + 1);
+        author->svn_name = apr_pstrndup(as->pool, prev, end - prev + 1);
 
         // Skip '=' character.
         next++;
@@ -73,10 +122,10 @@ git_svn_parse_authors(apr_hash_t *dst,
         prev = cstring_skip_whitespace(next);
         next = strchr(prev, '<');
         if (next == NULL || next == prev) {
-            return svn_malformed_file_error(src, lineno, buf->data);
+            return svn_malformed_file_error(lineno, buf->data);
         }
         end = cstring_rskip_whitespace(next - 1);
-        author->name = apr_pstrndup(pool, prev, end - prev + 1);
+        author->name = apr_pstrndup(as->pool, prev, end - prev + 1);
 
         // Skip '<' character.
         next++;
@@ -85,13 +134,13 @@ git_svn_parse_authors(apr_hash_t *dst,
         prev = cstring_skip_whitespace(next);
         next = strchr(prev, '>');
         if (next == NULL || next == prev) {
-            return svn_malformed_file_error(src, lineno, buf->data);
+            return svn_malformed_file_error(lineno, buf->data);
         }
         end = cstring_rskip_whitespace(next - 1);
-        author->email = apr_pstrndup(pool, prev, end - prev + 1);
+        author->email = apr_pstrndup(as->pool, prev, end - prev + 1);
 
         // Save
-        apr_hash_set(dst, author->svn_name, APR_HASH_KEY_STRING, author);
+        apr_hash_set(as->authors, author->svn_name, APR_HASH_KEY_STRING, author);
     }
 
     return SVN_NO_ERROR;

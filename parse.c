@@ -68,11 +68,12 @@ typedef struct
 {
     apr_pool_t *pool;
     backend_t backend;
+    // Author storage.
+    author_storage_t *authors;
     // Branch storage.
     branch_storage_t *bs;
     mark_t last_mark;
     git_svn_options_t *options;
-    apr_hash_t *authors;
     apr_hash_t *revisions;
     apr_hash_t *blobs;
     revision_ctx_t *rev_ctx;
@@ -360,23 +361,6 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     return SVN_NO_ERROR;
 }
 
-static const author_t *
-find_author(const parser_ctx_t *ctx, const char *svn_name)
-{
-    author_t *author;
-
-    author = apr_hash_get(ctx->authors, svn_name, APR_HASH_KEY_STRING);
-    if (author == NULL) {
-        author = apr_pcalloc(ctx->pool, sizeof(author_t));
-        author->svn_name = apr_pstrdup(ctx->pool, svn_name);
-        author->name = "unknown";
-        author->email = apr_psprintf(ctx->pool, "%s@local", author->svn_name);
-        apr_hash_set(ctx->authors, author->svn_name, APR_HASH_KEY_STRING, author);
-    }
-
-    return author;
-}
-
 static svn_error_t *
 set_revision_property(void *r_ctx, const char *name, const svn_string_t *value)
 {
@@ -384,7 +368,7 @@ set_revision_property(void *r_ctx, const char *name, const svn_string_t *value)
     apr_pool_t *pool = ctx->rev_ctx->pool;
 
     if (strcmp(name, SVN_PROP_REVISION_AUTHOR) == 0) {
-        ctx->rev_ctx->author = find_author(ctx, value->data);
+        ctx->rev_ctx->author = author_storage_lookup(ctx->authors, value->data);
     }
     else if (strcmp(name, SVN_PROP_REVISION_DATE) == 0) {
         apr_time_t timestamp;
@@ -603,7 +587,7 @@ git_svn_parse_dumpstream(svn_stream_t *dst,
 
     parser_ctx_t ctx = {};
     ctx.pool = pool;
-    ctx.authors = apr_hash_make(pool);
+    ctx.authors = author_storage_create(pool);
     ctx.bs = branch_storage_create(pool, options->branches, options->tags);
     ctx.revisions = apr_hash_make(pool);
     ctx.blobs = apr_hash_make(pool);
@@ -614,7 +598,7 @@ git_svn_parse_dumpstream(svn_stream_t *dst,
         svn_error_t *err;
         SVN_ERR(svn_stream_open_readonly(&authors, options->authors,
                                          pool, pool));
-        err = git_svn_parse_authors(ctx.authors, authors, pool);
+        err = author_storage_load(ctx.authors, authors, pool);
         if (err) {
             return svn_error_quick_wrap(err, "Malformed authors file");
         }

@@ -25,19 +25,29 @@
 
 #include <svn_io.h>
 
-typedef struct
-{
-    // Subversion name
-    const char *svn_name;
-    // Commit author name
-    const char *name;
-    // Commit author email
-    const char *email;
-} author_t;
+// Abstract type for author_t.
+typedef struct author_t author_t;
 
+// Returns C string author representation.
+// Use pool for memory allocation.
+const char *
+author_to_cstring(const author_t *a, apr_pool_t *pool);
+
+typedef struct author_storage_t author_storage_t;
+
+// Creates new author storage.
+author_storage_t *
+author_storage_create(apr_pool_t *pool);
+
+// Lookups author by SVN committer name.
+const author_t *
+author_storage_lookup(const author_storage_t *as, const char *name);
+
+// Loads author storage from stream.
+// Uses pool for temporary allocations.
 svn_error_t *
-git_svn_parse_authors(apr_hash_t *dst,
-                      svn_stream_t *src,
-                      apr_pool_t *pool);
+author_storage_load(const author_storage_t *as,
+                    svn_stream_t *src,
+                    apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_AUTHOR_H_

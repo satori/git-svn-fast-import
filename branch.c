@@ -22,13 +22,14 @@
 
 #include "branch.h"
 #include "utils.h"
+#include <apr_strings.h>
 
 // branch_t implementation.
 struct branch_t
 {
     const char *refname;
     const char *path;
-    commit_t *head;
+    const commit_t *head;
 };
 
 const char *
@@ -50,7 +51,7 @@ branch_head_get(const branch_t *b)
 }
 
 void
-branch_head_set(branch_t *b, commit_t *c)
+branch_head_set(branch_t *b, const commit_t *c)
 {
     b->head = c;
 }

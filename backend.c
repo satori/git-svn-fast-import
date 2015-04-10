@@ -77,19 +77,21 @@ backend_write_commit(const backend_t *be,
                      int64_t timestamp,
                      apr_pool_t *pool)
 {
+    const commit_t *copyfrom = commit_copyfrom_get(commit);
     svn_stream_t *out = be->out;
 
     SVN_ERR(svn_stream_printf(out, pool, "commit %s\n",
                               branch_refname_get(branch)));
-    SVN_ERR(svn_stream_printf(out, pool, "mark :%d\n", commit->mark));
+    SVN_ERR(svn_stream_printf(out, pool, "mark :%d\n",
+                              commit_mark_get(commit)));
     SVN_ERR(svn_stream_printf(out, pool, "committer %s <%s> %"PRId64" +0000\n",
                               author->name, author->email, timestamp));
     SVN_ERR(svn_stream_printf(out, pool, "data %ld\n", strlen(message)));
     SVN_ERR(svn_stream_printf(out, pool, "%s\n", message));
 
-    if (commit->copyfrom != NULL) {
-        const commit_t *copyfrom = commit_get_effective_commit(commit->copyfrom);
-        SVN_ERR(svn_stream_printf(out, pool, "from :%d\n", copyfrom->mark));
+    if (copyfrom != NULL) {
+        SVN_ERR(svn_stream_printf(out, pool, "from :%d\n",
+                                  commit_mark_get(copyfrom)));
     }
 
     for (int i = 0; i < nodes->nelts; i++) {
@@ -122,11 +124,11 @@ backend_reset_branch(const backend_t *be,
                      apr_pool_t *pool)
 {
     svn_stream_t *out = be->out;
-    commit = commit_get_effective_commit(commit);
 
     SVN_ERR(svn_stream_printf(out, pool, "reset %s\n",
                               branch_refname_get(branch)));
-    SVN_ERR(svn_stream_printf(out, pool, "from :%d\n", commit->mark));
+    SVN_ERR(svn_stream_printf(out, pool, "from :%d\n",
+                              commit_mark_get(commit)));
 
     return SVN_NO_ERROR;
 }
@@ -242,9 +244,9 @@ backend_get_checksum(svn_checksum_t **dst,
     svn_boolean_t eof;
     svn_stringbuf_t *buf;
 
-    commit = commit_get_effective_commit(commit);
-
-    SVN_ERR(svn_stream_printf(be->out, scratch_pool, "ls :%d \"%s\"\n", commit->mark, path));
+    SVN_ERR(svn_stream_printf(be->out, scratch_pool, "ls :%d \"%s\"\n",
+                              commit_mark_get(commit),
+                              path));
     SVN_ERR(svn_stream_readline(be->back, &buf, "\n", &eof, scratch_pool));
     SVN_ERR(parse_checksum(dst, buf, result_pool));
 

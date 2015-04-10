@@ -20,14 +20,46 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "types.h"
+#ifndef GIT_SVN_FAST_IMPORT_COMMIT_H_
+#define GIT_SVN_FAST_IMPORT_COMMIT_H_
 
+#include "compat.h"
+#include "mark.h"
+#include <apr_pools.h>
+
+// Abstract type for commit.
+typedef struct commit_t commit_t;
+
+// Create new commit.
+commit_t *
+commit_create(apr_pool_t *pool);
+
+// Return commit mark.
+mark_t
+commit_mark_get(const commit_t *c);
+
+// Set commit mark.
+void
+commit_mark_set(commit_t *c, mark_t mark);
+
+// Return commit's copyfrom.
 const commit_t *
-commit_get_effective_commit(const commit_t *commit)
-{
-    while (commit != NULL && commit->is_dummy) {
-        commit = commit->parent;
-    }
+commit_copyfrom_get(const commit_t *c);
 
-    return commit;
-}
+// Set commit's copyfrom.
+void
+commit_copyfrom_set(commit_t *c, const commit_t *copyfrom);
+
+// Return commit parent.
+const commit_t *
+commit_parent_get(const commit_t *c);
+
+// Set commit parent.
+void
+commit_parent_set(commit_t *c, const commit_t *p);
+
+// Set commit as dummy.
+void
+commit_dummy_set(commit_t *c);
+
+#endif // GIT_SVN_FAST_IMPORT_COMMIT_H_

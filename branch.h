@@ -24,8 +24,8 @@
 #define GIT_SVN_FAST_IMPORT_BRANCH_H_
 
 #include "compat.h"
+#include "commit.h"
 #include "tree.h"
-#include "types.h"
 #include <apr_pools.h>
 
 // Abstract type for branch.
@@ -45,7 +45,7 @@ branch_head_get(const branch_t *b);
 
 // Set commit as branch head.
 void
-branch_head_set(branch_t *b, commit_t *c);
+branch_head_set(branch_t *b, const commit_t *c);
 
 // Tests if path is branch's root
 bool

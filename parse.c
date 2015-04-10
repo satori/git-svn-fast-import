@@ -168,7 +168,7 @@ get_node_default_mode(node_kind_t kind)
     }
 }
 
-static commit_t *
+static const commit_t *
 get_copyfrom_commit(apr_hash_t *headers, parser_ctx_t *ctx, branch_t *copyfrom_branch)
 {
     const char *copyfrom_revnum;
@@ -291,8 +291,8 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
 
     commit = apr_hash_get(rev->commits, branch, sizeof(branch_t *));
     if (commit == NULL) {
-        commit = apr_pcalloc(ctx->pool, sizeof(commit_t));
-        commit->parent = branch_head_get(branch);
+        commit = commit_create(ctx->pool);
+        commit_parent_set(commit, branch_head_get(branch));
         apr_hash_set(rev->commits, branch, sizeof(branch_t *), commit);
     }
 
@@ -318,7 +318,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
 
     if (node->content.kind == CONTENT_UNKNOWN) {
         const char *copyfrom_subpath;
-        commit_t *copyfrom_commit = NULL;
+        const commit_t *copyfrom_commit = NULL;
 
         if (copyfrom_branch != NULL) {
             copyfrom_commit = get_copyfrom_commit(headers, ctx, copyfrom_branch);
@@ -331,14 +331,14 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
                 }
 
                 if (*copyfrom_subpath == '\0') {
-                    commit->copyfrom = copyfrom_commit;
+                    commit_copyfrom_set(commit, copyfrom_commit);
                 }
             }
         } else {
             // In case of file mode modification without content modification
             // Subversion does not dump its' checksum, so we have to look
             // for it in the previous commit
-            copyfrom_commit = commit->parent;
+            copyfrom_commit = commit_parent_get(commit);
             copyfrom_subpath = node->path;
         }
 
@@ -526,17 +526,17 @@ close_revision(void *r_ctx)
 
         apr_array_header_t *nodes = apr_hash_get(ctx->rev_ctx->nodes, branch, sizeof(branch_t *));
 
-        if (nodes->nelts == 1 && commit->copyfrom != NULL) {
+        if (nodes->nelts == 1 && commit_copyfrom_get(commit) != NULL) {
             // In case there is only one node in a commit and this node is
             // a root directory copied from another branch, mark this commit
             // as dummy, set copyfrom commit as its parent and reset branch to it.
-            commit->is_dummy = 1;
-            commit->parent = commit->copyfrom;
+            commit_parent_set(commit, commit_copyfrom_get(commit));
+            commit_dummy_set(commit);
 
             SVN_ERR(backend_reset_branch(&ctx->backend, branch, commit, rev_ctx->pool));
         }
         else {
-            commit->mark = ctx->last_mark++;
+            commit_mark_set(commit, ctx->last_mark++);
 
             SVN_ERR(backend_write_commit(&ctx->backend, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp, rev_ctx->pool));
         }

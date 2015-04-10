@@ -25,6 +25,7 @@
 
 #include "author.h"
 #include "branch.h"
+#include "commit.h"
 #include "types.h"
 
 typedef struct

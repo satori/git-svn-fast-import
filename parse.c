@@ -60,7 +60,7 @@ typedef struct
     // Author storage.
     author_storage_t *authors;
     // Branch storage.
-    branch_storage_t *bs;
+    branch_storage_t *branches;
     // Revision storage.
     revision_storage_t *revisions;
     mark_t last_mark;
@@ -248,10 +248,10 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
 
     copyfrom_path = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_COPYFROM_PATH, APR_HASH_KEY_STRING);
     if (copyfrom_path != NULL) {
-        copyfrom_branch = branch_storage_lookup_path(ctx->bs, copyfrom_path);
+        copyfrom_branch = branch_storage_lookup_path(ctx->branches, copyfrom_path);
     }
 
-    branch = branch_storage_lookup_path(ctx->bs, path);
+    branch = branch_storage_lookup_path(ctx->branches, path);
     if (branch == NULL) {
         return SVN_NO_ERROR;
     }
@@ -575,7 +575,7 @@ git_svn_parse_dumpstream(svn_stream_t *dst,
     parser_ctx_t ctx = {};
     ctx.pool = pool;
     ctx.authors = author_storage_create(pool);
-    ctx.bs = branch_storage_create(pool, options->branches, options->tags);
+    ctx.branches = branch_storage_create(pool, options->branches, options->tags);
     ctx.revisions = revision_storage_create(pool);
     ctx.blobs = apr_hash_make(pool);
     ctx.last_mark = 1;
@@ -592,7 +592,7 @@ git_svn_parse_dumpstream(svn_stream_t *dst,
         SVN_ERR(svn_stream_close(authors));
     }
 
-    branch_storage_add_branch(ctx.bs, "refs/heads/master", options->trunk);
+    branch_storage_add_branch(ctx.branches, "refs/heads/master", options->trunk);
     ctx.options = options;
 
     ctx.backend.verbose = options->verbose;

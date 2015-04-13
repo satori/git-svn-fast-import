@@ -23,8 +23,10 @@
 #ifndef GIT_SVN_FAST_IMPORT_TYPES_H_
 #define GIT_SVN_FAST_IMPORT_TYPES_H_
 
-#include "compat.h"
-#include <svn_checksum.h>
+#include "author.h"
+#include "branch.h"
+#include "commit.h"
+#include "revision.h"
 
 typedef struct
 {

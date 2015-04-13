@@ -21,10 +21,7 @@
  */
 
 #include "parse.h"
-#include "author.h"
 #include "backend.h"
-#include "branch.h"
-#include "revision.h"
 #include "symlink.h"
 #include "tree.h"
 #include "utils.h"

@@ -23,9 +23,6 @@
 #ifndef GIT_SVN_FAST_IMPORT_BACKEND_H_
 #define GIT_SVN_FAST_IMPORT_BACKEND_H_
 
-#include "author.h"
-#include "branch.h"
-#include "commit.h"
 #include "types.h"
 
 typedef struct

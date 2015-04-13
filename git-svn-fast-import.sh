@@ -24,16 +24,44 @@
 OPTIONS_SPEC="\
 git-svn-fast-import [options]
 --
-h,help          show the help
-s,stdlayout     set trunk,tags,branches as the relative paths, which is Subversion default
-T,trunk=        set trunk to a relative repository path
-t,tags=         set tags to a relative repository path, can be specified multiple times
-b,branches=     set branches to a relative repository path, can be specified multiple times
-I,ignore-path=  ignore a relative repository path, can be specified multiple times
-A,authors-file= use a mapping of Subversion committer names to Git commit authors
-v,verbose       verbose output mode"
+h,help                  show the help
+s,stdlayout             set trunk,tags,branches as the relative paths, which is SVN default
+T,trunk=path            set trunk to a relative repository <path>
+t,tags=path             set tags to a relative repository <path>, can be specified multiple times
+b,branches=path         set branches to a relative repository <path>, can be specified multiple times
+I,ignore-path=path      ignore a relative repository <path>, can be specified multiple times
+A,authors-file=file     load from <file> the mapping of SVN committer names to Git commit authors
+export-marks=file       load Git marks from <file>
+import-marks=file       dump Git marks into <file>
+v,verbose               verbose output mode"
 
 eval "$(echo "$OPTIONS_SPEC" | git rev-parse --parseopt -- $@ || echo exit $?)"
+
+SVN_FAST_EXPORT_ARGS=
+GIT_FAST_IMPORT_ARGS=
+
+while [ "$#" -gt 0 ]; do
+case $1 in
+    -s|-v)
+        SVN_FAST_EXPORT_ARGS="$SVN_FAST_EXPORT_ARGS $1"
+        shift
+        ;;
+    -T|-t|-b|-I|-A)
+        SVN_FAST_EXPORT_ARGS="$SVN_FAST_EXPORT_ARGS $1 $2"
+        shift 2
+        ;;
+    --export-marks|--import-marks)
+        GIT_FAST_IMPORT_ARGS="$GIT_FAST_IMPORT_ARGS $1=$2"
+        shift 2
+        ;;
+    --)
+        shift
+        ;;
+    *)
+        echo "Unknown argument: $1"
+        exit 1
+esac
+done
 
 TMP_PREFIX=/tmp/git-svn-fast-import
 TMP_SUFFIX=$$
@@ -49,10 +77,10 @@ trap 'on_exit' EXIT
 
 mkfifo $CHAN $BACKCHAN
 
-git fast-import --cat-blob-fd=3 --done <$CHAN 3>$BACKCHAN &
+git fast-import $GIT_FAST_IMPORT_ARGS --cat-blob-fd=3 --done <$CHAN 3>$BACKCHAN &
 FAST_IMPORT_PID=$!
 
-svn-fast-export $@ >$CHAN 3<$BACKCHAN
+svn-fast-export $SVN_FAST_EXPORT_ARGS >$CHAN 3<$BACKCHAN
 RET_CODE=$?
 
 wait $FAST_IMPORT_PID

@@ -48,7 +48,7 @@ EOF
 
 export_import() {
 	(cd repo.git &&
-		git-svn-fast-import --authors-file=../authors.txt <../repo.dump)
+		git-svn-fast-import --export-marks ../marks.txt --authors-file ../authors.txt <../repo.dump)
 }
 
 test_expect_success 'Import dump using authors mapping' '

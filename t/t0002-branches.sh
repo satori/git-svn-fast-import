@@ -416,6 +416,13 @@ test_expect_success 'Validate tag create' '
 	test_cmp ../expect actual)
 '
 
+test_expect_failure 'Compare source and target commit-ish' '
+(cd repo.git &&
+	git describe --always master >expect &&
+	git describe --always tags/release-1.0 >actual &&
+	test_cmp expect actual)
+'
+
 test_tick
 
 test_expect_success 'Commit new branch' '
@@ -436,14 +443,11 @@ test_expect_success 'Validate branch create' '
 	test_cmp ../expect actual)
 '
 
-cat >expect <<EOF
-01b010f New feature branch created
-EOF
-
-test_expect_success 'Validate branch last commit' '
+test_expect_failure 'Compare source and target commit-ish' '
 (cd repo.git &&
-	git log -n 1 --oneline branches/some-feature >actual &&
-	test_cmp ../expect actual)
+	git describe --always master >expect &&
+	git describe --always branches/some-feature >actual &&
+	test_cmp expect actual)
 '
 
 test_tick

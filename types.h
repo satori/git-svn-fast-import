@@ -23,8 +23,6 @@
 #ifndef GIT_SVN_FAST_IMPORT_TYPES_H_
 #define GIT_SVN_FAST_IMPORT_TYPES_H_
 
-typedef int32_t revnum_t;
-
 #include "compat.h"
 #include <svn_checksum.h>
 

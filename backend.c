@@ -163,20 +163,20 @@ backend_remove_branch(const backend_t *be,
 
 svn_error_t *
 backend_notify_revision_skipped(const backend_t *be,
-                                revnum_t revnum,
+                                svn_revnum_t revnum,
                                 apr_pool_t *pool)
 {
-    SVN_ERR(svn_stream_printf(be->out, pool, "progress Skipped revision %d\n", revnum));
+    SVN_ERR(svn_stream_printf(be->out, pool, "progress Skipped revision %ld\n", revnum));
 
     return SVN_NO_ERROR;
 }
 
 svn_error_t *
 backend_notify_revision_imported(const backend_t *be,
-                                 revnum_t revnum,
+                                 svn_revnum_t revnum,
                                  apr_pool_t *pool)
 {
-    SVN_ERR(svn_stream_printf(be->out, pool, "progress Imported revision %d\n", revnum));
+    SVN_ERR(svn_stream_printf(be->out, pool, "progress Imported revision %ld\n", revnum));
 
     return SVN_NO_ERROR;
 }

@@ -76,12 +76,12 @@ backend_notify_branch_removed(const backend_t *be,
 
 svn_error_t *
 backend_notify_revision_skipped(const backend_t *be,
-                                revnum_t revnum,
+                                svn_revnum_t revnum,
                                 apr_pool_t *pool);
 
 svn_error_t *
 backend_notify_revision_imported(const backend_t *be,
-                                 revnum_t revnum,
+                                 svn_revnum_t revnum,
                                  apr_pool_t *pool);
 
 svn_error_t *

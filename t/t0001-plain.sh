@@ -34,7 +34,8 @@ EOF
 test_export_import() {
 	test_expect_success 'Import dump into Git' '
 	svnadmin dump repo >repo.dump &&
-		(cd repo.git && git-svn-fast-import -I data -A ../authors.txt <../repo.dump)
+		(cd repo.git &&
+			git-svn-fast-import -I data -A ../authors.txt --export-rev-marks ../marks.txt <../repo.dump)
 	'
 }
 

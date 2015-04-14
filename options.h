@@ -42,6 +42,8 @@ typedef struct
     // Path to a file containing mapping of
     // Subversion committers to Git authors.
     const char *authors;
+    // Path to a file where marks should be exported.
+    const char *export_marks;
 } git_svn_options_t;
 
 git_svn_status_t

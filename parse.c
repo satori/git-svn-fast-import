@@ -468,7 +468,7 @@ close_node(void *n_ctx)
 }
 
 static svn_error_t *
-write_commit(void *p_ctx, branch_t *branch, commit_t *commit)
+write_commit(void *p_ctx, branch_t *branch, commit_t *commit, apr_pool_t *pool)
 {
     parser_ctx_t *ctx = p_ctx;
     revision_ctx_t *rev_ctx = ctx->rev_ctx;
@@ -482,13 +482,13 @@ write_commit(void *p_ctx, branch_t *branch, commit_t *commit)
         commit_parent_set(commit, commit_copyfrom_get(commit));
         commit_dummy_set(commit);
 
-        SVN_ERR(backend_reset_branch(&ctx->backend, branch, commit, rev_ctx->pool));
+        SVN_ERR(backend_reset_branch(&ctx->backend, branch, commit, pool));
     } else {
         commit_mark_set(commit, ctx->last_mark++);
-        SVN_ERR(backend_write_commit(&ctx->backend, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp, rev_ctx->pool));
+        SVN_ERR(backend_write_commit(&ctx->backend, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp, pool));
     }
 
-    SVN_ERR(backend_notify_branch_updated(&ctx->backend, branch, rev_ctx->pool));
+    SVN_ERR(backend_notify_branch_updated(&ctx->backend, branch, pool));
 
     branch_head_set(branch, commit);
 
@@ -496,13 +496,12 @@ write_commit(void *p_ctx, branch_t *branch, commit_t *commit)
 }
 
 static svn_error_t *
-remove_branch(void *p_ctx, branch_t *branch)
+remove_branch(void *p_ctx, branch_t *branch, apr_pool_t *pool)
 {
     parser_ctx_t *ctx = p_ctx;
-    revision_ctx_t *rev_ctx = ctx->rev_ctx;
 
-    SVN_ERR(backend_remove_branch(&ctx->backend, branch, rev_ctx->pool));
-    SVN_ERR(backend_notify_branch_removed(&ctx->backend, branch, rev_ctx->pool));
+    SVN_ERR(backend_remove_branch(&ctx->backend, branch, pool));
+    SVN_ERR(backend_notify_branch_removed(&ctx->backend, branch, pool));
 
     return SVN_NO_ERROR;
 }
@@ -609,6 +608,22 @@ git_svn_parse_dumpstream(svn_stream_t *dst,
 #endif
 
     SVN_ERR(backend_finished(&ctx.backend, pool));
+
+    if (options->export_marks != NULL) {
+        apr_file_t *export_marks_file;
+        svn_stream_t *export_marks;
+
+        apr_err = apr_file_open(&export_marks_file, options->export_marks,
+                                APR_CREATE | APR_TRUNCATE | APR_BUFFERED | APR_WRITE,
+                                APR_OS_DEFAULT, pool);
+        if (apr_err) {
+            return svn_error_wrap_apr(apr_err, NULL);
+        }
+
+        export_marks = svn_stream_from_aprfile2(export_marks_file, false, pool);
+        SVN_ERR(revision_storage_dump(ctx.revisions, export_marks, pool));
+        SVN_ERR(svn_stream_close(export_marks));
+    }
 
     return GIT_SVN_SUCCESS;
 }

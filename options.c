@@ -31,6 +31,7 @@ static struct apr_getopt_option_t cmdline_options[] = {
     {"branches", 'b', 1, ""},
     {"ignore-path", 'I', 1, ""},
     {"authors-file", 'A', 1, ""},
+    {"export-rev-marks", 'e', 1, ""},
     {"verbose", 'v', 0, ""},
     {0, 0, 0, 0}
 };
@@ -84,6 +85,9 @@ git_svn_parse_options(git_svn_options_t *options, int argc, const char **argv, a
             break;
         case 'A':
             options->authors = opt_arg;
+            break;
+        case 'e':
+            options->export_marks = opt_arg;
             break;
         case 'v':
             options->verbose = 1;

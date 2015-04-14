@@ -26,11 +26,10 @@
 #include "compat.h"
 #include "branch.h"
 #include "commit.h"
-#include <apr_pools.h>
-#include <svn_types.h>
+#include <svn_io.h>
 
-typedef svn_error_t * (*revision_commit_handler_t)(void *ctx, branch_t *branch, commit_t *commit);
-typedef svn_error_t * (*revision_remove_handler_t)(void *ctx, branch_t *branch);
+typedef svn_error_t * (*revision_commit_handler_t)(void *ctx, branch_t *branch, commit_t *commit, apr_pool_t *pool);
+typedef svn_error_t * (*revision_remove_handler_t)(void *ctx, branch_t *branch, apr_pool_t *pool);
 
 // Abstract type for revision.
 typedef struct revision_t revision_t;
@@ -54,9 +53,9 @@ revision_commits_count(const revision_t *rev);
 // Applies function for each commit entry.
 svn_error_t *
 revision_commits_apply(const revision_t *rev,
-                      revision_commit_handler_t apply,
-                      void *ctx,
-                      apr_pool_t *pool);
+                       revision_commit_handler_t apply,
+                       void *ctx,
+                       apr_pool_t *pool);
 
 // Add branch to remove list.
 void
@@ -87,5 +86,11 @@ revision_storage_add_revision(revision_storage_t *rs, svn_revnum_t revnum);
 // Returns revision by revision number.
 const revision_t *
 revision_storage_get_by_revnum(revision_storage_t *rs, svn_revnum_t revnum);
+
+// Dumps revisions into stream.
+svn_error_t *
+revision_storage_dump(const revision_storage_t *rs,
+                      svn_stream_t *dst,
+                      apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_REVISION_H_

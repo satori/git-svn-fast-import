@@ -30,7 +30,10 @@ node_modify_blob(svn_stream_t *out, const node_t *node, apr_pool_t *pool)
 {
     blob_t *blob = node->content.data.blob;
 
-    SVN_ERR(svn_stream_printf(out, pool, "M %o :%d \"%s\"\n", node->mode, blob->mark, node->path));
+    SVN_ERR(svn_stream_printf(out, pool, "M %o :%d \"%s\"\n",
+                              node->mode,
+                              blob_mark_get(blob),
+                              node->path));
 
     return SVN_NO_ERROR;
 }
@@ -141,8 +144,10 @@ backend_write_blob_header(const backend_t *be,
     svn_stream_t *out = be->out;
 
     SVN_ERR(svn_stream_printf(out, pool, "blob\n"));
-    SVN_ERR(svn_stream_printf(out, pool, "mark :%d\n", blob->mark));
-    SVN_ERR(svn_stream_printf(out, pool, "data %ld\n", blob->length));
+    SVN_ERR(svn_stream_printf(out, pool, "mark :%d\n",
+                              blob_mark_get(blob)));
+    SVN_ERR(svn_stream_printf(out, pool, "data %ld\n",
+                              blob_size_get(blob)));
 
     return SVN_NO_ERROR;
 }

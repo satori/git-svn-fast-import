@@ -1,4 +1,4 @@
-/* Copyright (C) 2014-2015 by Maxim Bublis <b@codemonkey.ru>
+/* Copyright (C) 2015 by Maxim Bublis <b@codemonkey.ru>
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -20,51 +20,45 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef GIT_SVN_FAST_IMPORT_TYPES_H_
-#define GIT_SVN_FAST_IMPORT_TYPES_H_
+#ifndef GIT_SVN_FAST_IMPORT_BLOB_H_
+#define GIT_SVN_FAST_IMPORT_BLOB_H_
 
-#include "author.h"
-#include "blob.h"
-#include "branch.h"
-#include "commit.h"
-#include "revision.h"
+#include "compat.h"
+#include "mark.h"
+#include <svn_checksum.h>
 
-typedef enum
-{
-    ACTION_NOOP,
-    ACTION_ADD,
-    ACTION_CHANGE,
-    ACTION_DELETE,
-    ACTION_REPLACE
-} node_action_t;
+// Abstract type for blob.
+typedef struct blob_t blob_t;
 
-typedef enum
-{
-    KIND_UNKNOWN,
-    KIND_FILE,
-    KIND_DIR
-} node_kind_t;
+// Returns blob mark.
+mark_t
+blob_mark_get(const blob_t *b);
 
-typedef enum
-{
-    CONTENT_UNKNOWN,
-    CONTENT_CHECKSUM,
-    CONTENT_BLOB
-} content_kind_t;
+// Set blob mark.
+void
+blob_mark_set(blob_t *b, mark_t mark);
 
-typedef struct
-{
-    node_action_t action;
-    node_kind_t kind;
-    uint32_t mode;
-    const char *path;
-    struct {
-        content_kind_t kind;
-        union {
-            svn_checksum_t *checksum;
-            blob_t *blob;
-        } data;
-    } content;
-} node_t;
+// Returns blob size.
+size_t
+blob_size_get(const blob_t *b);
 
-#endif // GIT_SVN_FAST_IMPORT_TYPES_H_
+// Set blob size.
+void
+blob_size_set(blob_t *b, size_t size);
+
+// Returns blob checksum.
+const svn_checksum_t *
+blob_checksum_get(const blob_t *b);
+
+// Abstract type for blob storage.
+typedef struct blob_storage_t blob_storage_t;
+
+// Create new blob storage.
+blob_storage_t *
+blob_storage_create(apr_pool_t *pool);
+
+// Returns a blob for checksum.
+blob_t *
+blob_storage_get(blob_storage_t *bs, const svn_checksum_t *checksum);
+
+#endif // GIT_SVN_FAST_IMPORT_BLOB_H_

@@ -38,6 +38,7 @@ SVN_FAST_EXPORT := svn-fast-export
 OBJECTS := svn-fast-export.o \
 	author.o \
 	backend.o \
+	blob.o \
 	branch.o \
 	commit.o \
 	error.o \

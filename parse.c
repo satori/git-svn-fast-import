@@ -60,9 +60,10 @@ typedef struct
     branch_storage_t *branches;
     // Revision storage.
     revision_storage_t *revisions;
+    // Blob storage.
+    blob_storage_t *blobs;
     mark_t last_mark;
     git_svn_options_t *options;
-    apr_hash_t *blobs;
     revision_ctx_t *rev_ctx;
     node_t *node;
 } parser_ctx_t;
@@ -185,7 +186,7 @@ get_copyfrom_commit(apr_hash_t *headers, parser_ctx_t *ctx, branch_t *copyfrom_b
 static svn_error_t *
 get_node_blob(blob_t **dst, apr_hash_t *headers, parser_ctx_t *ctx)
 {
-    const char *content_sha1, *content_length;
+    const char *content_sha1, *content_size;
     svn_checksum_t *checksum;
     blob_t *blob;
     int is_copyfrom = 0;
@@ -203,19 +204,13 @@ get_node_blob(blob_t **dst, apr_hash_t *headers, parser_ctx_t *ctx)
     SVN_ERR(svn_checksum_parse_hex(&checksum, svn_checksum_sha1,
                                    content_sha1, ctx->rev_ctx->pool));
 
-    blob = apr_hash_get(ctx->blobs, checksum->digest, svn_checksum_size(checksum));
+    blob = blob_storage_get(ctx->blobs, checksum);
 
-    if (blob == NULL && !is_copyfrom) {
-        blob = apr_pcalloc(ctx->pool, sizeof(blob_t));
-        blob->checksum = svn_checksum_dup(checksum, ctx->pool);
-
-        content_length = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_LENGTH, APR_HASH_KEY_STRING);
-        if (content_length != NULL) {
-            SVN_ERR(svn_cstring_atoui64(&blob->length, content_length));
-        }
-
-        apr_hash_set(ctx->blobs, blob->checksum->digest,
-                     svn_checksum_size(blob->checksum), blob);
+    content_size = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_LENGTH, APR_HASH_KEY_STRING);
+    if (content_size != NULL) {
+        size_t size;
+        SVN_ERR(svn_cstring_atoui64(&size, content_size));
+        blob_size_set(blob, size);
     }
 
     *dst = blob;
@@ -430,20 +425,20 @@ set_fulltext(svn_stream_t **stream, void *n_ctx)
 
     blob_t *blob = node->content.data.blob;
 
-    if (blob->mark) {
+    if (blob_mark_get(blob)) {
         // Blob has been uploaded, if we've already assigned mark to it
         return SVN_NO_ERROR;
     }
 
-    blob->mark = ctx->last_mark++;
+    blob_mark_set(blob, ctx->last_mark++);
     SVN_ERR(svn_stream_for_stdout(stream, ctx->rev_ctx->pool));
 
     if (node->mode == MODE_SYMLINK) {
         // We need to wrap the output stream with a special stream
         // which will strip a symlink marker from the beginning of a content.
         *stream = symlink_content_stream_create(*stream, ctx->rev_ctx->pool);
-        // Subtract a symlink marker length from the blob length.
-        blob->length -= sizeof(SYMLINK_CONTENT_PREFIX);
+        // Subtract a symlink marker length from the blob size.
+        blob_size_set(blob, blob_size_get(blob) - sizeof(SYMLINK_CONTENT_PREFIX));
     }
 
     SVN_ERR(backend_write_blob_header(&ctx->backend, blob, ctx->rev_ctx->pool));
@@ -573,7 +568,7 @@ git_svn_parse_dumpstream(svn_stream_t *dst,
     ctx.authors = author_storage_create(pool);
     ctx.branches = branch_storage_create(pool, options->branches, options->tags);
     ctx.revisions = revision_storage_create(pool);
-    ctx.blobs = apr_hash_make(pool);
+    ctx.blobs = blob_storage_create(pool);
     ctx.last_mark = 1;
 
     if (options->authors != NULL) {

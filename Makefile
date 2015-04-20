@@ -42,6 +42,7 @@ OBJECTS := svn-fast-export.o \
 	branch.o \
 	commit.o \
 	error.o \
+	node.o \
 	options.o \
 	parse.o \
 	revision.o \

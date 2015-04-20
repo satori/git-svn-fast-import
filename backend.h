@@ -39,7 +39,7 @@ svn_error_t *
 backend_write_commit(const backend_t *be,
                      const branch_t *branch,
                      const commit_t *commit,
-                     const apr_array_header_t *nodes,
+                     const node_list_t *nodes,
                      const author_t *author,
                      const char *message,
                      int64_t timestamp,

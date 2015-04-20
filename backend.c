@@ -28,12 +28,12 @@
 static svn_error_t *
 node_modify_blob(svn_stream_t *out, const node_t *node, apr_pool_t *pool)
 {
-    blob_t *blob = node->content.data.blob;
+    const blob_t *blob = node_content_blob_get(node);
 
     SVN_ERR(svn_stream_printf(out, pool, "M %o :%d \"%s\"\n",
-                              node->mode,
+                              node_mode_get(node),
                               blob_mark_get(blob),
-                              node->path));
+                              node_path_get(node)));
 
     return SVN_NO_ERROR;
 }
@@ -42,9 +42,13 @@ static svn_error_t *
 node_modify_checksum(svn_stream_t *out, const node_t *node, apr_pool_t *pool)
 {
     const char *checksum;
-    checksum = svn_checksum_to_cstring_display(node->content.data.checksum, pool);
+    checksum = svn_checksum_to_cstring_display(node_content_checksum_get(node),
+                                               pool);
 
-    SVN_ERR(svn_stream_printf(out, pool, "M %o %s \"%s\"\n", node->mode, checksum, node->path));
+    SVN_ERR(svn_stream_printf(out, pool, "M %o %s \"%s\"\n",
+                              node_mode_get(node),
+                              checksum,
+                              node_path_get(node)));
 
     return SVN_NO_ERROR;
 }
@@ -52,7 +56,7 @@ node_modify_checksum(svn_stream_t *out, const node_t *node, apr_pool_t *pool)
 static svn_error_t *
 node_modify(svn_stream_t *out, const node_t *node, apr_pool_t *pool)
 {
-    switch (node->content.kind) {
+    switch (node_content_kind_get(node)) {
     case CONTENT_CHECKSUM:
         return node_modify_checksum(out, node, pool);
     case CONTENT_BLOB:
@@ -65,7 +69,8 @@ node_modify(svn_stream_t *out, const node_t *node, apr_pool_t *pool)
 static svn_error_t *
 node_delete(svn_stream_t *out, const node_t *node, apr_pool_t *pool)
 {
-    SVN_ERR(svn_stream_printf(out, pool, "D \"%s\"\n", node->path));
+    SVN_ERR(svn_stream_printf(out, pool, "D \"%s\"\n",
+                              node_path_get(node)));
 
     return SVN_NO_ERROR;
 }
@@ -74,7 +79,7 @@ svn_error_t *
 backend_write_commit(const backend_t *be,
                      const branch_t *branch,
                      const commit_t *commit,
-                     const apr_array_header_t *nodes,
+                     const node_list_t *nodes,
                      const author_t *author,
                      const char *message,
                      int64_t timestamp,
@@ -97,10 +102,11 @@ backend_write_commit(const backend_t *be,
                                   commit_mark_get(copyfrom)));
     }
 
-    for (int i = 0; i < nodes->nelts; i++) {
-        const node_t *node = &APR_ARRAY_IDX(nodes, i, node_t);
+    node_iter_t *it;
+    for (it = node_iter_first(nodes, pool); it; it = node_iter_next(it)) {
+        const node_t *node = node_iter_get(it);
 
-        switch (node->action) {
+        switch (node_action_get(node)) {
         case ACTION_ADD:
         case ACTION_CHANGE:
             SVN_ERR(node_modify(out, node, pool));

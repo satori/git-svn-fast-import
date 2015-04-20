@@ -33,12 +33,6 @@
 
 #define BACK_FILENO 3
 
-#define MODE_NORMAL     0100644
-#define MODE_EXECUTABLE 0100755
-#define MODE_SYMLINK    0120000
-#define MODE_DIR        0040000
-
-
 typedef struct
 {
     apr_pool_t *pool;
@@ -46,8 +40,8 @@ typedef struct
     const author_t *author;
     int64_t timestamp;
     revision_t *rev;
-    // commit_t to apr_array_header_t mapping
-    apr_hash_t *nodes;
+    // Node storage.
+    node_storage_t *nodes;
 } revision_ctx_t;
 
 typedef struct
@@ -99,7 +93,7 @@ new_revision_record(void **r_ctx, apr_hash_t *headers, void *p_ctx, apr_pool_t *
     rev = revision_storage_add_revision(ctx->revisions, SVN_STR_TO_REV(revnum));
 
     ctx->rev_ctx->rev = rev;
-    ctx->rev_ctx->nodes = apr_hash_make(pool);
+    ctx->rev_ctx->nodes = node_storage_create(pool);
     ctx->rev_ctx->pool = pool;
 
     *r_ctx = ctx;
@@ -226,7 +220,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     revision_t *rev = ctx->rev_ctx->rev;
     commit_t *commit;
     branch_t *branch = NULL, *copyfrom_branch = NULL;
-    apr_array_header_t *nodes;
+    blob_t *blob = NULL;
     node_t *node;
     node_action_t action = get_node_action(headers);
     node_kind_t kind = get_node_kind(headers);
@@ -276,27 +270,21 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         commit = revision_commits_add(rev, branch);
     }
 
-    nodes = apr_hash_get(ctx->rev_ctx->nodes, branch, sizeof(branch_t *));
-    if (nodes == NULL) {
-        nodes = apr_array_make(ctx->rev_ctx->pool, 8, sizeof(node_t));
-        apr_hash_set(ctx->rev_ctx->nodes, branch, sizeof(branch_t *), nodes);
-    }
+    node = node_storage_add(ctx->rev_ctx->nodes, branch);
+    node_mode_set(node, get_node_default_mode(kind));
+    node_kind_set(node, kind);
+    node_action_set(node, action);
+    node_path_set(node, apr_pstrdup(ctx->rev_ctx->pool, node_path));
 
-    node = &APR_ARRAY_PUSH(nodes, node_t);
-    node->mode = get_node_default_mode(kind);
-    node->kind = kind;
-    node->action = action;
-    node->path = apr_pstrdup(ctx->rev_ctx->pool, node_path);
+    if (kind == KIND_FILE) {
+        SVN_ERR(get_node_blob(&blob, headers, ctx));
 
-    if (node->kind == KIND_FILE) {
-        SVN_ERR(get_node_blob(&node->content.data.blob, headers, ctx));
-
-        if (node->content.data.blob != NULL) {
-            node->content.kind = CONTENT_BLOB;
+        if (blob != NULL) {
+            node_content_blob_set(node, blob);
         }
     }
 
-    if (node->content.kind == CONTENT_UNKNOWN) {
+    if (node_content_kind_get(node) == CONTENT_UNKNOWN) {
         const char *copyfrom_subpath;
         const commit_t *copyfrom_commit = NULL;
 
@@ -319,18 +307,19 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
             // Subversion does not dump its' checksum, so we have to look
             // for it in the previous commit
             copyfrom_commit = commit_parent_get(commit);
-            copyfrom_subpath = node->path;
+            copyfrom_subpath = node_path_get(node);
         }
 
         if (copyfrom_commit != NULL) {
-            SVN_ERR(backend_get_checksum(&node->content.data.checksum,
+            svn_checksum_t *checksum = NULL;
+            SVN_ERR(backend_get_checksum(&checksum,
                                          &ctx->backend,
                                          copyfrom_commit, copyfrom_subpath,
                                          ctx->rev_ctx->pool,
                                          ctx->rev_ctx->pool));
 
-            if (node->content.data.checksum != NULL) {
-                node->content.kind = CONTENT_CHECKSUM;
+            if (checksum != NULL) {
+                node_content_checksum_set(node, checksum);
             }
         }
     }
@@ -372,10 +361,10 @@ set_node_property(void *n_ctx, const char *name, const svn_string_t *value)
     }
 
     if (strcmp(name, SVN_PROP_EXECUTABLE) == 0) {
-        node->mode = MODE_EXECUTABLE;
+        node_mode_set(node, MODE_EXECUTABLE);
     }
     else if (strcmp(name, SVN_PROP_SPECIAL) == 0) {
-        node->mode = MODE_SYMLINK;
+        node_mode_set(node, MODE_SYMLINK);
     }
 
     return SVN_NO_ERROR;
@@ -391,7 +380,7 @@ remove_node_props(void *n_ctx)
         return SVN_NO_ERROR;
     }
 
-    node->mode = get_node_default_mode(node->kind);
+    node_mode_set(node, get_node_default_mode(node_kind_get(node)));
 
     return SVN_NO_ERROR;
 }
@@ -407,7 +396,7 @@ delete_node_property(void *n_ctx, const char *name)
     }
 
     if (strcmp(name, SVN_PROP_EXECUTABLE) == 0 || strcmp(name, SVN_PROP_SPECIAL) == 0) {
-        node->mode = MODE_NORMAL;
+        node_mode_set(node, MODE_NORMAL);
     }
 
     return SVN_NO_ERROR;
@@ -423,7 +412,7 @@ set_fulltext(svn_stream_t **stream, void *n_ctx)
         return SVN_NO_ERROR;
     }
 
-    blob_t *blob = node->content.data.blob;
+    blob_t *blob = node_content_blob_get(node);
 
     if (blob_mark_get(blob)) {
         // Blob has been uploaded, if we've already assigned mark to it
@@ -433,7 +422,7 @@ set_fulltext(svn_stream_t **stream, void *n_ctx)
     blob_mark_set(blob, ctx->last_mark++);
     SVN_ERR(svn_stream_for_stdout(stream, ctx->rev_ctx->pool));
 
-    if (node->mode == MODE_SYMLINK) {
+    if (node_mode_get(node) == MODE_SYMLINK) {
         // We need to wrap the output stream with a special stream
         // which will strip a symlink marker from the beginning of a content.
         *stream = symlink_content_stream_create(*stream, ctx->rev_ctx->pool);
@@ -468,9 +457,9 @@ write_commit(void *p_ctx, branch_t *branch, commit_t *commit, apr_pool_t *pool)
     parser_ctx_t *ctx = p_ctx;
     revision_ctx_t *rev_ctx = ctx->rev_ctx;
 
-    apr_array_header_t *nodes = apr_hash_get(rev_ctx->nodes, branch, sizeof(branch_t *));
+    const node_list_t *nodes = node_storage_list(rev_ctx->nodes, branch);
 
-    if (nodes->nelts == 1 && commit_copyfrom_get(commit) != NULL) {
+    if (node_list_count(nodes) == 1 && commit_copyfrom_get(commit) != NULL) {
         // In case there is only one node in a commit and this node is
         // a root directory copied from another branch, mark this commit
         // as dummy, set copyfrom commit as its parent and reset branch to it.

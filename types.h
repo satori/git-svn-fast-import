@@ -27,44 +27,7 @@
 #include "blob.h"
 #include "branch.h"
 #include "commit.h"
+#include "node.h"
 #include "revision.h"
-
-typedef enum
-{
-    ACTION_NOOP,
-    ACTION_ADD,
-    ACTION_CHANGE,
-    ACTION_DELETE,
-    ACTION_REPLACE
-} node_action_t;
-
-typedef enum
-{
-    KIND_UNKNOWN,
-    KIND_FILE,
-    KIND_DIR
-} node_kind_t;
-
-typedef enum
-{
-    CONTENT_UNKNOWN,
-    CONTENT_CHECKSUM,
-    CONTENT_BLOB
-} content_kind_t;
-
-typedef struct
-{
-    node_action_t action;
-    node_kind_t kind;
-    uint32_t mode;
-    const char *path;
-    struct {
-        content_kind_t kind;
-        union {
-            svn_checksum_t *checksum;
-            blob_t *blob;
-        } data;
-    } content;
-} node_t;
 
 #endif // GIT_SVN_FAST_IMPORT_TYPES_H_

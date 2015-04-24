@@ -212,8 +212,9 @@ dump_commit(void *ctx, branch_t *branch, commit_t *commit, apr_pool_t *pool)
 {
     svn_stream_t *dst = ctx;
 
-    SVN_ERR(svn_stream_printf(dst, pool, "%s :%d\n",
+    SVN_ERR(svn_stream_printf(dst, pool, "%s %s :%d\n",
                               branch_refname_get(branch),
+                              branch_path_get(branch),
                               commit_mark_get(commit)));
 
     return SVN_NO_ERROR;
@@ -225,6 +226,8 @@ revision_storage_dump(const revision_storage_t *rs,
                       apr_pool_t *pool)
 {
     revision_iter_t *it;
+
+    SVN_ERR(svn_stream_printf(dst, pool, "%d\n", apr_hash_count(rs->revnum_idx)));
 
     for (it = revision_iter_first(rs->revisions, pool); it; it = revision_iter_next(it)) {
         const revision_t *rev = it->rev;

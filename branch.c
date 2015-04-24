@@ -39,6 +39,12 @@ branch_refname_get(const branch_t *b)
 }
 
 const char *
+branch_path_get(const branch_t *b)
+{
+    return b->path;
+}
+
+const char *
 branch_skip_prefix(const branch_t *b, const char *path)
 {
     return cstring_skip_prefix(path, b->path);

@@ -35,6 +35,10 @@ typedef struct branch_t branch_t;
 const char *
 branch_refname_get(const branch_t *b);
 
+// Returns branch path.
+const char *
+branch_path_get(const branch_t *b);
+
 // Skips branch path prefix from absolute path.
 const char *
 branch_skip_prefix(const branch_t *b, const char *path);

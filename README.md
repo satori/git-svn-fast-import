@@ -3,7 +3,10 @@
 [![Build Status](https://travis-ci.org/satori/git-svn-fast-import.svg?branch=master)](https://travis-ci.org/satori/git-svn-fast-import)
 
 *git-svn-fast-import* is a tool for fast Subversion-to-Git conversion.
-It features branches support.
+It features:
+* branch history support
+* multi-branch SVN revisions support
+* SVN commiter to Git author mapping
 
 ## Installation
 

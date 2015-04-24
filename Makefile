@@ -34,6 +34,7 @@ APR_CPPFLAGS := $(shell apr-1-config --cppflags)
 CPPFLAGS +=$(APR_INCLUDES) $(APR_CPPFLAGS)
 
 GIT_SVN_FAST_IMPORT := git-svn-fast-import
+GIT_SVN_VERIFY_IMPORT := git-svn-verify-import
 SVN_FAST_EXPORT := svn-fast-export
 OBJECTS := svn-fast-export.o \
 	author.o \
@@ -50,9 +51,15 @@ OBJECTS := svn-fast-export.o \
 	tree.o \
 	utils.o
 
-all: $(GIT_SVN_FAST_IMPORT) $(SVN_FAST_EXPORT)
+all: $(GIT_SVN_FAST_IMPORT) $(GIT_SVN_VERIFY_IMPORT) $(SVN_FAST_EXPORT)
 
 $(GIT_SVN_FAST_IMPORT): git-svn-fast-import.sh
+
+git-svn-fast-import.py:
+
+$(GIT_SVN_VERIFY_IMPORT): git-svn-fast-import.py
+	cat git-svn-verify-import.py > git-svn-verify-import
+	chmod a+x git-svn-verify-import
 
 $(SVN_FAST_EXPORT): $(OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(EXTLIBS)
@@ -64,6 +71,6 @@ test: all
 	$(MAKE) -C t all
 
 clean:
-	$(RM) $(GIT_SVN_FAST_IMPORT) $(SVN_FAST_EXPORT) $(OBJECTS)
+	$(RM) $(GIT_SVN_FAST_IMPORT) $(GIT_SVN_VERIFY_IMPORT) $(SVN_FAST_EXPORT) $(OBJECTS)
 
 .PHONY: all clean

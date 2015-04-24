@@ -1,4 +1,5 @@
 *.o
 git-svn-fast-import
+git-svn-verify-import
 config.mak
 svn-fast-export

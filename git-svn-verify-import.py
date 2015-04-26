@@ -146,7 +146,7 @@ def compare_fs_tree(svn_path, git_path, ignored):
                 errors.append("mode mismatch for {} and {}".format(f1, f2))
 
             if not compare_checksum(f1, f2):
-                errors.append("checksum mistmatch for {} and {}".format(f1, f2))
+                errors.append("checksum mismatch for {} and {}".format(f1, f2))
 
     return errors
 

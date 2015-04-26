@@ -188,7 +188,7 @@ cat >expect <<EOF
 :000000 100755 0000000000000000000000000000000000000000 0e5f181f94f2ff9f984b4807887c4d2c6f642723 A	main2.c
 EOF
 
-test_expect_failure 'Validate file mode copy' '
+test_expect_success 'Validate file mode copy' '
 (cd repo.git &&
 	git diff-tree master^ master >actual &&
 	test_cmp ../expect actual)

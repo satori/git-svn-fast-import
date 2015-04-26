@@ -50,6 +50,10 @@ typedef enum
     MODE_DIR        = 0040000
 } node_mode_t;
 
+// Parses mode string.
+node_mode_t
+node_mode_parse(const char *src, size_t len);
+
 typedef enum
 {
     CONTENT_UNKNOWN,

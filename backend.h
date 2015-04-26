@@ -82,12 +82,13 @@ backend_notify_revision_imported(const backend_t *be,
                                  apr_pool_t *pool);
 
 svn_error_t *
-backend_get_checksum(svn_checksum_t **dst,
-                     const backend_t *be,
-                     const commit_t *commit,
-                     const char *path,
-                     apr_pool_t *result_pool,
-                     apr_pool_t *scratch_pool);
+backend_get_mode_checksum(node_mode_t *mode,
+                          svn_checksum_t **dst,
+                          const backend_t *be,
+                          const commit_t *commit,
+                          const char *path,
+                          apr_pool_t *result_pool,
+                          apr_pool_t *scratch_pool);
 
 svn_error_t *
 backend_finished(const backend_t *be, apr_pool_t *pool);

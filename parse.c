@@ -183,14 +183,8 @@ get_node_blob(blob_t **dst, apr_hash_t *headers, parser_ctx_t *ctx)
     const char *content_sha1, *content_size;
     svn_checksum_t *checksum;
     blob_t *blob;
-    int is_copyfrom = 0;
 
     content_sha1 = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_SHA1, APR_HASH_KEY_STRING);
-    if (content_sha1 == NULL) {
-        content_sha1 = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_COPY_SOURCE_SHA1, APR_HASH_KEY_STRING);
-        is_copyfrom = 1;
-    }
-
     if (content_sha1 == NULL) {
         return SVN_NO_ERROR;
     }
@@ -312,13 +306,17 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
 
         if (copyfrom_commit != NULL) {
             svn_checksum_t *checksum = NULL;
-            SVN_ERR(backend_get_checksum(&checksum,
-                                         &ctx->backend,
-                                         copyfrom_commit, copyfrom_subpath,
-                                         ctx->rev_ctx->pool,
-                                         ctx->rev_ctx->pool));
+            node_mode_t mode;
+            SVN_ERR(backend_get_mode_checksum(&mode,
+                                              &checksum,
+                                              &ctx->backend,
+                                              copyfrom_commit,
+                                              copyfrom_subpath,
+                                              ctx->rev_ctx->pool,
+                                              ctx->rev_ctx->pool));
 
             if (checksum != NULL) {
+                node_mode_set(node, mode);
                 node_content_checksum_set(node, checksum);
             }
         }

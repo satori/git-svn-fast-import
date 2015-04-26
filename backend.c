@@ -219,9 +219,10 @@ backend_notify_branch_removed(const backend_t *be,
 }
 
 static svn_error_t *
-parse_checksum(svn_checksum_t **dst,
-               const svn_stringbuf_t *src,
-               apr_pool_t *pool)
+parse_mode_checksum(node_mode_t *mode,
+                    svn_checksum_t **checksum,
+                    const svn_stringbuf_t *src,
+                    apr_pool_t *pool)
 {
     const char *next, *prev;
 
@@ -231,26 +232,38 @@ parse_checksum(svn_checksum_t **dst,
         return SVN_NO_ERROR;
     }
 
-    next = src->data;
+    // Parse mode
+    prev = src->data;
+    next = strchr(prev, ' ');
 
-    for (int i = 0; i < 3; i++) {
-        prev = next;
-        next = strchr(prev, ' ');
-        next++;
-    }
+    *mode = node_mode_parse(prev, next - prev);
 
-    SVN_ERR(svn_checksum_parse_hex(dst, svn_checksum_sha1, prev, pool));
+    // Skip whitespace
+    next++;
+
+    // Skip path type
+    prev = next;
+    next = strchr(prev, ' ');
+
+    // Skip whitespace
+    next++;
+
+    // Parse checksum
+    prev = next;
+
+    SVN_ERR(svn_checksum_parse_hex(checksum, svn_checksum_sha1, prev, pool));
 
     return SVN_NO_ERROR;
 }
 
 svn_error_t *
-backend_get_checksum(svn_checksum_t **dst,
-                     const backend_t *be,
-                     const commit_t *commit,
-                     const char *path,
-                     apr_pool_t *result_pool,
-                     apr_pool_t *scratch_pool)
+backend_get_mode_checksum(node_mode_t *mode,
+                          svn_checksum_t **checksum,
+                          const backend_t *be,
+                          const commit_t *commit,
+                          const char *path,
+                          apr_pool_t *result_pool,
+                          apr_pool_t *scratch_pool)
 {
     svn_boolean_t eof;
     svn_stringbuf_t *buf;
@@ -259,7 +272,7 @@ backend_get_checksum(svn_checksum_t **dst,
                               commit_mark_get(commit),
                               path));
     SVN_ERR(svn_stream_readline(be->back, &buf, "\n", &eof, scratch_pool));
-    SVN_ERR(parse_checksum(dst, buf, result_pool));
+    SVN_ERR(parse_mode_checksum(mode, checksum, buf, result_pool));
 
     return SVN_NO_ERROR;
 }

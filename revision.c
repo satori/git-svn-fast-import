@@ -196,7 +196,7 @@ revision_storage_add_revision(revision_storage_t *rs, svn_revnum_t revnum)
     rev->removes = apr_hash_make(rs->pool);
 
     APR_RING_INSERT_TAIL(rs->revisions, rev, revision_t, link);
-    apr_hash_set(rs->revnum_idx, &revnum, sizeof(svn_revnum_t), rev);
+    apr_hash_set(rs->revnum_idx, &rev->revnum, sizeof(svn_revnum_t), rev);
 
     return rev;
 }

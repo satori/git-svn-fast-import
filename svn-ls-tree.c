@@ -177,9 +177,13 @@ traverse_tree(apr_array_header_t **entries,
             entry->mode = MODE_NORMAL;
             entry->kind = NODE_BLOB;
 
-            SVN_ERR(svn_fs_node_proplist(&props, root, path, pool));
-            if (svn_hash_gets(props, SVN_PROP_EXECUTABLE)) {
+            SVN_ERR(svn_fs_node_proplist(&props, root, fname, pool));
+            if (svn_hash_gets(props, SVN_PROP_EXECUTABLE) != NULL) {
                 entry->mode = MODE_EXECUTABLE;
+            }
+
+            if (svn_hash_gets(props, SVN_PROP_SPECIAL)) {
+                entry->mode = MODE_SYMLINK;
             }
 
             SVN_ERR(calculate_blob_checksum(&checksum, root, fname, pool));

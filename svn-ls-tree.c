@@ -32,6 +32,8 @@
 #include <svn_repos.h>
 #include <svn_utf.h>
 
+#define SYMLINK_CONTENT_PREFIX "link"
+
 typedef enum
 {
     MODE_NORMAL     = 0100644,
@@ -69,12 +71,23 @@ calculate_blob_checksum(svn_checksum_t **checksum,
                         apr_pool_t *pool)
 {
     const char *hdr;
+    apr_hash_t *props;
     svn_checksum_ctx_t *ctx;
     svn_filesize_t size;
     svn_stream_t *content;
 
+    SVN_ERR(svn_fs_node_proplist(&props, root, path, pool));
     SVN_ERR(svn_fs_file_length(&size, root, path, pool));
     SVN_ERR(svn_fs_file_contents(&content, root, path, pool));
+
+    // We need to skip a symlink marker from the beginning of a content
+    // and subtract a symlink marker length from the blob size.
+    if (svn_hash_gets(props, SVN_PROP_SPECIAL)) {
+        apr_size_t bufsize = sizeof(SYMLINK_CONTENT_PREFIX);
+        char buf[bufsize];
+        SVN_ERR(svn_stream_read(content, buf, &bufsize));
+        size -= bufsize;
+    }
 
     hdr = apr_psprintf(pool, "blob %ld", size);
     ctx = svn_checksum_ctx_create(svn_checksum_sha1, pool);

@@ -20,7 +20,9 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 CC ?= cc
+INSTALL = install
 RM = rm -f
+PREFIX ?= $(HOME)
 CFLAGS = -g -O2 -Wall -std=c99
 CPPFLAGS =
 LDFLAGS =
@@ -40,6 +42,10 @@ OBJECTS := svn-ls-tree.o \
 
 all: $(SVN_LS_TREE)
 
+install: $(SVN_LS_TREE)
+	$(INSTALL) -d $(PREFIX)/bin
+	$(INSTALL) -m 0755 $(SVN_LS_TREE) $(PREFIX)/bin/$(SVN_LS_TREE)
+
 $(SVN_LS_TREE): $(OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(EXTLIBS)
 
@@ -49,4 +55,4 @@ $(SVN_LS_TREE): $(OBJECTS)
 clean:
 	$(RM) $(SVN_LS_TREE) $(OBJECTS)
 
-.PHONY: all clean
+.PHONY: all install clean

@@ -50,7 +50,7 @@ format_option(const char **str,
 void
 print_usage(const apr_getopt_option_t *options, apr_pool_t *pool)
 {
-    svn_error_clear(svn_cmdline_printf(pool, "usage: svn-ls-tree [OPTIONS] REPO [PATH]\n"));
+    svn_error_clear(svn_cmdline_printf(pool, "usage: svn-ls-tree [OPTIONS] REPO REV [PATH]\n"));
 
     while (options->description) {
         const char *optstr;

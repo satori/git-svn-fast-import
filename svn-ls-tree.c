@@ -311,7 +311,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     svn_fs_t *fs;
     svn_fs_root_t *root;
     svn_repos_t *repo;
-    svn_revnum_t rev;
+    svn_revnum_t revnum = SVN_INVALID_REVNUM;
 
     // Initialize the FS library.
     SVN_ERR(svn_fs_initialize(pool));
@@ -367,6 +367,27 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
         return SVN_NO_ERROR;
     }
 
+    SVN_ERR(svn_repos_open2(&repo, repo_path, NULL, pool));
+    fs = svn_repos_fs(repo);
+
+    // Get the revision.
+    if (opt_parser->ind < opt_parser->argc) {
+        const char *opt_arg = opt_parser->argv[opt_parser->ind++];
+        if (strcmp(opt_arg, "HEAD") == 0) {
+            SVN_ERR(svn_fs_youngest_rev(&revnum, fs, pool));
+        } else {
+            char *end = NULL;
+            revnum = strtol(opt_arg, &end, 10);
+            if (!SVN_IS_VALID_REVNUM(revnum) || !end || *end) {
+                return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR,
+                                        NULL,
+                                        "Invalid revision number supplied");
+            }
+        }
+    }
+
+    SVN_ERR(svn_fs_revision_root(&root, fs, revnum, pool));
+
     // Get the path.
     if (opt_parser->ind < opt_parser->argc) {
         SVN_ERR(svn_utf_cstring_to_utf8(&path, opt_parser->argv[opt_parser->ind++], pool));
@@ -378,12 +399,6 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
         path = "";
     }
 
-    SVN_ERR(svn_repos_open2(&repo, repo_path, NULL, pool));
-
-    fs = svn_repos_fs(repo);
-
-    SVN_ERR(svn_fs_youngest_rev(&rev, fs, pool));
-    SVN_ERR(svn_fs_revision_root(&root, fs, rev, pool));
     SVN_ERR(print_tree(root, path, trees_only, recurse, (!recurse || trees_only || show_trees), pool));
 
     return SVN_NO_ERROR;

@@ -64,8 +64,21 @@ static struct apr_getopt_option_t cmdline_options[] = {
     {NULL, 'd', 0, "Show only the named tree entry itself, not its children"},
     {NULL, 'r', 0, "Recurse into sub-trees"},
     {NULL, 't', 0, "Show tree entries even when going to recurse them. Has no effect if -r was not passed. -d implies -t."},
+    {"root", 'R', 1, "Set path as root directory."},
     {0, 0, 0, 0}
 };
+
+static const char *
+cstring_skip_prefix(const char *src, const char *prefix)
+{
+    size_t len = strlen(prefix);
+
+    if (strncmp(src, prefix, len) == 0) {
+        return src + len;
+    }
+
+    return NULL;
+}
 
 static svn_error_t *
 calculate_blob_checksum(svn_checksum_t **checksum,
@@ -217,44 +230,8 @@ traverse_tree(apr_array_header_t **entries,
 }
 
 static svn_error_t *
-print_dir(entry_t *entry, apr_pool_t *pool)
-{
-    SVN_ERR(svn_cmdline_printf(pool, "%06o tree %s\t%s\n",
-                               entry->mode,
-                               svn_checksum_to_cstring_display(entry->checksum, pool),
-                               entry->path));
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-print_blob(entry_t *entry, apr_pool_t *pool)
-{
-    SVN_ERR(svn_cmdline_printf(pool, "%06o blob %s\t%s\n",
-                               entry->mode,
-                               svn_checksum_to_cstring_display(entry->checksum, pool),
-                               entry->path));
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-print_entry(entry_t *entry, apr_pool_t *pool)
-{
-    switch (entry->kind) {
-    case NODE_TREE:
-        SVN_ERR(print_dir(entry, pool));
-        break;
-    case NODE_BLOB:
-        SVN_ERR(print_blob(entry, pool));
-        break;
-    }
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
 print_entries(apr_array_header_t *entries,
+              const char *root_path,
               svn_boolean_t trees_only,
               svn_boolean_t recurse,
               svn_boolean_t show_trees,
@@ -262,20 +239,31 @@ print_entries(apr_array_header_t *entries,
 {
     for (int i = 0; i < entries->nelts; i++) {
         entry_t *entry = &APR_ARRAY_IDX(entries, i, entry_t);
+        const char *path = cstring_skip_prefix(entry->path, root_path);
+        if (*path == '/') {
+            path++;
+        }
 
         if (entry->kind == NODE_TREE) {
             if (show_trees) {
-                SVN_ERR(print_entry(entry, pool));
+                SVN_ERR(svn_cmdline_printf(pool, "%06o tree %s\t%s\n",
+                                           entry->mode,
+                                           svn_checksum_to_cstring_display(entry->checksum, pool),
+                                           path));
             }
             if (recurse) {
                 SVN_ERR(print_entries(entry->subentries,
+                                      root_path,
                                       trees_only,
                                       recurse,
                                       show_trees,
                                       pool));
             }
         } else if (!trees_only) {
-            SVN_ERR(print_entry(entry, pool));
+            SVN_ERR(svn_cmdline_printf(pool, "%06o blob %s\t%s\n",
+                                       entry->mode,
+                                       svn_checksum_to_cstring_display(entry->checksum, pool),
+                                       path));
         }
     }
 
@@ -284,6 +272,7 @@ print_entries(apr_array_header_t *entries,
 
 static svn_error_t *
 print_tree(svn_fs_root_t *root,
+           const char *root_path,
            const char *path,
            svn_boolean_t trees_only,
            svn_boolean_t recurse,
@@ -291,9 +280,10 @@ print_tree(svn_fs_root_t *root,
            apr_pool_t *pool)
 {
     apr_array_header_t *entries;
+    const char *abspath = svn_relpath_join(root_path, path, pool);
 
-    SVN_ERR(traverse_tree(&entries, root, path, recurse, pool));
-    SVN_ERR(print_entries(entries, trees_only, recurse, show_trees, pool));
+    SVN_ERR(traverse_tree(&entries, root, abspath, recurse, pool));
+    SVN_ERR(print_entries(entries, root_path, trees_only, recurse, show_trees, pool));
 
     return SVN_NO_ERROR;
 }
@@ -303,11 +293,8 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 {
     apr_getopt_t *opt_parser;
     apr_status_t apr_err;
-    const char *repo_path = NULL;
-    const char *path = NULL;
-    svn_boolean_t trees_only = FALSE;
-    svn_boolean_t recurse = FALSE;
-    svn_boolean_t show_trees = FALSE;
+    const char *path = NULL, *repo_path = NULL, *root_path = "";
+    svn_boolean_t trees_only = FALSE, recurse = FALSE, show_trees = FALSE;
     svn_fs_t *fs;
     svn_fs_root_t *root;
     svn_repos_t *repo;
@@ -340,6 +327,9 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
             break;
         case 'r':
             recurse = TRUE;
+            break;
+        case 'R':
+            root_path = opt_arg;
             break;
         case 't':
             show_trees = TRUE;
@@ -399,7 +389,13 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
         path = "";
     }
 
-    SVN_ERR(print_tree(root, path, trees_only, recurse, (!recurse || trees_only || show_trees), pool));
+    SVN_ERR(print_tree(root,
+                       root_path,
+                       path,
+                       trees_only,
+                       recurse,
+                       (!recurse || trees_only || show_trees),
+                       pool));
 
     return SVN_NO_ERROR;
 }

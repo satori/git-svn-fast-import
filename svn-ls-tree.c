@@ -179,6 +179,7 @@ traverse_tree(apr_array_header_t **entries,
                                     pool);
 
     for (int i = 0; i < sorted_entries->nelts; i++) {
+        entry_t *entry;
         svn_sort__item_t item = APR_ARRAY_IDX(sorted_entries, i,
                                               svn_sort__item_t);
 
@@ -190,16 +191,9 @@ traverse_tree(apr_array_header_t **entries,
             continue;
         }
 
-        entry_t *entry = apr_array_push(result);
-        entry->path = fname;
-        entry->basename = e->name;
 
         if (e->kind == svn_node_dir) {
             apr_array_header_t *subentries;
-
-            entry->mode = MODE_DIR;
-            entry->kind = NODE_TREE;
-            entry->size = 0;
 
             SVN_ERR(traverse_tree(&subentries,
                                   root,
@@ -207,6 +201,16 @@ traverse_tree(apr_array_header_t **entries,
                                   recurse,
                                   ignores,
                                   pool));
+
+            // Skip empty directories.
+            if (subentries->nelts == 0) {
+                continue;
+            }
+
+            entry = apr_array_push(result);
+            entry->mode = MODE_DIR;
+            entry->kind = NODE_TREE;
+            entry->size = 0;
 
             SVN_ERR(calculate_tree_checksum(&checksum, subentries, pool));
 
@@ -217,6 +221,7 @@ traverse_tree(apr_array_header_t **entries,
         } else {
             apr_hash_t *props;
 
+            entry = apr_array_push(result);
             entry->mode = MODE_NORMAL;
             entry->kind = NODE_BLOB;
 
@@ -233,6 +238,8 @@ traverse_tree(apr_array_header_t **entries,
             SVN_ERR(svn_fs_file_length(&entry->size, root, fname, pool));
         }
 
+        entry->path = fname;
+        entry->basename = e->name;
         entry->checksum = checksum;
     }
 

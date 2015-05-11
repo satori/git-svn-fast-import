@@ -34,6 +34,9 @@
 
 #define SYMLINK_CONTENT_PREFIX "link"
 
+static const int one = 1;
+static const void *NOT_NULL = &one;
+
 typedef enum
 {
     MODE_NORMAL     = 0100644,
@@ -65,6 +68,7 @@ static struct apr_getopt_option_t cmdline_options[] = {
     {NULL, 'r', 0, "Recurse into sub-trees"},
     {NULL, 't', 0, "Show tree entries even when going to recurse them. Has no effect if -r was not passed. -d implies -t."},
     {"root", 'R', 1, "Set path as root directory."},
+    {"ignore-path", 'I', 1, "Ignore path relative to root."},
     {0, 0, 0, 0}
 };
 
@@ -161,6 +165,7 @@ traverse_tree(apr_array_header_t **entries,
               svn_fs_root_t *root,
               const char *path,
               svn_boolean_t recurse,
+              apr_hash_t *ignores,
               apr_pool_t *pool)
 {
     apr_array_header_t *sorted_entries, *result;
@@ -181,6 +186,10 @@ traverse_tree(apr_array_header_t **entries,
         svn_fs_dirent_t *e = item.value;
         const char *fname = svn_relpath_join(path, e->name, pool);
 
+        if (svn_hash_gets(ignores, fname)) {
+            continue;
+        }
+
         entry_t *entry = apr_array_push(result);
         entry->path = fname;
         entry->basename = e->name;
@@ -192,9 +201,12 @@ traverse_tree(apr_array_header_t **entries,
             entry->kind = NODE_TREE;
             entry->size = 0;
 
-            SVN_ERR(traverse_tree(&subentries, root,
+            SVN_ERR(traverse_tree(&subentries,
+                                  root,
                                   svn_relpath_join(path, e->name, pool),
-                                  recurse, pool));
+                                  recurse,
+                                  ignores,
+                                  pool));
 
             SVN_ERR(calculate_tree_checksum(&checksum, subentries, pool));
 
@@ -277,12 +289,13 @@ print_tree(svn_fs_root_t *root,
            svn_boolean_t trees_only,
            svn_boolean_t recurse,
            svn_boolean_t show_trees,
+           apr_hash_t *ignores,
            apr_pool_t *pool)
 {
     apr_array_header_t *entries;
     const char *abspath = svn_relpath_join(root_path, path, pool);
 
-    SVN_ERR(traverse_tree(&entries, root, abspath, recurse, pool));
+    SVN_ERR(traverse_tree(&entries, root, abspath, recurse, ignores, pool));
     SVN_ERR(print_entries(entries, root_path, trees_only, recurse, show_trees, pool));
 
     return SVN_NO_ERROR;
@@ -291,6 +304,8 @@ print_tree(svn_fs_root_t *root,
 static svn_error_t *
 do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 {
+    apr_array_header_t *relative_ignores;
+    apr_hash_t *ignores;
     apr_getopt_t *opt_parser;
     apr_status_t apr_err;
     const char *path = NULL, *repo_path = NULL, *root_path = "";
@@ -299,6 +314,9 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     svn_fs_root_t *root;
     svn_repos_t *repo;
     svn_revnum_t revnum = SVN_INVALID_REVNUM;
+
+    relative_ignores = apr_array_make(pool, 0, sizeof(const char *));
+    ignores = apr_hash_make(pool);
 
     // Initialize the FS library.
     SVN_ERR(svn_fs_initialize(pool));
@@ -328,17 +346,26 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
         case 'r':
             recurse = TRUE;
             break;
+        case 't':
+            show_trees = TRUE;
+            break;
         case 'R':
             root_path = opt_arg;
             break;
-        case 't':
-            show_trees = TRUE;
+        case 'I':
+            APR_ARRAY_PUSH(relative_ignores, const char *) = opt_arg;
             break;
         case 'h':
             print_usage(cmdline_options, pool);
             *exit_code = EXIT_FAILURE;
             return SVN_NO_ERROR;
         }
+    }
+
+    for (int i = 0; i < relative_ignores->nelts; i++) {
+        const char *ignored_path = APR_ARRAY_IDX(relative_ignores, i, const char *);
+        ignored_path = svn_relpath_join(root_path, ignored_path, pool);
+        svn_hash_sets(ignores, ignored_path, NOT_NULL);
     }
 
     // Get the repository path.
@@ -395,6 +422,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
                        trees_only,
                        recurse,
                        (!recurse || trees_only || show_trees),
+                       ignores,
                        pool));
 
     return SVN_NO_ERROR;

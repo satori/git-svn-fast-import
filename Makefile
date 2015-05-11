@@ -55,9 +55,7 @@ all: $(GIT_SVN_FAST_IMPORT) $(GIT_SVN_VERIFY_IMPORT) $(SVN_FAST_EXPORT)
 
 $(GIT_SVN_FAST_IMPORT): git-svn-fast-import.sh
 
-git-svn-fast-import.py:
-
-$(GIT_SVN_VERIFY_IMPORT): git-svn-fast-import.py
+$(GIT_SVN_VERIFY_IMPORT): git-svn-verify-import.py
 	cat git-svn-verify-import.py > git-svn-verify-import
 	chmod a+x git-svn-verify-import
 

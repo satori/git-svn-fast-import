@@ -12,9 +12,9 @@ It tries to mimic git ls-tree behaviour:
 
 Use the `make` command:
 
-  $ export PREFIX=$HOME/opt
-  $ make
-  $ make install
+	$ export PREFIX=$HOME/opt
+	$ make
+	$ make install
 
 ## Requirements
 

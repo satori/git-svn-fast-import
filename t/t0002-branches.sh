@@ -1062,4 +1062,20 @@ test_expect_success 'Validate symlink added' '
 	test_cmp ../expect actual)
 '
 
+test_expect_success 'Remove revision author property' '
+(cd repo.svn &&
+	svn propdel svn:author --revprop -r HEAD)
+'
+
+test_expect_failure 'Import dump into Git' '
+svnadmin dump repo >repo.dump &&
+	(cd repo.git &&
+		git-svn-fast-import -I data -A ../authors.txt --export-rev-marks ../marks.txt <../repo.dump)
+'
+
+test_expect_success 'Restore revision author property' '
+(cd repo.svn &&
+	svn propset svn:author --revprop -r HEAD author1)
+'
+
 test_done

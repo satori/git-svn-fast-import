@@ -34,6 +34,7 @@ A,authors-file=file     load from <file> the mapping of SVN committer names to G
 export-rev-marks=file   dump the SVN revision marks to <file>
 export-marks=file       load Git marks from <file>
 import-marks=file       dump Git marks into <file>
+force                   force updating modified existing branches, even if doing so would cause commits to be lost
 v,verbose               verbose output mode"
 
 eval "$(echo "$OPTIONS_SPEC" | git rev-parse --parseopt -- $@ || echo exit $?)"
@@ -51,6 +52,10 @@ case $1 in
         SVN_FAST_EXPORT_ARGS="$SVN_FAST_EXPORT_ARGS $1 $2"
         shift 2
         ;;
+	--force)
+		GIT_FAST_IMPORT_ARGS="$GIT_FAST_IMPORT_ARGS $1"
+		shift
+		;;
     --export-marks|--import-marks)
         GIT_FAST_IMPORT_ARGS="$GIT_FAST_IMPORT_ARGS $1=$2"
         shift 2

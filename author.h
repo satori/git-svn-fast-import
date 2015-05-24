@@ -43,6 +43,10 @@ author_storage_create(apr_pool_t *pool);
 const author_t *
 author_storage_lookup(const author_storage_t *as, const char *name);
 
+// Returns default author.
+const author_t *
+author_storage_default_author(const author_storage_t *as);
+
 // Loads author storage from stream.
 // Uses pool for temporary allocations.
 svn_error_t *

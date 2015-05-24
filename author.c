@@ -34,6 +34,10 @@ struct author_t
     const char *email;
 };
 
+static struct author_t unknown_author = {
+    "unknown", "Unknown", "unknown@local"
+};
+
 const char *
 author_to_cstring(const author_t *a, apr_pool_t *pool)
 {
@@ -72,6 +76,12 @@ author_storage_lookup(const author_storage_t *as, const char *name)
     }
 
     return author;
+}
+
+const author_t *
+author_storage_default_author(const author_storage_t *as)
+{
+    return &unknown_author;
 }
 
 static svn_error_t *

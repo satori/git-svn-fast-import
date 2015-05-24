@@ -503,6 +503,10 @@ close_revision(void *r_ctx)
         return SVN_NO_ERROR;
     }
 
+    if (rev_ctx->author == NULL) {
+        rev_ctx->author = author_storage_default_author(ctx->authors);
+    }
+
     revision_commits_apply(rev, &write_commit, ctx, rev_ctx->pool);
     revision_removes_apply(rev, &remove_branch, ctx, rev_ctx->pool);
 

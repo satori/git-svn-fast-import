@@ -6,7 +6,7 @@
 It features:
 * branch history support
 * multi-branch SVN revisions support
-* SVN commiter to Git author mapping
+* SVN committer to Git author mapping
 
 ## Installation
 

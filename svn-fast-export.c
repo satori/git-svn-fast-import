@@ -125,7 +125,6 @@ static svn_error_t *
 do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 {
     apr_getopt_t *opt_parser;
-    apr_pool_t *subpool;
     apr_status_t apr_err;
     const char *repo_path = NULL;
     svn_opt_revision_t start_revision, end_revision;
@@ -157,8 +156,6 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 
     // Initialize the FS library.
     SVN_ERR(svn_fs_initialize(pool));
-
-    subpool = svn_pool_create(pool);
 
     start_revision.kind = svn_opt_revision_unspecified;
     end_revision.kind = svn_opt_revision_unspecified;

@@ -17,7 +17,7 @@ Use the `make` command:
 ## Requirements
 
 * [Apache Portable Runtime](https://apr.apache.org/)
-* [Subversion](https://subversion.apache.org/)
+* [Subversion](https://subversion.apache.org/) >= 1.8
 * [Git](http://git-scm.com/) >= 2.1.2
 
 ## Example
@@ -27,7 +27,6 @@ Use the `make` command:
 	$ git-svn-fast-import --stdlayout -r 0:100000 /path/to/svnrepo
 	progress Skipped revision 0
 	progress Imported revision 1
-	progress Found branch at branches/stable
 	progress Imported revision 2
 	progress Imported revision 3
 	...

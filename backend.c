@@ -21,7 +21,7 @@
  */
 
 #include "backend.h"
-#include "error.h"
+#include <svn_cmdline.h>
 
 #define NULL_SHA1 "0000000000000000000000000000000000000000"
 
@@ -202,7 +202,7 @@ parse_mode_checksum(node_mode_t *mode,
 
     // Check if path is missing
     if (*src->data == 'm') {
-        handle_warning(src->data);
+        svn_cmdline_fprintf(stderr, pool, "svn-fast-export: WARN: %s\n", src->data);
         return SVN_NO_ERROR;
     }
 

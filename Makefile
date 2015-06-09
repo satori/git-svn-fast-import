@@ -42,7 +42,6 @@ OBJECTS := svn-fast-export.o \
 	blob.o \
 	branch.o \
 	commit.o \
-	error.o \
 	export.o \
 	node.o \
 	options.o \

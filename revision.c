@@ -115,17 +115,10 @@ revision_commits_apply(const revision_t *rev,
                        apr_pool_t *pool)
 {
     apr_hash_index_t *idx;
-    ssize_t keylen = sizeof(branch_t *);
 
     for (idx = apr_hash_first(pool, rev->commits); idx; idx = apr_hash_next(idx)) {
-        const void *key;
-        commit_t *commit;
-        branch_t *branch;
-        void *value;
-
-        apr_hash_this(idx, &key, &keylen, &value);
-        branch = (branch_t *) key;
-        commit = value;
+        branch_t *branch = (branch_t *) apr_hash_this_key(idx);
+        commit_t *commit = apr_hash_this_val(idx);
 
         SVN_ERR(apply(ctx, branch, commit, pool));
     }
@@ -152,15 +145,9 @@ revision_removes_apply(const revision_t *rev,
                        apr_pool_t *pool)
 {
     apr_hash_index_t *idx;
-    ssize_t keylen = sizeof(branch_t *);
-    branch_t *branch;
 
     for (idx = apr_hash_first(pool, rev->removes); idx; idx = apr_hash_next(idx)) {
-        const void *key;
-
-        apr_hash_this(idx, &key, &keylen, NULL);
-        branch = (branch_t *) key;
-
+        branch_t *branch = (branch_t *) apr_hash_this_key(idx);
         SVN_ERR(apply(ctx, branch, pool));
     }
 

@@ -22,6 +22,7 @@
 
 #include "author.h"
 #include "utils.h"
+#include <svn_hash.h>
 
 // author_t implementation.
 struct author_t
@@ -66,13 +67,13 @@ author_storage_lookup(const author_storage_t *as, const char *name)
 {
     author_t *author;
 
-    author = apr_hash_get(as->authors, name, APR_HASH_KEY_STRING);
+    author = svn_hash_gets(as->authors, name);
     if (author == NULL) {
         author = apr_pcalloc(as->pool, sizeof(author_t));
         author->svn_name = apr_pstrdup(as->pool, name);
         author->name = "unknown";
         author->email = apr_psprintf(as->pool, "%s@local", name);
-        apr_hash_set(as->authors, author->svn_name, APR_HASH_KEY_STRING, author);
+        svn_hash_sets(as->authors, author->svn_name, author);
     }
 
     return author;
@@ -150,7 +151,7 @@ author_storage_load(const author_storage_t *as,
         author->email = apr_pstrndup(as->pool, prev, end - prev + 1);
 
         // Save
-        apr_hash_set(as->authors, author->svn_name, APR_HASH_KEY_STRING, author);
+        svn_hash_sets(as->authors, author->svn_name, author);
     }
 
     return SVN_NO_ERROR;

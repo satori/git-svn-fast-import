@@ -16,7 +16,7 @@ Use the `make` command:
 
 ## Requirements
 
-* [Apache Portable Runtime](https://apr.apache.org/)
+* [Apache Portable Runtime](https://apr.apache.org/) >= 1.5
 * [Subversion](https://subversion.apache.org/) >= 1.8
 * [Git](http://git-scm.com/) >= 2.1.2
 

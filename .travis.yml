@@ -5,7 +5,7 @@ compiler:
 notifications:
     email: false
 install:
-    - sudo add-apt-repository ppa:dominik-stadler/subversion-1.8 -y
+    - sudo add-apt-repository ppa:gandalf-der-grosse/subversion -y
     - sudo add-apt-repository ppa:git-core/ppa -y
     - sudo apt-get update -qq
     - sudo apt-get install -y libapr1-dev

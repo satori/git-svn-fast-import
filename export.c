@@ -368,8 +368,6 @@ write_commit(void *p_ctx, branch_t *branch, commit_t *commit, apr_pool_t *pool)
         SVN_ERR(backend_write_commit(&ctx->backend, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp, pool));
     }
 
-    SVN_ERR(backend_notify_branch_updated(&ctx->backend, branch, pool));
-
     branch_head_set(branch, commit);
 
     return SVN_NO_ERROR;
@@ -381,7 +379,6 @@ remove_branch(void *p_ctx, branch_t *branch, apr_pool_t *pool)
     parser_ctx_t *ctx = p_ctx;
 
     SVN_ERR(backend_remove_branch(&ctx->backend, branch, pool));
-    SVN_ERR(backend_notify_branch_removed(&ctx->backend, branch, pool));
 
     return SVN_NO_ERROR;
 }

@@ -192,32 +192,6 @@ backend_notify_revision_imported(const backend_t *be,
     return SVN_NO_ERROR;
 }
 
-svn_error_t *
-backend_notify_branch_updated(const backend_t *be,
-                              const branch_t *branch,
-                              apr_pool_t *pool)
-{
-    if (be->verbose) {
-        SVN_ERR(svn_stream_printf(be->out, pool, "progress Updated %s\n",
-                                  branch_refname_get(branch)));
-    }
-
-    return SVN_NO_ERROR;
-}
-
-svn_error_t *
-backend_notify_branch_removed(const backend_t *be,
-                              const branch_t *branch,
-                              apr_pool_t *pool)
-{
-    if (be->verbose) {
-        SVN_ERR(svn_stream_printf(be->out, pool, "progress Removed %s\n",
-                                  branch_refname_get(branch)));
-    }
-
-    return SVN_NO_ERROR;
-}
-
 static svn_error_t *
 parse_mode_checksum(node_mode_t *mode,
                     svn_checksum_t **checksum,

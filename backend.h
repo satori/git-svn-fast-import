@@ -31,8 +31,6 @@ typedef struct
     svn_stream_t *out;
     // Response stream.
     svn_stream_t *back;
-    // Verbose mode.
-    int verbose;
 } backend_t;
 
 svn_error_t *
@@ -60,16 +58,6 @@ svn_error_t *
 backend_remove_branch(const backend_t *be,
                       const branch_t *branch,
                       apr_pool_t *pool);
-
-svn_error_t *
-backend_notify_branch_updated(const backend_t *be,
-                              const branch_t *branch,
-                              apr_pool_t *pool);
-
-svn_error_t *
-backend_notify_branch_removed(const backend_t *be,
-                              const branch_t *branch,
-                              apr_pool_t *pool);
 
 svn_error_t *
 backend_notify_revision_skipped(const backend_t *be,

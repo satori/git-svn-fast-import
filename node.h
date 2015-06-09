@@ -20,27 +20,12 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef GIT_SVN_FAST_IMPORT_NODE_H_
-#define GIT_SVN_FAST_IMPORT_NODE_H_
+#ifndef SVN_FAST_EXPORT_NODE_H_
+#define SVN_FAST_EXPORT_NODE_H_
 
 #include "blob.h"
 #include "branch.h"
-
-typedef enum
-{
-    ACTION_NOOP,
-    ACTION_ADD,
-    ACTION_CHANGE,
-    ACTION_DELETE,
-    ACTION_REPLACE
-} node_action_t;
-
-typedef enum
-{
-    KIND_UNKNOWN,
-    KIND_FILE,
-    KIND_DIR
-} node_kind_t;
+#include <svn_fs.h>
 
 typedef enum
 {
@@ -67,12 +52,12 @@ typedef struct node_t node_t;
 typedef svn_error_t * (*node_handler_t)(void *ctx, node_t *node, apr_pool_t *pool);
 
 // Returns node action.
-node_action_t
+svn_fs_path_change_kind_t
 node_action_get(const node_t *n);
 
 // Sets node action.
 void
-node_action_set(node_t *n, node_action_t action);
+node_action_set(node_t *n, svn_fs_path_change_kind_t action);
 
 // Returns node mode.
 node_mode_t
@@ -83,12 +68,12 @@ void
 node_mode_set(node_t *n, node_mode_t mode);
 
 // Returns node kind.
-node_kind_t
+svn_node_kind_t
 node_kind_get(const node_t *n);
 
 // Sets node kind.
 void
-node_kind_set(node_t *n, node_kind_t kind);
+node_kind_set(node_t *n, svn_node_kind_t kind);
 
 // Returns node path.
 const char *
@@ -157,4 +142,4 @@ const node_list_t *
 node_storage_list(const node_storage_t *ns,
                   const branch_t *branch);
 
-#endif // GIT_SVN_FAST_IMPORT_NODE_H_
+#endif // SVN_FAST_EXPORT_NODE_H_

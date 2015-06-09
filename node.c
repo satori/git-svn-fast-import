@@ -42,8 +42,8 @@ node_mode_parse(const char *src, size_t len)
 // node_t implementation
 struct node_t
 {
-    node_action_t action;
-    node_kind_t kind;
+    svn_fs_path_change_kind_t action;
+    svn_node_kind_t kind;
     node_mode_t mode;
     const char *path;
     struct {
@@ -57,14 +57,14 @@ struct node_t
     APR_RING_ENTRY(node_t) link;
 };
 
-node_action_t
+svn_fs_path_change_kind_t
 node_action_get(const node_t *n)
 {
     return n->action;
 }
 
 void
-node_action_set(node_t *n, node_action_t action)
+node_action_set(node_t *n, svn_fs_path_change_kind_t action)
 {
     n->action = action;
 }
@@ -81,14 +81,14 @@ node_mode_set(node_t *n, node_mode_t mode)
     n->mode = mode;
 }
 
-node_kind_t
+svn_node_kind_t
 node_kind_get(const node_t *n)
 {
     return n->kind;
 }
 
 void
-node_kind_set(node_t *n, node_kind_t kind)
+node_kind_set(node_t *n, svn_node_kind_t kind)
 {
     n->kind = kind;
 }

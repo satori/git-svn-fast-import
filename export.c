@@ -20,12 +20,14 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "parse.h"
+#include "export.h"
 #include "backend.h"
 #include "symlink.h"
 #include "tree.h"
 #include "utils.h"
 #include <apr_portable.h>
+#include <svn_dirent_uri.h>
+#include <svn_pools.h>
 #include <svn_props.h>
 #include <svn_repos.h>
 #include <svn_time.h>
@@ -42,6 +44,7 @@ typedef struct
     revision_t *rev;
     // Node storage.
     node_storage_t *nodes;
+    svn_fs_root_t *root;
 } revision_ctx_t;
 
 typedef struct
@@ -56,94 +59,40 @@ typedef struct
     revision_storage_t *revisions;
     // Blob storage.
     blob_storage_t *blobs;
+    tree_t *ignores;
     mark_t last_mark;
-    git_svn_options_t *options;
     revision_ctx_t *rev_ctx;
     node_t *node;
 } parser_ctx_t;
 
-#if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
 static svn_error_t *
-magic_header_record(int version, void *ctx, apr_pool_t *pool)
+new_revision_record(void **r_ctx,
+                    svn_revnum_t revnum,
+                    svn_fs_root_t *root,
+                    void *p_ctx,
+                    apr_pool_t *pool)
 {
-    return SVN_NO_ERROR;
-}
-#endif
-
-static svn_error_t *
-uuid_record(const char *uuid, void *ctx, apr_pool_t *pool)
-{
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-new_revision_record(void **r_ctx, apr_hash_t *headers, void *p_ctx, apr_pool_t *pool)
-{
-    const char *revnum;
     parser_ctx_t *ctx = p_ctx;
     ctx->rev_ctx = apr_pcalloc(pool, sizeof(revision_ctx_t));
     revision_t *rev;
 
-    revnum = apr_hash_get(headers, SVN_REPOS_DUMPFILE_REVISION_NUMBER, APR_HASH_KEY_STRING);
-    if (revnum == NULL) {
-        return svn_error_create(SVN_ERR_PROPERTY_NOT_FOUND, NULL,
-                                "missing revision number");
-    }
-
-    rev = revision_storage_add_revision(ctx->revisions, SVN_STR_TO_REV(revnum));
+    rev = revision_storage_add_revision(ctx->revisions, revnum);
 
     ctx->rev_ctx->rev = rev;
     ctx->rev_ctx->nodes = node_storage_create(pool);
     ctx->rev_ctx->pool = pool;
+    ctx->rev_ctx->root = root;
 
     *r_ctx = ctx;
 
     return SVN_NO_ERROR;
 }
 
-static node_kind_t
-get_node_kind(apr_hash_t *headers)
-{
-    const char *kind;
-    kind = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_KIND, APR_HASH_KEY_STRING);
-    if (kind != NULL) {
-        if (strcmp(kind, "file") == 0) {
-            return KIND_FILE;
-        }
-        else if (strcmp(kind, "dir") == 0) {
-            return KIND_DIR;
-        }
-    }
-    return KIND_UNKNOWN;
-}
-
-static node_action_t
-get_node_action(apr_hash_t *headers)
-{
-    const char *action;
-    action = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_ACTION, APR_HASH_KEY_STRING);
-    if (action != NULL) {
-        if (strcmp(action, "change") == 0) {
-            return ACTION_CHANGE;
-        }
-        else if (strcmp(action, "add") == 0) {
-            return ACTION_ADD;
-        }
-        else if (strcmp(action, "delete") == 0) {
-            return ACTION_DELETE;
-        }
-        else if (strcmp(action, "replace") == 0) {
-            return ACTION_REPLACE;
-        }
-    }
-    return ACTION_NOOP;
-}
-
 static uint32_t
-get_node_default_mode(node_kind_t kind)
+get_node_default_mode(svn_node_kind_t kind)
 {
     switch(kind) {
-    case KIND_DIR:
+    case svn_node_dir:
         return MODE_DIR;
     default:
         return MODE_NORMAL;
@@ -151,21 +100,16 @@ get_node_default_mode(node_kind_t kind)
 }
 
 static const commit_t *
-get_copyfrom_commit(apr_hash_t *headers, parser_ctx_t *ctx, branch_t *copyfrom_branch)
+get_copyfrom_commit(svn_fs_path_change2_t *change, parser_ctx_t *ctx, branch_t *copyfrom_branch)
 {
-    const char *copyfrom_revnum;
-    svn_revnum_t revnum;
     const commit_t *commit = NULL;
     const revision_t *rev;
 
-    copyfrom_revnum = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_COPYFROM_REV, APR_HASH_KEY_STRING);
-    if (copyfrom_revnum == NULL) {
+    if (!change->copyfrom_known) {
         return NULL;
     }
 
-    revnum = SVN_STR_TO_REV(copyfrom_revnum);
-
-    rev = revision_storage_get_by_revnum(ctx->revisions, revnum);
+    rev = revision_storage_get_by_revnum(ctx->revisions, change->copyfrom_rev);
     if (rev != NULL) {
         commit = revision_commits_get(rev, copyfrom_branch);
     }
@@ -178,56 +122,49 @@ get_copyfrom_commit(apr_hash_t *headers, parser_ctx_t *ctx, branch_t *copyfrom_b
 }
 
 static svn_error_t *
-get_node_blob(blob_t **dst, apr_hash_t *headers, parser_ctx_t *ctx)
+get_node_blob(blob_t **dst, const char *path, parser_ctx_t *ctx)
 {
-    const char *content_sha1, *content_size;
     svn_checksum_t *checksum;
     blob_t *blob;
+    svn_filesize_t size;
 
-    content_sha1 = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_SHA1, APR_HASH_KEY_STRING);
-    if (content_sha1 == NULL) {
-        return SVN_NO_ERROR;
-    }
-
-    SVN_ERR(svn_checksum_parse_hex(&checksum, svn_checksum_sha1,
-                                   content_sha1, ctx->rev_ctx->pool));
+    SVN_ERR(svn_fs_file_checksum(&checksum,
+                                 svn_checksum_sha1,
+                                 ctx->rev_ctx->root,
+                                 path,
+                                 FALSE,
+                                 ctx->rev_ctx->pool));
 
     blob = blob_storage_get(ctx->blobs, checksum);
 
-    content_size = apr_hash_get(headers, SVN_REPOS_DUMPFILE_TEXT_CONTENT_LENGTH, APR_HASH_KEY_STRING);
-    if (content_size != NULL) {
-        size_t size;
-        SVN_ERR(svn_cstring_atoui64(&size, content_size));
-        blob_size_set(blob, size);
-    }
+    SVN_ERR(svn_fs_file_length(&size,
+                               ctx->rev_ctx->root,
+                               path,
+                               ctx->rev_ctx->pool));
+    blob_size_set(blob, size);
 
     *dst = blob;
 
-    return GIT_SVN_SUCCESS;
+    return SVN_NO_ERROR;
 }
 
 static svn_error_t *
-new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool)
+new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, void *r_ctx, apr_pool_t *pool)
 {
-    const char *path, *copyfrom_path, *node_path, *ignored;
+    const char *copyfrom_path = NULL, *node_path, *ignored;
     parser_ctx_t *ctx = r_ctx;
     revision_t *rev = ctx->rev_ctx->rev;
     commit_t *commit;
     branch_t *branch = NULL, *copyfrom_branch = NULL;
     blob_t *blob = NULL;
     node_t *node;
-    node_action_t action = get_node_action(headers);
-    node_kind_t kind = get_node_kind(headers);
+    svn_fs_path_change_kind_t action = change->change_kind;
+    svn_node_kind_t kind = change->node_kind;
 
     *n_ctx = ctx;
 
-    path = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_PATH, APR_HASH_KEY_STRING);
-    if (path == NULL) {
-        return SVN_NO_ERROR;
-    }
-
-    copyfrom_path = apr_hash_get(headers, SVN_REPOS_DUMPFILE_NODE_COPYFROM_PATH, APR_HASH_KEY_STRING);
-    if (copyfrom_path != NULL) {
+    if (change->copyfrom_known && SVN_IS_VALID_REVNUM(change->copyfrom_rev)) {
+        copyfrom_path = svn_dirent_skip_ancestor("/", change->copyfrom_path);
         copyfrom_branch = branch_storage_lookup_path(ctx->branches, copyfrom_path);
     }
 
@@ -236,11 +173,11 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         return SVN_NO_ERROR;
     }
 
-    if (kind == KIND_DIR && action == ACTION_ADD && copyfrom_path == NULL) {
+    if (kind == svn_node_dir && action == svn_fs_path_change_add && copyfrom_path == NULL) {
         return SVN_NO_ERROR;
     }
 
-    if (kind == KIND_UNKNOWN && action == ACTION_DELETE && branch_path_is_root(branch, path)) {
+    if (kind == svn_node_dir && action == svn_fs_path_change_delete && branch_path_is_root(branch, path)) {
         revision_removes_add(rev, branch);
         return SVN_NO_ERROR;
     }
@@ -254,7 +191,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         node_path++;
     }
 
-    ignored = tree_find_longest_prefix(ctx->options->ignore, node_path);
+    ignored = tree_find_longest_prefix(ctx->ignores, node_path);
     if (ignored != NULL) {
         return SVN_NO_ERROR;
     }
@@ -270,8 +207,8 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
     node_action_set(node, action);
     node_path_set(node, apr_pstrdup(ctx->rev_ctx->pool, node_path));
 
-    if (kind == KIND_FILE) {
-        SVN_ERR(get_node_blob(&blob, headers, ctx));
+    if (kind == svn_node_file && action != svn_fs_path_change_delete) {
+        SVN_ERR(get_node_blob(&blob, path, ctx));
 
         if (blob != NULL) {
             node_content_blob_set(node, blob);
@@ -283,7 +220,7 @@ new_node_record(void **n_ctx, apr_hash_t *headers, void *r_ctx, apr_pool_t *pool
         const commit_t *copyfrom_commit = NULL;
 
         if (copyfrom_branch != NULL) {
-            copyfrom_commit = get_copyfrom_commit(headers, ctx, copyfrom_branch);
+            copyfrom_commit = get_copyfrom_commit(change, ctx, copyfrom_branch);
 
             if (copyfrom_commit != NULL) {
                 copyfrom_subpath = branch_skip_prefix(copyfrom_branch, copyfrom_path);
@@ -369,38 +306,6 @@ set_node_property(void *n_ctx, const char *name, const svn_string_t *value)
 }
 
 static svn_error_t *
-remove_node_props(void *n_ctx)
-{
-    parser_ctx_t *ctx = n_ctx;
-    node_t *node = ctx->node;
-
-    if (node == NULL) {
-        return SVN_NO_ERROR;
-    }
-
-    node_mode_set(node, get_node_default_mode(node_kind_get(node)));
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-delete_node_property(void *n_ctx, const char *name)
-{
-    parser_ctx_t *ctx = n_ctx;
-    node_t *node = ctx->node;
-
-    if (node == NULL) {
-        return SVN_NO_ERROR;
-    }
-
-    if (strcmp(name, SVN_PROP_EXECUTABLE) == 0 || strcmp(name, SVN_PROP_SPECIAL) == 0) {
-        node_mode_set(node, MODE_NORMAL);
-    }
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
 set_fulltext(svn_stream_t **stream, void *n_ctx)
 {
     parser_ctx_t *ctx = n_ctx;
@@ -430,13 +335,6 @@ set_fulltext(svn_stream_t **stream, void *n_ctx)
 
     SVN_ERR(backend_write_blob_header(&ctx->backend, blob, ctx->rev_ctx->pool));
 
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-apply_textdelta(svn_txdelta_window_handler_t *handler, void **handler_baton, void *n_ctx)
-{
-    // TODO
     return SVN_NO_ERROR;
 }
 
@@ -517,67 +415,32 @@ close_revision(void *r_ctx)
     return SVN_NO_ERROR;
 }
 
-static svn_error_t *
-check_cancel(void *ctx)
-{
-    return SVN_NO_ERROR;
-}
-
-#if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
-static const svn_repos_parse_fns3_t callbacks = {
-    magic_header_record,
-    uuid_record,
-    new_revision_record,
-#else
-static const svn_repos_parse_fns2_t callbacks = {
-    new_revision_record,
-    uuid_record,
-#endif
-    new_node_record,
-    set_revision_property,
-    set_node_property,
-    delete_node_property,
-    remove_node_props,
-    set_fulltext,
-    apply_textdelta,
-    close_node,
-    close_revision
-};
-
 svn_error_t *
-git_svn_parse_dumpstream(svn_stream_t *dst,
-                         svn_stream_t *src,
-                         git_svn_options_t *options,
-                         apr_pool_t *pool)
+export_revision_range(svn_stream_t *dst,
+                      svn_fs_t *fs,
+                      svn_revnum_t lower,
+                      svn_revnum_t upper,
+                      branch_storage_t *branches,
+                      revision_storage_t *revisions,
+                      author_storage_t *authors,
+                      tree_t *ignores,
+                      apr_pool_t *pool)
 {
+    apr_pool_t *subpool;
     apr_status_t apr_err;
     int back_fd = BACK_FILENO;
     apr_file_t *back_file;
+    svn_revnum_t rev;
 
     parser_ctx_t ctx = {};
     ctx.pool = pool;
-    ctx.authors = author_storage_create(pool);
-    ctx.branches = branch_storage_create(pool, options->branches, options->tags);
-    ctx.revisions = revision_storage_create(pool);
+    ctx.authors = authors;
+    ctx.branches = branches;
+    ctx.revisions = revisions;
     ctx.blobs = blob_storage_create(pool);
+    ctx.ignores = ignores;
     ctx.last_mark = 1;
 
-    if (options->authors != NULL) {
-        svn_stream_t *authors;
-        svn_error_t *err;
-        SVN_ERR(svn_stream_open_readonly(&authors, options->authors,
-                                         pool, pool));
-        err = author_storage_load(ctx.authors, authors, pool);
-        if (err) {
-            return svn_error_quick_wrap(err, "Malformed authors file");
-        }
-        SVN_ERR(svn_stream_close(authors));
-    }
-
-    branch_storage_add_branch(ctx.branches, "refs/heads/master", options->trunk);
-    ctx.options = options;
-
-    ctx.backend.verbose = options->verbose;
     ctx.backend.out = dst;
 
     // Read backend answers
@@ -587,29 +450,69 @@ git_svn_parse_dumpstream(svn_stream_t *dst,
     }
     ctx.backend.back = svn_stream_from_aprfile2(back_file, false, pool);
 
-#if (SVN_VER_MAJOR == 1 && SVN_VER_MINOR > 7)
-    SVN_ERR(svn_repos_parse_dumpstream3(src, &callbacks, &ctx, false, check_cancel, NULL, pool));
-#else
-    SVN_ERR(svn_repos_parse_dumpstream2(src, &callbacks, &ctx, check_cancel, NULL, pool));
-#endif
+    subpool = svn_pool_create(pool);
+
+    for (rev = lower; rev <= upper; rev++) {
+        apr_hash_t *fs_changes, *revprops;
+        apr_hash_index_t *idx;
+        svn_fs_root_t *root;
+        void *r_ctx;
+
+        svn_pool_clear(subpool);
+
+        SVN_ERR(svn_fs_revision_root(&root, fs, rev, subpool));
+
+        SVN_ERR(new_revision_record(&r_ctx, rev, root, &ctx, subpool));
+
+        SVN_ERR(svn_fs_revision_proplist(&revprops, fs, rev, subpool));
+        for (idx = apr_hash_first(subpool, revprops); idx; idx = apr_hash_next(idx)) {
+            const char *name = apr_hash_this_key(idx);
+            const svn_string_t *value = apr_hash_this_val(idx);
+            SVN_ERR(set_revision_property(r_ctx, name, value));
+        }
+
+        // Fetch the paths changed under root.
+        SVN_ERR(svn_fs_paths_changed2(&fs_changes, root, subpool));
+
+        for (idx = apr_hash_first(subpool, fs_changes); idx; idx = apr_hash_next(idx)) {
+            const char *path = apr_hash_this_key(idx);
+            path = svn_dirent_skip_ancestor("/", path);
+            svn_fs_path_change2_t *change = apr_hash_this_val(idx);
+            void *n_ctx;
+
+            SVN_ERR(new_node_record(&n_ctx, path, change, r_ctx, subpool));
+
+            if (change->change_kind != svn_fs_path_change_delete) {
+                apr_hash_t *props;
+                apr_hash_index_t *idx2;
+                svn_stream_t *output = NULL;
+
+                SVN_ERR(svn_fs_node_proplist(&props, root, path, subpool));
+
+                for (idx2 = apr_hash_first(subpool, props); idx2; idx2 = apr_hash_next(idx2)) {
+                    const char *name = apr_hash_this_key(idx2);
+                    const svn_string_t *value = apr_hash_this_val(idx2);
+                    SVN_ERR(set_node_property(n_ctx, name, value));
+                }
+
+                SVN_ERR(set_fulltext(&output, n_ctx));
+
+                if (output != NULL) {
+                    svn_stream_t *content;
+                    svn_filesize_t size;
+                    SVN_ERR(svn_fs_file_length(&size, root, path, subpool));
+                    SVN_ERR(svn_fs_file_contents(&content, root, path, subpool));
+                    SVN_ERR(svn_stream_copy3(content, output, NULL, NULL, subpool));
+                }
+            }
+
+            SVN_ERR(close_node(n_ctx));
+        }
+
+        SVN_ERR(close_revision(r_ctx));
+    }
 
     SVN_ERR(backend_finished(&ctx.backend, pool));
 
-    if (options->export_marks != NULL) {
-        apr_file_t *export_marks_file;
-        svn_stream_t *export_marks;
-
-        apr_err = apr_file_open(&export_marks_file, options->export_marks,
-                                APR_CREATE | APR_TRUNCATE | APR_BUFFERED | APR_WRITE,
-                                APR_OS_DEFAULT, pool);
-        if (apr_err) {
-            return svn_error_wrap_apr(apr_err, NULL);
-        }
-
-        export_marks = svn_stream_from_aprfile2(export_marks_file, false, pool);
-        SVN_ERR(revision_storage_dump(ctx.revisions, export_marks, pool));
-        SVN_ERR(svn_stream_close(export_marks));
-    }
-
-    return GIT_SVN_SUCCESS;
+    return SVN_NO_ERROR;
 }

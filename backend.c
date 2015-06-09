@@ -107,14 +107,14 @@ backend_write_commit(const backend_t *be,
         const node_t *node = node_iter_get(it);
 
         switch (node_action_get(node)) {
-        case ACTION_ADD:
-        case ACTION_CHANGE:
+        case svn_fs_path_change_add:
+        case svn_fs_path_change_modify:
             SVN_ERR(node_modify(out, node, pool));
             break;
-        case ACTION_DELETE:
+        case svn_fs_path_change_delete:
             SVN_ERR(node_delete(out, node, pool));
             break;
-        case ACTION_REPLACE:
+        case svn_fs_path_change_replace:
             SVN_ERR(node_delete(out, node, pool));
             SVN_ERR(node_modify(out, node, pool));
             break;

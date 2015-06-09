@@ -21,81 +21,40 @@
  */
 
 #include "options.h"
+#include <svn_cmdline.h>
 
-#include <apr_getopt.h>
-
-static struct apr_getopt_option_t cmdline_options[] = {
-    {"stdlayout", 's', 0, ""},
-    {"trunk", 'T', 1, ""},
-    {"tags", 't', 1, ""},
-    {"branches", 'b', 1, ""},
-    {"ignore-path", 'I', 1, ""},
-    {"authors-file", 'A', 1, ""},
-    {"export-rev-marks", 'e', 1, ""},
-    {"verbose", 'v', 0, ""},
-    {0, 0, 0, 0}
-};
-
-git_svn_status_t
-git_svn_parse_options(git_svn_options_t *options, int argc, const char **argv, apr_pool_t *pool)
+static const char *
+format_option(const apr_getopt_option_t *opt,
+              apr_pool_t *pool)
 {
-    apr_status_t apr_err;
-    apr_getopt_t *arg_parser;
+    char *opts;
 
-    apr_err = apr_getopt_init(&arg_parser, pool, argc, argv);
-    if (apr_err != APR_SUCCESS) {
-        return GIT_SVN_FAILURE;
+    if (opt->optch && opt->name) {
+        opts = apr_psprintf(pool, "-%c [--%s]", opt->optch, opt->name);
+    } else if (opt->optch) {
+        opts = apr_psprintf(pool, "-%c", opt->optch);
+    } else {
+        opts = apr_psprintf(pool, "--%s", opt->name);
     }
 
-    options->verbose = 0;
-    options->trunk = "";
-    options->branches = tree_create(pool);
-    options->tags = tree_create(pool);
-    options->ignore = tree_create(pool);
-
-    while (1) {
-        int opt_id;
-        const char *opt_arg;
-        apr_err = apr_getopt_long(arg_parser, cmdline_options, &opt_id, &opt_arg);
-
-        if (apr_err) {
-            if (APR_STATUS_IS_EOF(apr_err)) {
-                break;
-            }
-            return GIT_SVN_FAILURE;
-        }
-
-        switch (opt_id) {
-        case 's':
-            options->trunk = "trunk";
-            tree_insert(options->branches, "branches", "branches");
-            tree_insert(options->tags, "tags", "tags");
-            break;
-        case 'T':
-            options->trunk = opt_arg;
-            break;
-        case 't':
-            tree_insert(options->tags, opt_arg, opt_arg);
-            break;
-        case 'b':
-            tree_insert(options->branches, opt_arg, opt_arg);
-            break;
-        case 'I':
-            tree_insert(options->ignore, opt_arg, opt_arg);
-            break;
-        case 'A':
-            options->authors = opt_arg;
-            break;
-        case 'e':
-            options->export_marks = opt_arg;
-            break;
-        case 'v':
-            options->verbose = 1;
-            break;
-        default:
-            return GIT_SVN_FAILURE;
-        }
+    if (opt->has_arg) {
+        opts = apr_pstrcat(pool, opts, " ARG", NULL);
     }
 
-    return GIT_SVN_SUCCESS;
+    opts = apr_psprintf(pool, "%-24s %s", opts, opt->description);
+
+    return opts;
+}
+
+void
+print_usage(const apr_getopt_option_t *options, apr_pool_t *pool)
+{
+    svn_error_clear(svn_cmdline_printf(pool, "usage: svn-fast-export [OPTIONS] REPO\n"));
+
+    while (options->description) {
+        const char *optstr;
+        optstr = format_option(options, pool);
+        svn_error_clear(svn_cmdline_printf(pool, "\t%s\n", optstr));
+        ++options;
+    }
 }

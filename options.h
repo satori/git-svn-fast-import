@@ -20,33 +20,13 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef GIT_SVN_FAST_IMPORT_OPTIONS_H_
-#define GIT_SVN_FAST_IMPORT_OPTIONS_H_
+#ifndef SVN_FAST_EXPORT_OPTIONS_H_
+#define SVN_FAST_EXPORT_OPTIONS_H_
 
-#include "error.h"
-#include "tree.h"
+#include <apr_getopt.h>
 
-#include <apr_pools.h>
+void
+print_usage(const apr_getopt_option_t *options,
+            apr_pool_t *pool);
 
-typedef struct
-{
-    int verbose;
-    // Trunk path prefix.
-    const char *trunk;
-    // Branches path prefixes.
-    tree_t *branches;
-    // Tags path prefixes.
-    tree_t *tags;
-    // Ignore path prefixes.
-    tree_t *ignore;
-    // Path to a file containing mapping of
-    // Subversion committers to Git authors.
-    const char *authors;
-    // Path to a file where marks should be exported.
-    const char *export_marks;
-} git_svn_options_t;
-
-git_svn_status_t
-git_svn_parse_options(git_svn_options_t *options, int argc, const char **argv, apr_pool_t *pool);
-
-#endif // GIT_SVN_FAST_IMPORT_OPTIONS_H_
+#endif // SVN_FAST_EXPORT_OPTIONS_H_

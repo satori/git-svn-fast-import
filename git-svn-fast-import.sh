@@ -22,9 +22,10 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 OPTIONS_SPEC="\
-git-svn-fast-import [options]
+git-svn-fast-import [options] <repo>
 --
 h,help                  show the help
+r,revision=             set revision range
 s,stdlayout             set trunk,tags,branches as the relative paths, which is SVN default
 T,trunk=path            set trunk to a relative repository <path>
 t,tags=path             set tags to a relative repository <path>, can be specified multiple times
@@ -48,7 +49,7 @@ case $1 in
         SVN_FAST_EXPORT_ARGS="$SVN_FAST_EXPORT_ARGS $1"
         shift
         ;;
-    -T|-t|-b|-I|-A|--export-rev-marks)
+    -r|-T|-t|-b|-I|-A|--export-rev-marks)
         SVN_FAST_EXPORT_ARGS="$SVN_FAST_EXPORT_ARGS $1 $2"
         shift 2
         ;;
@@ -64,8 +65,9 @@ case $1 in
         shift
         ;;
     *)
-        echo "Unknown argument: $1"
-        exit 1
+        SVN_FAST_EXPORT_ARGS="$SVN_FAST_EXPORT_ARGS $1"
+        shift
+        ;;
 esac
 done
 

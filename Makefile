@@ -24,7 +24,7 @@ RM = rm -f
 CFLAGS = -g -O2 -Wall -std=c99
 CPPFLAGS =
 LDFLAGS =
-EXTLIBS = -lapr-1 -lsvn_subr-1 -lsvn_repos-1
+EXTLIBS = -lapr-1 -lsvn_fs-1 -lsvn_repos-1 -lsvn_subr-1
 
 -include config.mak
 include uname.mak
@@ -43,9 +43,9 @@ OBJECTS := svn-fast-export.o \
 	branch.o \
 	commit.o \
 	error.o \
+	export.o \
 	node.o \
 	options.o \
-	parse.o \
 	revision.o \
 	symlink.o \
 	tree.o \

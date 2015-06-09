@@ -20,16 +20,21 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef GIT_SVN_FAST_IMPORT_PARSE_H_
-#define GIT_SVN_FAST_IMPORT_PARSE_H_
+#ifndef SVN_FAST_EXPORT_H_
+#define SVN_FAST_EXPORT_H_
 
-#include "options.h"
-#include <svn_io.h>
+#include "types.h"
+#include <svn_fs.h>
 
 svn_error_t *
-git_svn_parse_dumpstream(svn_stream_t *dst,
-                         svn_stream_t *src,
-                         git_svn_options_t *options,
-                         apr_pool_t *pool);
+export_revision_range(svn_stream_t *dst,
+                      svn_fs_t *fs,
+                      svn_revnum_t lower,
+                      svn_revnum_t upper,
+                      branch_storage_t *branches,
+                      revision_storage_t *revisions,
+                      author_storage_t *authors,
+                      tree_t *ignores,
+                      apr_pool_t *pool);
 
-#endif // GIT_SVN_FAST_IMPORT_PARSE_H_
+#endif // SVN_FAST_EXPORT_H_

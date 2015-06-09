@@ -33,13 +33,9 @@ test_expect_success 'Initialize Git repository' '
 git init repo.git
 '
 
-test_expect_success 'Export Subversion repository' '
-svnadmin dump repo >repo.dump
-'
-
 test_expect_success 'Import dump into Git' '
 (cd repo.git &&
-	git-svn-fast-import <../repo.dump)
+	git-svn-fast-import ../repo)
 '
 
 cat > authors.txt <<EOF
@@ -48,7 +44,7 @@ EOF
 
 export_import() {
 	(cd repo.git &&
-		git-svn-fast-import --export-marks ../marks.txt --authors-file ../authors.txt <../repo.dump)
+		git-svn-fast-import --export-marks ../marks.txt --authors-file ../authors.txt ../repo)
 }
 
 test_expect_success 'Import dump using authors mapping' '

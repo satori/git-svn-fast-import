@@ -24,7 +24,7 @@ Use the `make` command:
 
 	$ mkdir -p repo.git && cd repo.git
 	$ git init
-	$ svnadmin dump -r 0:100000 /path/to/repo | git-svn-fast-import --stdlayout
+	$ git-svn-fast-import --stdlayout -r 0:100000 /path/to/svnrepo
 	progress Skipped revision 0
 	progress Imported revision 1
 	progress Found branch at branches/stable

@@ -1011,7 +1011,7 @@ test_expect_success 'Validate master branch restored' '
 	test_cmp ../expect actual)
 '
 
-test_expect_failure 'Compare master commit-ish before and after restoration' '
+test_expect_success 'Compare master commit-ish before and after restoration' '
 (cd repo.git &&
 	git describe --always master >actual &&
 	test_cmp master-before-remove actual)

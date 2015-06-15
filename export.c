@@ -31,6 +31,7 @@
 #include <svn_hash.h>
 #include <svn_pools.h>
 #include <svn_props.h>
+#include <svn_sorts.h>
 #include <svn_time.h>
 
 #define BACK_FILENO 3
@@ -116,7 +117,7 @@ get_copyfrom_commit(svn_fs_path_change2_t *change, parser_ctx_t *ctx, branch_t *
     if (commit == NULL) {
         commit = branch_head_get(copyfrom_branch);
     }
-;
+
     return commit;
 }
 
@@ -427,6 +428,7 @@ export_revision_range(svn_stream_t *dst,
     subpool = svn_pool_create(pool);
 
     for (rev = lower; rev <= upper; rev++) {
+        apr_array_header_t *changes;
         apr_hash_t *fs_changes, *revprops;
         apr_hash_index_t *idx;
         svn_fs_root_t *root;
@@ -448,10 +450,13 @@ export_revision_range(svn_stream_t *dst,
         // Fetch the paths changed under root.
         SVN_ERR(svn_fs_paths_changed2(&fs_changes, root, subpool));
 
-        for (idx = apr_hash_first(subpool, fs_changes); idx; idx = apr_hash_next(idx)) {
-            const char *path = apr_hash_this_key(idx);
+        changes = svn_sort__hash(fs_changes, svn_sort_compare_items_lexically, subpool);
+
+        for (int i = 0; i < changes->nelts; i++) {
+            svn_sort__item_t item = APR_ARRAY_IDX(changes, i, svn_sort__item_t);
+            const char *path = item.key;
+            svn_fs_path_change2_t *change = item.value;
             path = svn_dirent_skip_ancestor("/", path);
-            svn_fs_path_change2_t *change = apr_hash_this_val(idx);
             void *n_ctx;
 
             SVN_ERR(new_node_record(&n_ctx, path, change, r_ctx, subpool));

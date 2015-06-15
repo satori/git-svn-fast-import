@@ -201,13 +201,13 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
         return SVN_NO_ERROR;
     }
 
-    if (kind == svn_node_dir && action == svn_fs_path_change_add && copyfrom_path == NULL) {
-        return SVN_NO_ERROR;
-    }
-
-    if (kind == svn_node_dir && action == svn_fs_path_change_delete && branch_path_is_root(branch, path)) {
-        revision_removes_add(rev, branch);
-        return SVN_NO_ERROR;
+    if (kind == svn_node_dir) {
+        if (action != svn_fs_path_change_delete && copyfrom_path == NULL) {
+            return SVN_NO_ERROR;
+        } else if (action == svn_fs_path_change_delete && branch_path_is_root(branch, path)) {
+            revision_removes_add(rev, branch);
+            return SVN_NO_ERROR;
+        }
     }
 
     node_path = branch_skip_prefix(branch, path);

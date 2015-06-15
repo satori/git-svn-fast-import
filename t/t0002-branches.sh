@@ -24,7 +24,7 @@
 test_description='Test branch history support'
 
 . ./helpers.sh
-. ./lib/test.sh
+. ./sharness/sharness.sh
 
 cat > authors.txt <<EOF
 author1 = A U Thor <author@example.com>
@@ -43,7 +43,7 @@ test_init_repos() {
 		svnadmin create repo &&
 		echo "#!/bin/sh" >repo/hooks/pre-revprop-change &&
 		chmod +x repo/hooks/pre-revprop-change &&
-		svn checkout file:///$(pwd)/repo repo.svn &&
+		svn checkout "file:///$(pwd)/repo" repo.svn &&
 		git init repo.git
 	'
 }

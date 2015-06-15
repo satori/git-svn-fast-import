@@ -23,11 +23,11 @@
 
 test_description='Test basic support'
 
-. ./lib/test.sh
+. ./sharness/sharness.sh
 
 test_expect_success 'Initialize Subversion repository' '
 svnadmin create repo &&
-    svn checkout file:///$(pwd)/repo repo.svn
+    svn checkout "file:///$(pwd)/repo" repo.svn
 '
 test_expect_success 'Initialize Git repository' '
 git init repo.git

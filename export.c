@@ -245,35 +245,26 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
         node_content_checksum_set(node, checksum);
     }
 
-    if (node_content_kind_get(node) == CONTENT_UNKNOWN) {
-        const char *copyfrom_subpath;
-        const commit_t *copyfrom_commit = NULL;
+    if (node_content_kind_get(node) == CONTENT_UNKNOWN && copyfrom_branch != NULL) {
+        const commit_t *copyfrom_commit;
 
-        if (copyfrom_branch != NULL) {
-            copyfrom_commit = get_copyfrom_commit(change, ctx, copyfrom_branch);
-
-            if (copyfrom_commit != NULL) {
-                copyfrom_subpath = branch_skip_prefix(copyfrom_branch, copyfrom_path);
-
-                if (*copyfrom_subpath == '/') {
-                    copyfrom_subpath++;
-                }
-
-                if (*copyfrom_subpath == '\0') {
-                    commit_copyfrom_set(commit, copyfrom_commit);
-                }
-            }
-        } else {
-            // In case of file mode modification without content modification
-            // Subversion does not dump its' checksum, so we have to look
-            // for it in the previous commit
-            copyfrom_commit = commit_parent_get(commit);
-            copyfrom_subpath = node_path_get(node);
-        }
+        copyfrom_commit = get_copyfrom_commit(change, ctx, copyfrom_branch);
 
         if (copyfrom_commit != NULL) {
-            svn_checksum_t *checksum = NULL;
+            const char *copyfrom_subpath;
             node_mode_t mode;
+            svn_checksum_t *checksum = NULL;
+
+            copyfrom_subpath = branch_skip_prefix(copyfrom_branch, copyfrom_path);
+
+            if (*copyfrom_subpath == '/') {
+                copyfrom_subpath++;
+            }
+
+            if (*copyfrom_subpath == '\0') {
+                commit_copyfrom_set(commit, copyfrom_commit);
+            }
+
             SVN_ERR(backend_get_mode_checksum(&mode,
                                               &checksum,
                                               &ctx->backend,

@@ -31,9 +31,7 @@
 #include <svn_hash.h>
 #include <svn_pools.h>
 #include <svn_props.h>
-#include <svn_repos.h>
 #include <svn_time.h>
-#include <svn_version.h>
 
 #define BACK_FILENO 3
 

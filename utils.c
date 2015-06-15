@@ -21,20 +21,7 @@
  */
 
 #include "utils.h"
-#include <string.h>
 #include <svn_ctype.h>
-
-const char *
-cstring_skip_prefix(const char *src, const char *prefix)
-{
-    size_t len = strlen(prefix);
-
-    if (strncmp(src, prefix, len) == 0) {
-        return src + len;
-    }
-
-    return NULL;
-}
 
 const char *
 cstring_skip_whitespace(const char *src)

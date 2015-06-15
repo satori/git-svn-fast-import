@@ -20,13 +20,10 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef GIT_SVN_FAST_IMPORT_UTILS_H_
-#define GIT_SVN_FAST_IMPORT_UTILS_H_
+#ifndef SVN_FAST_EXPORT_UTILS_H_
+#define SVN_FAST_EXPORT_UTILS_H_
 
 #include "compat.h"
-
-const char *
-cstring_skip_prefix(const char *src, const char *prefix);
 
 const char *
 cstring_skip_whitespace(const char *src);
@@ -34,4 +31,4 @@ cstring_skip_whitespace(const char *src);
 const char *
 cstring_rskip_whitespace(const char *src);
 
-#endif // GIT_SVN_FAST_IMPORT_UTILS_H_
+#endif // SVN_FAST_EXPORT_UTILS_H_

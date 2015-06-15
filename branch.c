@@ -23,6 +23,7 @@
 #include "branch.h"
 #include "utils.h"
 #include <apr_strings.h>
+#include <svn_dirent_uri.h>
 
 // branch_t implementation.
 struct branch_t
@@ -47,7 +48,7 @@ branch_path_get(const branch_t *b)
 const char *
 branch_skip_prefix(const branch_t *b, const char *path)
 {
-    return cstring_skip_prefix(path, b->path);
+    return svn_dirent_skip_ancestor(b->path, path);
 }
 
 const commit_t *
@@ -124,14 +125,9 @@ branch_storage_lookup_path(branch_storage_t *bs, const char *path)
         return NULL;
     }
 
-    subpath = cstring_skip_prefix(path, prefix);
+    subpath = svn_dirent_skip_ancestor(prefix, path);
     if (subpath == NULL) {
         return NULL;
-    }
-
-    // Skip starting directory separator
-    if (*subpath == '/') {
-        subpath++;
     }
 
     if (*subpath == '\0') {

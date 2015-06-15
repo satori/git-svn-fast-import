@@ -215,10 +215,6 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
         return SVN_NO_ERROR;
     }
 
-    if (*node_path == '/') {
-        node_path++;
-    }
-
     ignored = tree_find_longest_prefix(ctx->ignores, node_path);
     if (ignored != NULL) {
         return SVN_NO_ERROR;
@@ -253,10 +249,6 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
             svn_checksum_t *checksum = NULL;
 
             copyfrom_subpath = branch_skip_prefix(copyfrom_branch, copyfrom_path);
-
-            if (*copyfrom_subpath == '/') {
-                copyfrom_subpath++;
-            }
 
             if (*copyfrom_subpath == '\0') {
                 commit_copyfrom_set(commit, copyfrom_commit);

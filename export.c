@@ -152,12 +152,9 @@ set_content_checksum(svn_checksum_t **checksum,
     // We need to strip a symlink marker from the beginning of a content
     // and subtract a symlink marker length from the blob size.
     if (svn_hash_gets(props, SVN_PROP_SPECIAL)) {
-        apr_size_t bufsize = sizeof(SYMLINK_CONTENT_PREFIX);
-        char buf[bufsize];
-
-        SVN_ERR(svn_stream_read(content, buf, &bufsize));
-
-        size -= bufsize;
+        apr_size_t skip = sizeof(SYMLINK_CONTENT_PREFIX);
+        SVN_ERR(svn_stream_skip(content, sizeof(SYMLINK_CONTENT_PREFIX)));
+        size -= skip;
     }
 
     hdr = apr_psprintf(pool, "blob %ld", size);

@@ -48,10 +48,7 @@ struct node_t
     const char *path;
     struct {
         node_content_kind_t kind;
-        union {
-            const svn_checksum_t *checksum;
-            blob_t *blob;
-        } data;
+        const svn_checksum_t *checksum;
     } content;
     // Support for the ring container.
     APR_RING_ENTRY(node_t) link;
@@ -114,27 +111,14 @@ node_content_kind_get(const node_t *n)
 const svn_checksum_t *
 node_content_checksum_get(const node_t *n)
 {
-    return n->content.data.checksum;
+    return n->content.checksum;
 }
 
 void
 node_content_checksum_set(node_t *n, const svn_checksum_t *checksum)
 {
-    n->content.data.checksum = checksum;
+    n->content.checksum = checksum;
     n->content.kind = CONTENT_CHECKSUM;
-}
-
-blob_t *
-node_content_blob_get(const node_t *n)
-{
-    return n->content.data.blob;
-}
-
-void
-node_content_blob_set(node_t *n, blob_t *blob)
-{
-    n->content.data.blob = blob;
-    n->content.kind = CONTENT_BLOB;
 }
 
 struct node_list_t {

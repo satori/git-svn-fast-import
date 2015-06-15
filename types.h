@@ -24,7 +24,6 @@
 #define GIT_SVN_FAST_IMPORT_TYPES_H_
 
 #include "author.h"
-#include "blob.h"
 #include "branch.h"
 #include "commit.h"
 #include "node.h"

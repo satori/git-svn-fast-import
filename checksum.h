@@ -20,45 +20,36 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef GIT_SVN_FAST_IMPORT_BLOB_H_
-#define GIT_SVN_FAST_IMPORT_BLOB_H_
+#ifndef SVN_FAST_EXPORT_CHECKSUM_H_
+#define SVN_FAST_EXPORT_CHECKSUM_H_
 
-#include "compat.h"
-#include "mark.h"
 #include <svn_checksum.h>
+#include <svn_io.h>
 
-// Abstract type for blob.
-typedef struct blob_t blob_t;
+// Abstract type for checksum cache.
+typedef struct checksum_cache_t checksum_cache_t;
 
-// Returns blob mark.
-mark_t
-blob_mark_get(const blob_t *b);
+// Create new checksum cache.
+checksum_cache_t *
+checksum_cache_create(apr_pool_t *pool);
 
-// Set blob mark.
+// Returns a Git checksum for SVN checksum.
+svn_checksum_t *
+checksum_cache_get(checksum_cache_t *c,
+                   const svn_checksum_t *svn_checksum);
+
+// Sets a Git checksum for SVN checksum.
 void
-blob_mark_set(blob_t *b, mark_t mark);
+checksum_cache_set(checksum_cache_t *c,
+                   const svn_checksum_t *svn_checksum,
+                   const svn_checksum_t *git_checksum);
 
-// Returns blob size.
-size_t
-blob_size_get(const blob_t *b);
+// Creates a stream that updates checksum context for all data
+// read and written.
+svn_stream_t *
+checksum_stream_create(svn_stream_t *stream,
+                       svn_checksum_ctx_t *read_ctx,
+                       svn_checksum_ctx_t *write_ctx,
+                       apr_pool_t *pool);
 
-// Set blob size.
-void
-blob_size_set(blob_t *b, size_t size);
-
-// Returns blob checksum.
-const svn_checksum_t *
-blob_checksum_get(const blob_t *b);
-
-// Abstract type for blob storage.
-typedef struct blob_storage_t blob_storage_t;
-
-// Create new blob storage.
-blob_storage_t *
-blob_storage_create(apr_pool_t *pool);
-
-// Returns a blob for checksum.
-blob_t *
-blob_storage_get(blob_storage_t *bs, const svn_checksum_t *checksum);
-
-#endif // GIT_SVN_FAST_IMPORT_BLOB_H_
+#endif // SVN_FAST_EXPORT_CHECKSUM_H_

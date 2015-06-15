@@ -26,20 +26,7 @@
 #define NULL_SHA1 "0000000000000000000000000000000000000000"
 
 static svn_error_t *
-node_modify_blob(svn_stream_t *out, const node_t *node, apr_pool_t *pool)
-{
-    const blob_t *blob = node_content_blob_get(node);
-
-    SVN_ERR(svn_stream_printf(out, pool, "M %o :%d \"%s\"\n",
-                              node_mode_get(node),
-                              blob_mark_get(blob),
-                              node_path_get(node)));
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-node_modify_checksum(svn_stream_t *out, const node_t *node, apr_pool_t *pool)
+node_modify(svn_stream_t *out, const node_t *node, apr_pool_t *pool)
 {
     const char *checksum;
     checksum = svn_checksum_to_cstring_display(node_content_checksum_get(node),
@@ -51,19 +38,6 @@ node_modify_checksum(svn_stream_t *out, const node_t *node, apr_pool_t *pool)
                               node_path_get(node)));
 
     return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-node_modify(svn_stream_t *out, const node_t *node, apr_pool_t *pool)
-{
-    switch (node_content_kind_get(node)) {
-    case CONTENT_CHECKSUM:
-        return node_modify_checksum(out, node, pool);
-    case CONTENT_BLOB:
-        return node_modify_blob(out, node, pool);
-    default:
-        return SVN_NO_ERROR;
-    }
 }
 
 static svn_error_t *
@@ -138,22 +112,6 @@ backend_reset_branch(const backend_t *be,
                               branch_refname_get(branch)));
     SVN_ERR(svn_stream_printf(out, pool, "from :%d\n",
                               commit_mark_get(commit)));
-
-    return SVN_NO_ERROR;
-}
-
-svn_error_t *
-backend_write_blob_header(const backend_t *be,
-                          const blob_t *blob,
-                          apr_pool_t *pool)
-{
-    svn_stream_t *out = be->out;
-
-    SVN_ERR(svn_stream_printf(out, pool, "blob\n"));
-    SVN_ERR(svn_stream_printf(out, pool, "mark :%d\n",
-                              blob_mark_get(blob)));
-    SVN_ERR(svn_stream_printf(out, pool, "data %ld\n",
-                              blob_size_get(blob)));
 
     return SVN_NO_ERROR;
 }

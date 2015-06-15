@@ -20,8 +20,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef GIT_SVN_FAST_IMPORT_BACKEND_H_
-#define GIT_SVN_FAST_IMPORT_BACKEND_H_
+#ifndef SVN_FAST_EXPORT_BACKEND_H_
+#define SVN_FAST_EXPORT_BACKEND_H_
 
 #include "types.h"
 
@@ -50,11 +50,6 @@ backend_reset_branch(const backend_t *be,
                      apr_pool_t *pool);
 
 svn_error_t *
-backend_write_blob_header(const backend_t *be,
-                          const blob_t *blob,
-                          apr_pool_t *pool);
-
-svn_error_t *
 backend_remove_branch(const backend_t *be,
                       const branch_t *branch,
                       apr_pool_t *pool);
@@ -81,4 +76,4 @@ backend_get_mode_checksum(node_mode_t *mode,
 svn_error_t *
 backend_finished(const backend_t *be, apr_pool_t *pool);
 
-#endif // GIT_SVN_FAST_IMPORT_BACKEND_H_
+#endif // SVN_FAST_EXPORT_BACKEND_H_

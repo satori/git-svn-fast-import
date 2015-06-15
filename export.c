@@ -22,11 +22,13 @@
 
 #include "export.h"
 #include "backend.h"
+#include "checksum.h"
 #include "symlink.h"
 #include "tree.h"
 #include "utils.h"
 #include <apr_portable.h>
 #include <svn_dirent_uri.h>
+#include <svn_hash.h>
 #include <svn_pools.h>
 #include <svn_props.h>
 #include <svn_repos.h>
@@ -57,8 +59,7 @@ typedef struct
     branch_storage_t *branches;
     // Revision storage.
     revision_storage_t *revisions;
-    // Blob storage.
-    blob_storage_t *blobs;
+    checksum_cache_t *blobs;
     tree_t *ignores;
     mark_t last_mark;
     revision_ctx_t *rev_ctx;
@@ -117,33 +118,66 @@ get_copyfrom_commit(svn_fs_path_change2_t *change, parser_ctx_t *ctx, branch_t *
     if (commit == NULL) {
         commit = branch_head_get(copyfrom_branch);
     }
-
+;
     return commit;
 }
 
 static svn_error_t *
-get_node_blob(blob_t **dst, const char *path, parser_ctx_t *ctx)
+set_content_checksum(svn_checksum_t **checksum,
+                     checksum_cache_t *cache,
+                     svn_fs_root_t *root,
+                     const char *path,
+                     apr_pool_t *pool)
 {
-    svn_checksum_t *checksum;
-    blob_t *blob;
+    const char *hdr;
+    apr_hash_t *props;
+    svn_checksum_t *svn_checksum, *git_checksum;
+    svn_checksum_ctx_t *ctx;
     svn_filesize_t size;
+    svn_stream_t *content, *output;
 
-    SVN_ERR(svn_fs_file_checksum(&checksum,
-                                 svn_checksum_sha1,
-                                 ctx->rev_ctx->root,
-                                 path,
-                                 FALSE,
-                                 ctx->rev_ctx->pool));
+    SVN_ERR(svn_fs_file_checksum(&svn_checksum, svn_checksum_sha1,
+                                 root, path, FALSE, pool));
 
-    blob = blob_storage_get(ctx->blobs, checksum);
+    git_checksum = checksum_cache_get(cache, svn_checksum);
+    if (git_checksum != NULL) {
+        *checksum = git_checksum;
+        return SVN_NO_ERROR;
+    }
 
-    SVN_ERR(svn_fs_file_length(&size,
-                               ctx->rev_ctx->root,
-                               path,
-                               ctx->rev_ctx->pool));
-    blob_size_set(blob, size);
+    SVN_ERR(svn_fs_node_proplist(&props, root, path, pool));
+    SVN_ERR(svn_fs_file_length(&size, root, path, pool));
+    SVN_ERR(svn_fs_file_contents(&content, root, path, pool));
 
-    *dst = blob;
+    SVN_ERR(svn_stream_for_stdout(&output, pool));
+
+    // We need to strip a symlink marker from the beginning of a content
+    // and subtract a symlink marker length from the blob size.
+    if (svn_hash_gets(props, SVN_PROP_SPECIAL)) {
+        apr_size_t bufsize = sizeof(SYMLINK_CONTENT_PREFIX);
+        char buf[bufsize];
+
+        SVN_ERR(svn_stream_read(content, buf, &bufsize));
+
+        size -= bufsize;
+    }
+
+    hdr = apr_psprintf(pool, "blob %ld", size);
+    ctx = svn_checksum_ctx_create(svn_checksum_sha1, pool);
+    SVN_ERR(svn_checksum_update(ctx, hdr, strlen(hdr) + 1));
+
+    SVN_ERR(svn_stream_printf(output, pool, "blob\n"));
+    SVN_ERR(svn_stream_printf(output, pool, "data %ld\n", size));
+
+    output = checksum_stream_create(output, NULL, ctx, pool);
+
+    SVN_ERR(svn_stream_copy3(content, output, NULL, NULL, pool));
+    SVN_ERR(svn_stream_close(output));
+
+    SVN_ERR(svn_checksum_final(&git_checksum, ctx, pool));
+
+    checksum_cache_set(cache, svn_checksum, git_checksum);
+    *checksum = git_checksum;
 
     return SVN_NO_ERROR;
 }
@@ -156,7 +190,6 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
     revision_t *rev = ctx->rev_ctx->rev;
     commit_t *commit;
     branch_t *branch = NULL, *copyfrom_branch = NULL;
-    blob_t *blob = NULL;
     node_t *node;
     svn_fs_path_change_kind_t action = change->change_kind;
     svn_node_kind_t kind = change->node_kind;
@@ -208,11 +241,10 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
     node_path_set(node, apr_pstrdup(ctx->rev_ctx->pool, node_path));
 
     if (kind == svn_node_file && action != svn_fs_path_change_delete) {
-        SVN_ERR(get_node_blob(&blob, path, ctx));
-
-        if (blob != NULL) {
-            node_content_blob_set(node, blob);
-        }
+        svn_checksum_t *checksum;
+        SVN_ERR(set_content_checksum(&checksum, ctx->blobs, ctx->rev_ctx->root,
+                                     path, pool));
+        node_content_checksum_set(node, checksum);
     }
 
     if (node_content_kind_get(node) == CONTENT_UNKNOWN) {
@@ -301,39 +333,6 @@ set_node_property(void *n_ctx, const char *name, const svn_string_t *value)
     else if (strcmp(name, SVN_PROP_SPECIAL) == 0) {
         node_mode_set(node, MODE_SYMLINK);
     }
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-set_fulltext(svn_stream_t **stream, void *n_ctx)
-{
-    parser_ctx_t *ctx = n_ctx;
-    node_t *node = ctx->node;
-
-    if (node == NULL) {
-        return SVN_NO_ERROR;
-    }
-
-    blob_t *blob = node_content_blob_get(node);
-
-    if (blob_mark_get(blob)) {
-        // Blob has been uploaded, if we've already assigned mark to it
-        return SVN_NO_ERROR;
-    }
-
-    blob_mark_set(blob, ctx->last_mark++);
-    SVN_ERR(svn_stream_for_stdout(stream, ctx->rev_ctx->pool));
-
-    if (node_mode_get(node) == MODE_SYMLINK) {
-        // We need to wrap the output stream with a special stream
-        // which will strip a symlink marker from the beginning of a content.
-        *stream = symlink_content_stream_create(*stream, ctx->rev_ctx->pool);
-        // Subtract a symlink marker length from the blob size.
-        blob_size_set(blob, blob_size_get(blob) - sizeof(SYMLINK_CONTENT_PREFIX));
-    }
-
-    SVN_ERR(backend_write_blob_header(&ctx->backend, blob, ctx->rev_ctx->pool));
 
     return SVN_NO_ERROR;
 }
@@ -434,7 +433,7 @@ export_revision_range(svn_stream_t *dst,
     ctx.authors = authors;
     ctx.branches = branches;
     ctx.revisions = revisions;
-    ctx.blobs = blob_storage_create(pool);
+    ctx.blobs = checksum_cache_create(pool);
     ctx.ignores = ignores;
     ctx.last_mark = 1;
 
@@ -482,7 +481,6 @@ export_revision_range(svn_stream_t *dst,
             if (change->change_kind != svn_fs_path_change_delete) {
                 apr_hash_t *props;
                 apr_hash_index_t *idx2;
-                svn_stream_t *output = NULL;
 
                 SVN_ERR(svn_fs_node_proplist(&props, root, path, subpool));
 
@@ -490,16 +488,6 @@ export_revision_range(svn_stream_t *dst,
                     const char *name = apr_hash_this_key(idx2);
                     const svn_string_t *value = apr_hash_this_val(idx2);
                     SVN_ERR(set_node_property(n_ctx, name, value));
-                }
-
-                SVN_ERR(set_fulltext(&output, n_ctx));
-
-                if (output != NULL) {
-                    svn_stream_t *content;
-                    svn_filesize_t size;
-                    SVN_ERR(svn_fs_file_length(&size, root, path, subpool));
-                    SVN_ERR(svn_fs_file_contents(&content, root, path, subpool));
-                    SVN_ERR(svn_stream_copy3(content, output, NULL, NULL, subpool));
                 }
             }
 

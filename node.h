@@ -23,7 +23,6 @@
 #ifndef SVN_FAST_EXPORT_NODE_H_
 #define SVN_FAST_EXPORT_NODE_H_
 
-#include "blob.h"
 #include "branch.h"
 #include <svn_fs.h>
 
@@ -43,7 +42,6 @@ typedef enum
 {
     CONTENT_UNKNOWN,
     CONTENT_CHECKSUM,
-    CONTENT_BLOB
 } node_content_kind_t;
 
 // Abstract type for node.
@@ -94,13 +92,6 @@ node_content_checksum_get(const node_t *n);
 // Sets content checksum.
 void
 node_content_checksum_set(node_t *n, const svn_checksum_t *checksum);
-
-// Returns node content blob.
-blob_t *
-node_content_blob_get(const node_t *n);
-
-void
-node_content_blob_set(node_t *n, blob_t *blob);
 
 typedef struct node_list_t node_list_t;
 

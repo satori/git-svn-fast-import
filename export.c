@@ -203,7 +203,7 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
     }
 
     if (kind == svn_node_dir) {
-        if (action != svn_fs_path_change_delete && copyfrom_path == NULL) {
+        if (action != svn_fs_path_change_delete && copyfrom_branch == NULL) {
             return SVN_NO_ERROR;
         } else if (action == svn_fs_path_change_delete && branch_path_is_root(branch, path)) {
             revision_removes_add(rev, branch);

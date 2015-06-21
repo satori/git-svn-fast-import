@@ -59,18 +59,6 @@ static struct apr_getopt_option_t cmdline_options[] = {
     {0, 0, 0, 0}
 };
 
-static const char *
-cstring_skip_prefix(const char *src, const char *prefix)
-{
-    size_t len = strlen(prefix);
-
-    if (strncmp(src, prefix, len) == 0) {
-        return src + len;
-    }
-
-    return NULL;
-}
-
 static svn_error_t *
 calculate_blob_checksum(svn_checksum_t **checksum,
                         svn_fs_root_t *root,
@@ -242,10 +230,7 @@ print_entries(apr_array_header_t *entries,
 {
     for (int i = 0; i < entries->nelts; i++) {
         entry_t *entry = &APR_ARRAY_IDX(entries, i, entry_t);
-        const char *path = cstring_skip_prefix(entry->path, root_path);
-        if (*path == '/') {
-            path++;
-        }
+        const char *path = svn_dirent_skip_ancestor(root_path, entry->path);
 
         if (entry->kind == svn_node_dir) {
             if (show_trees) {

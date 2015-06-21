@@ -20,6 +20,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include "node.h"
 #include "options.h"
 #include "sorts.h"
 #include <svn_cmdline.h>
@@ -37,24 +38,10 @@
 static const int one = 1;
 static const void *NOT_NULL = &one;
 
-typedef enum
-{
-    MODE_NORMAL     = 0100644,
-    MODE_EXECUTABLE = 0100755,
-    MODE_SYMLINK    = 0120000,
-    MODE_DIR        = 0040000
-} node_mode_t;
-
-typedef enum
-{
-    NODE_TREE,
-    NODE_BLOB
-} node_kind_t;
-
 typedef struct
 {
     node_mode_t mode;
-    node_kind_t kind;
+    svn_node_kind_t kind;
     const svn_checksum_t *checksum;
     svn_filesize_t size;
     const char *path;
@@ -209,21 +196,18 @@ traverse_tree(apr_array_header_t **entries,
 
             entry = apr_array_push(result);
             entry->mode = MODE_DIR;
-            entry->kind = NODE_TREE;
+            entry->kind = svn_node_dir;
             entry->size = 0;
 
             SVN_ERR(calculate_tree_checksum(&checksum, subentries, pool));
 
-            entry->mode = MODE_DIR;
-            entry->kind = NODE_TREE;
-            entry->size = 0;
             entry->subentries = subentries;
         } else {
             apr_hash_t *props;
 
             entry = apr_array_push(result);
             entry->mode = MODE_NORMAL;
-            entry->kind = NODE_BLOB;
+            entry->kind = svn_node_file;
 
             SVN_ERR(svn_fs_node_proplist(&props, root, fname, pool));
             if (svn_hash_gets(props, SVN_PROP_EXECUTABLE) != NULL) {
@@ -263,7 +247,7 @@ print_entries(apr_array_header_t *entries,
             path++;
         }
 
-        if (entry->kind == NODE_TREE) {
+        if (entry->kind == svn_node_dir) {
             if (show_trees) {
                 SVN_ERR(svn_cmdline_printf(pool, "%06o tree %s\t%s\n",
                                            entry->mode,

@@ -2,17 +2,30 @@
 
 [![Build Status](https://travis-ci.org/satori/git-svn-fast-import.svg?branch=master)](https://travis-ci.org/satori/git-svn-fast-import)
 
-*git-svn-fast-import* is a tool for fast Subversion-to-Git conversion.
+*git-svn-fast-import* is a toolset for fast Subversion-to-Git conversion.
+
+*svn-fast-export* is Subversion dump utility.
+
 It features:
 * branch history support
 * multi-branch SVN revisions support
 * SVN committer to Git author mapping
 
+*svn-ls-tree* is Subversion equivalent of Git's ls-tree command.
+
+It tries to mimic git ls-tree behaviour:
+
+* computes blob/tree checksums the same way as Git;
+* skips empty directories;
+* outputs in the same format as Git.
+
 ## Installation
 
 Use the `make` command:
 
+	$ export PREFIX=$HOME/opt
 	$ make
+	$ make install
 
 ## Requirements
 

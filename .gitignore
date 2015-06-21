@@ -3,5 +3,6 @@ git-svn-fast-import
 git-svn-verify-import
 config.mak
 svn-fast-export
+svn-ls-tree
 t/test-results
 t/trash*

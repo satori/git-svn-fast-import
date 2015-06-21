@@ -20,7 +20,9 @@
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 CC ?= cc
+INSTALL = install
 RM = rm -f
+PREFIX ?= $(HOME)
 CFLAGS = -g -O2 -Wall -std=c99
 CPPFLAGS =
 LDFLAGS =
@@ -36,7 +38,9 @@ CPPFLAGS +=$(APR_INCLUDES) $(APR_CPPFLAGS)
 GIT_SVN_FAST_IMPORT := git-svn-fast-import
 GIT_SVN_VERIFY_IMPORT := git-svn-verify-import
 SVN_FAST_EXPORT := svn-fast-export
-OBJECTS := svn-fast-export.o \
+SVN_LS_TREE := svn-ls-tree
+
+FE_OBJECTS := svn-fast-export.o \
 	author.o \
 	backend.o \
 	branch.o \
@@ -50,7 +54,11 @@ OBJECTS := svn-fast-export.o \
 	tree.o \
 	utils.o
 
-all: $(GIT_SVN_FAST_IMPORT) $(GIT_SVN_VERIFY_IMPORT) $(SVN_FAST_EXPORT)
+LS_OBJECTS := svn-ls-tree.o \
+	options.o \
+	sorts.o
+
+all: $(GIT_SVN_FAST_IMPORT) $(GIT_SVN_VERIFY_IMPORT) $(SVN_FAST_EXPORT) $(SVN_LS_TREE)
 
 $(GIT_SVN_FAST_IMPORT): git-svn-fast-import.sh
 
@@ -58,8 +66,15 @@ $(GIT_SVN_VERIFY_IMPORT): git-svn-verify-import.py
 	cat git-svn-verify-import.py > git-svn-verify-import
 	chmod a+x git-svn-verify-import
 
-$(SVN_FAST_EXPORT): $(OBJECTS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS) $(EXTLIBS)
+$(SVN_FAST_EXPORT): $(FE_OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(FE_OBJECTS) $(EXTLIBS)
+
+$(SVN_LS_TREE): $(LS_OBJECTS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(LS_OBJECTS) $(EXTLIBS)
+
+install: $(SVN_LS_TREE)
+	$(INSTALL) -d $(PREFIX)/bin
+	$(INSTALL) -m 0755 $(SVN_LS_TREE) $(PREFIX)/bin/$(SVN_LS_TREE)
 
 %.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ -c $<
@@ -68,6 +83,6 @@ test: all
 	$(MAKE) -C t all
 
 clean:
-	$(RM) $(GIT_SVN_FAST_IMPORT) $(GIT_SVN_VERIFY_IMPORT) $(SVN_FAST_EXPORT) $(OBJECTS)
+	$(RM) $(GIT_SVN_FAST_IMPORT) $(GIT_SVN_VERIFY_IMPORT) $(SVN_FAST_EXPORT) $(SVN_LS_TREE) $(FE_OBJECTS) $(LS_OBJECTS)
 
-.PHONY: all clean
+.PHONY: all install clean

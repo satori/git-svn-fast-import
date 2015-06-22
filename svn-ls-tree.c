@@ -20,6 +20,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include "checksum.h"
 #include "node.h"
 #include "options.h"
 #include "sorts.h"
@@ -32,8 +33,6 @@
 #include <svn_props.h>
 #include <svn_repos.h>
 #include <svn_utf.h>
-
-#define SYMLINK_CONTENT_PREFIX "link"
 
 static const int one = 1;
 static const void *NOT_NULL = &one;
@@ -58,51 +57,6 @@ static struct apr_getopt_option_t cmdline_options[] = {
     {"ignore-path", 'I', 1, "Ignore path relative to root."},
     {0, 0, 0, 0}
 };
-
-static svn_error_t *
-calculate_blob_checksum(svn_checksum_t **checksum,
-                        svn_fs_root_t *root,
-                        const char *path,
-                        apr_pool_t *pool)
-{
-    const char *hdr;
-    apr_hash_t *props;
-    svn_checksum_ctx_t *ctx;
-    svn_filesize_t size;
-    svn_stream_t *content;
-
-    SVN_ERR(svn_fs_node_proplist(&props, root, path, pool));
-    SVN_ERR(svn_fs_file_length(&size, root, path, pool));
-    SVN_ERR(svn_fs_file_contents(&content, root, path, pool));
-
-    // We need to skip a symlink marker from the beginning of a content
-    // and subtract a symlink marker length from the blob size.
-    if (svn_hash_gets(props, SVN_PROP_SPECIAL)) {
-        apr_size_t bufsize = sizeof(SYMLINK_CONTENT_PREFIX);
-        char buf[bufsize];
-        SVN_ERR(svn_stream_read(content, buf, &bufsize));
-        size -= bufsize;
-    }
-
-    hdr = apr_psprintf(pool, "blob %ld", size);
-    ctx = svn_checksum_ctx_create(svn_checksum_sha1, pool);
-
-    SVN_ERR(svn_checksum_update(ctx, hdr, strlen(hdr) + 1));
-
-    while (size > 0) {
-        apr_size_t bufsize = 1024;
-        char buf[bufsize];
-
-        SVN_ERR(svn_stream_read(content, buf, &bufsize));
-        SVN_ERR(svn_checksum_update(ctx, buf, bufsize));
-
-        size -= bufsize;
-    }
-
-    SVN_ERR(svn_checksum_final(checksum, ctx, pool));
-
-    return SVN_NO_ERROR;
-}
 
 static svn_error_t *
 calculate_tree_checksum(svn_checksum_t **checksum,
@@ -141,6 +95,7 @@ traverse_tree(apr_array_header_t **entries,
               const char *path,
               svn_boolean_t recurse,
               apr_hash_t *ignores,
+              checksum_cache_t *cache,
               apr_pool_t *pool)
 {
     apr_array_header_t *sorted_entries, *result;
@@ -175,6 +130,7 @@ traverse_tree(apr_array_header_t **entries,
                                   svn_relpath_join(path, e->name, pool),
                                   recurse,
                                   ignores,
+                                  cache,
                                   pool));
 
             // Skip empty directories.
@@ -192,6 +148,7 @@ traverse_tree(apr_array_header_t **entries,
             entry->subentries = subentries;
         } else {
             apr_hash_t *props;
+            svn_stream_t *output = svn_stream_empty(pool);
 
             entry = apr_array_push(result);
             entry->mode = MODE_NORMAL;
@@ -206,7 +163,8 @@ traverse_tree(apr_array_header_t **entries,
                 entry->mode = MODE_SYMLINK;
             }
 
-            SVN_ERR(calculate_blob_checksum(&checksum, root, fname, pool));
+            SVN_ERR(set_content_checksum(&checksum, output, cache, root, fname, pool));
+
             SVN_ERR(svn_fs_file_length(&entry->size, root, fname, pool));
         }
 
@@ -269,9 +227,10 @@ print_tree(svn_fs_root_t *root,
            apr_pool_t *pool)
 {
     apr_array_header_t *entries;
+    checksum_cache_t *cache = checksum_cache_create(pool);
     const char *abspath = svn_relpath_join(root_path, path, pool);
 
-    SVN_ERR(traverse_tree(&entries, root, abspath, recurse, ignores, pool));
+    SVN_ERR(traverse_tree(&entries, root, abspath, recurse, ignores, cache, pool));
     SVN_ERR(print_entries(entries, root_path, trees_only, recurse, show_trees, pool));
 
     return SVN_NO_ERROR;

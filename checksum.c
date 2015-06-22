@@ -21,6 +21,10 @@
  */
 
 #include "checksum.h"
+#include <svn_hash.h>
+#include <svn_props.h>
+
+#define SYMLINK_CONTENT_PREFIX "link"
 
 struct checksum_cache_t
 {
@@ -100,7 +104,9 @@ close_handler(void *stream_ctx)
     return SVN_NO_ERROR;
 }
 
-svn_stream_t *
+// Creates a stream that updates checksum context for all data
+// read and written.
+static svn_stream_t *
 checksum_stream_create(svn_stream_t *s,
                        svn_checksum_ctx_t *read_ctx,
                        svn_checksum_ctx_t *write_ctx,
@@ -117,4 +123,59 @@ checksum_stream_create(svn_stream_t *s,
     svn_stream_set_close(stream, close_handler);
 
     return stream;
+}
+
+svn_error_t *
+set_content_checksum(svn_checksum_t **checksum,
+                     svn_stream_t *output,
+                     checksum_cache_t *cache,
+                     svn_fs_root_t *root,
+                     const char *path,
+                     apr_pool_t *pool)
+{
+    const char *hdr;
+    apr_hash_t *props;
+    svn_checksum_t *svn_checksum, *git_checksum;
+    svn_checksum_ctx_t *ctx;
+    svn_filesize_t size;
+    svn_stream_t *content;
+
+    SVN_ERR(svn_fs_file_checksum(&svn_checksum, svn_checksum_sha1,
+                                 root, path, FALSE, pool));
+
+    git_checksum = checksum_cache_get(cache, svn_checksum);
+    if (git_checksum != NULL) {
+        *checksum = git_checksum;
+        return SVN_NO_ERROR;
+    }
+
+    SVN_ERR(svn_fs_node_proplist(&props, root, path, pool));
+    SVN_ERR(svn_fs_file_length(&size, root, path, pool));
+    SVN_ERR(svn_fs_file_contents(&content, root, path, pool));
+
+    // We need to strip a symlink marker from the beginning of a content
+    // and subtract a symlink marker length from the blob size.
+    if (svn_hash_gets(props, SVN_PROP_SPECIAL)) {
+        apr_size_t skip = sizeof(SYMLINK_CONTENT_PREFIX);
+        SVN_ERR(svn_stream_skip(content, skip));
+        size -= skip;
+    }
+
+    hdr = apr_psprintf(pool, "blob %ld", size);
+    ctx = svn_checksum_ctx_create(svn_checksum_sha1, pool);
+    SVN_ERR(svn_checksum_update(ctx, hdr, strlen(hdr) + 1));
+
+    SVN_ERR(svn_stream_printf(output, pool, "blob\n"));
+    SVN_ERR(svn_stream_printf(output, pool, "data %ld\n", size));
+
+    output = checksum_stream_create(output, NULL, ctx, pool);
+
+    SVN_ERR(svn_stream_copy3(content, output, NULL, NULL, pool));
+
+    SVN_ERR(svn_checksum_final(&git_checksum, ctx, pool));
+
+    checksum_cache_set(cache, svn_checksum, git_checksum);
+    *checksum = git_checksum;
+
+    return SVN_NO_ERROR;
 }

@@ -24,7 +24,7 @@
 #define SVN_FAST_EXPORT_CHECKSUM_H_
 
 #include <svn_checksum.h>
-#include <svn_io.h>
+#include <svn_fs.h>
 
 // Abstract type for checksum cache.
 typedef struct checksum_cache_t checksum_cache_t;
@@ -44,12 +44,12 @@ checksum_cache_set(checksum_cache_t *c,
                    const svn_checksum_t *svn_checksum,
                    const svn_checksum_t *git_checksum);
 
-// Creates a stream that updates checksum context for all data
-// read and written.
-svn_stream_t *
-checksum_stream_create(svn_stream_t *stream,
-                       svn_checksum_ctx_t *read_ctx,
-                       svn_checksum_ctx_t *write_ctx,
-                       apr_pool_t *pool);
+svn_error_t *
+set_content_checksum(svn_checksum_t **checksum,
+                     svn_stream_t *output,
+                     checksum_cache_t *cache,
+                     svn_fs_root_t *root,
+                     const char *path,
+                     apr_pool_t *pool);
 
 #endif // SVN_FAST_EXPORT_CHECKSUM_H_

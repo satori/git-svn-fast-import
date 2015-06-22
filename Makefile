@@ -50,11 +50,11 @@ FE_OBJECTS := svn-fast-export.o \
 	node.o \
 	options.o \
 	revision.o \
-	symlink.o \
 	tree.o \
 	utils.o
 
 LS_OBJECTS := svn-ls-tree.o \
+	checksum.o \
 	options.o \
 	sorts.o
 

@@ -44,7 +44,6 @@ typedef struct
     const svn_checksum_t *checksum;
     svn_filesize_t size;
     const char *path;
-    const char *basename;
     apr_array_header_t *subentries;
 } entry_t;
 
@@ -71,9 +70,8 @@ calculate_tree_checksum(svn_checksum_t **checksum,
 
     for (int i = 0; i < entries->nelts; i++) {
         entry_t *entry = &APR_ARRAY_IDX(entries, i, entry_t);
-        const char *s = apr_psprintf(pool, "%o %s",
-                                     entry->mode,
-                                     entry->basename);
+        const char *s = apr_psprintf(pool, "%o %s", entry->mode,
+                                     svn_relpath_basename(entry->path, pool));
 
         svn_stringbuf_appendbytes(buf, s, strlen(s) + 1);
         svn_stringbuf_appendbytes(buf, (const char *)entry->checksum->digest,
@@ -169,7 +167,6 @@ traverse_tree(apr_array_header_t **entries,
         }
 
         entry->path = fname;
-        entry->basename = e->name;
         entry->checksum = checksum;
     }
 

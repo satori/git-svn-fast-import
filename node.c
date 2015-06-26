@@ -24,22 +24,6 @@
 #include <svn_hash.h>
 #include <svn_props.h>
 
-node_mode_t
-node_mode_parse(const char *src, size_t len)
-{
-    if (strncmp(src, "100644", len) == 0) {
-        return MODE_NORMAL;
-    } else if (strncmp(src, "100755", len) == 0) {
-        return MODE_EXECUTABLE;
-    } else if (strncmp(src, "120000", len) == 0) {
-        return MODE_SYMLINK;
-    } else if (strncmp(src, "040000", len) == 0) {
-        return MODE_DIR;
-    }
-
-    return MODE_NORMAL;
-}
-
 svn_error_t *
 set_node_mode(node_mode_t *mode,
               svn_fs_root_t *root,

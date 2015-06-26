@@ -41,8 +41,6 @@ node_mode_parse(const char *src, size_t len);
 // Abstract type for node.
 typedef struct node_t node_t;
 
-typedef svn_error_t * (*node_handler_t)(void *ctx, node_t *node, apr_pool_t *pool);
-
 // Returns node action.
 svn_fs_path_change_kind_t
 node_action_get(const node_t *n);
@@ -110,13 +108,6 @@ node_storage_create(apr_pool_t *pool);
 node_t *
 node_storage_add(node_storage_t *ns,
                  const branch_t *branch);
-
-// Applies function for each node entry.
-svn_error_t *
-node_storage_apply(const node_storage_t *ns,
-                   node_handler_t apply,
-                   void *ctx,
-                   apr_pool_t *pool);
 
 // Returns nodes list. 
 const node_list_t *

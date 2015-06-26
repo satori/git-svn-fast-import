@@ -24,27 +24,14 @@
 #include "node.h"
 #include "options.h"
 #include "sorts.h"
+#include "tree.h"
 #include <svn_cmdline.h>
 #include <svn_dirent_uri.h>
-#include <svn_fs.h>
 #include <svn_hash.h>
 #include <svn_path.h>
 #include <svn_pools.h>
 #include <svn_repos.h>
 #include <svn_utf.h>
-
-static const int one = 1;
-static const void *NOT_NULL = &one;
-
-typedef struct
-{
-    node_mode_t mode;
-    svn_node_kind_t kind;
-    const svn_checksum_t *checksum;
-    svn_filesize_t size;
-    const char *path;
-    apr_array_header_t *subentries;
-} entry_t;
 
 static struct apr_getopt_option_t cmdline_options[] = {
     {"help", 'h', 0, "Print this message and exit"},
@@ -57,109 +44,6 @@ static struct apr_getopt_option_t cmdline_options[] = {
 };
 
 static svn_error_t *
-calculate_tree_checksum(svn_checksum_t **checksum,
-                        apr_array_header_t *entries,
-                        apr_pool_t *pool)
-{
-    const char *hdr;
-    svn_checksum_ctx_t *ctx;
-    svn_stringbuf_t *buf;
-    ctx = svn_checksum_ctx_create(svn_checksum_sha1, pool);
-    buf = svn_stringbuf_create_empty(pool);
-
-    for (int i = 0; i < entries->nelts; i++) {
-        entry_t *entry = &APR_ARRAY_IDX(entries, i, entry_t);
-        const char *s = apr_psprintf(pool, "%o %s", entry->mode,
-                                     svn_relpath_basename(entry->path, pool));
-
-        svn_stringbuf_appendbytes(buf, s, strlen(s) + 1);
-        svn_stringbuf_appendbytes(buf, (const char *)entry->checksum->digest,
-                                  svn_checksum_size(entry->checksum));
-    }
-
-    hdr = apr_psprintf(pool, "tree %ld", buf->len);
-
-    SVN_ERR(svn_checksum_update(ctx, hdr, strlen(hdr) + 1));
-    SVN_ERR(svn_checksum_update(ctx, buf->data, buf->len));
-    SVN_ERR(svn_checksum_final(checksum, ctx, pool));
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-traverse_tree(apr_array_header_t **entries,
-              svn_fs_root_t *root,
-              const char *path,
-              apr_hash_t *ignores,
-              checksum_cache_t *cache,
-              apr_pool_t *pool)
-{
-    apr_array_header_t *sorted_entries, *result;
-    apr_hash_t *dir_entries;
-    result = apr_array_make(pool, 0, sizeof(entry_t));
-
-    SVN_ERR(svn_fs_dir_entries(&dir_entries, root, path, pool));
-
-    sorted_entries = svn_sort__hash(dir_entries,
-                                    svn_sort_compare_items_gitlike,
-                                    pool);
-
-    for (int i = 0; i < sorted_entries->nelts; i++) {
-        entry_t *entry;
-        svn_sort__item_t item = APR_ARRAY_IDX(sorted_entries, i,
-                                              svn_sort__item_t);
-
-        svn_checksum_t *checksum;
-        svn_fs_dirent_t *e = item.value;
-        const char *fname = svn_relpath_join(path, e->name, pool);
-
-        if (svn_hash_gets(ignores, fname)) {
-            continue;
-        }
-
-        if (e->kind == svn_node_dir) {
-            apr_array_header_t *subentries;
-
-            SVN_ERR(traverse_tree(&subentries,
-                                  root,
-                                  svn_relpath_join(path, e->name, pool),
-                                  ignores,
-                                  cache,
-                                  pool));
-
-            // Skip empty directories.
-            if (subentries->nelts == 0) {
-                continue;
-            }
-
-            entry = apr_array_push(result);
-            entry->kind = svn_node_dir;
-            entry->size = 0;
-
-            SVN_ERR(calculate_tree_checksum(&checksum, subentries, pool));
-
-            entry->subentries = subentries;
-        } else {
-            svn_stream_t *output = svn_stream_empty(pool);
-
-            entry = apr_array_push(result);
-            entry->kind = svn_node_file;
-
-            SVN_ERR(set_content_checksum(&checksum, output, cache, root, fname, pool));
-            SVN_ERR(svn_fs_file_length(&entry->size, root, fname, pool));
-        }
-
-        SVN_ERR(set_node_mode(&entry->mode, root, fname, pool));
-        entry->path = fname;
-        entry->checksum = checksum;
-    }
-
-    *entries = result;
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
 print_entries(apr_array_header_t *entries,
               const char *root_path,
               svn_boolean_t trees_only,
@@ -168,28 +52,28 @@ print_entries(apr_array_header_t *entries,
               apr_pool_t *pool)
 {
     for (int i = 0; i < entries->nelts; i++) {
-        entry_t *entry = &APR_ARRAY_IDX(entries, i, entry_t);
-        const char *path = svn_dirent_skip_ancestor(root_path, entry->path);
+        node_t *node = &APR_ARRAY_IDX(entries, i, node_t);
+        const char *path = svn_dirent_skip_ancestor(root_path, node->path);
 
-        if (entry->kind == svn_node_dir) {
+        if (node->kind == svn_node_dir) {
+            // Skip empty directories.
+            if (node->entries->nelts == 0) {
+                continue;
+            }
             if (show_trees) {
                 SVN_ERR(svn_cmdline_printf(pool, "%06o tree %s\t%s\n",
-                                           entry->mode,
-                                           svn_checksum_to_cstring_display(entry->checksum, pool),
+                                           node->mode,
+                                           svn_checksum_to_cstring_display(node->checksum, pool),
                                            path));
             }
             if (recurse) {
-                SVN_ERR(print_entries(entry->subentries,
-                                      root_path,
-                                      trees_only,
-                                      recurse,
-                                      show_trees,
-                                      pool));
+                SVN_ERR(print_entries(node->entries, root_path, trees_only,
+                                      recurse, show_trees, pool));
             }
         } else if (!trees_only) {
             SVN_ERR(svn_cmdline_printf(pool, "%06o blob %s\t%s\n",
-                                       entry->mode,
-                                       svn_checksum_to_cstring_display(entry->checksum, pool),
+                                       node->mode,
+                                       svn_checksum_to_cstring_display(node->checksum, pool),
                                        path));
         }
     }
@@ -204,14 +88,16 @@ print_tree(svn_fs_root_t *root,
            svn_boolean_t trees_only,
            svn_boolean_t recurse,
            svn_boolean_t show_trees,
-           apr_hash_t *ignores,
+           tree_t *ignores,
            apr_pool_t *pool)
 {
     apr_array_header_t *entries;
     checksum_cache_t *cache = checksum_cache_create(pool);
     const char *abspath = svn_relpath_join(root_path, path, pool);
+    svn_checksum_t *checksum;
+    svn_stream_t *dummy = svn_stream_empty(pool);
 
-    SVN_ERR(traverse_tree(&entries, root, abspath, ignores, cache, pool));
+    SVN_ERR(set_tree_checksum(&checksum, &entries, dummy, cache, root, abspath, root_path, ignores, pool));
     SVN_ERR(print_entries(entries, root_path, trees_only, recurse, show_trees, pool));
 
     return SVN_NO_ERROR;
@@ -221,7 +107,7 @@ static svn_error_t *
 do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 {
     apr_array_header_t *relative_ignores;
-    apr_hash_t *ignores;
+    tree_t *ignores;
     apr_getopt_t *opt_parser;
     apr_status_t apr_err;
     const char *path = NULL, *repo_path = NULL, *root_path = "";
@@ -232,7 +118,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     svn_revnum_t revnum = SVN_INVALID_REVNUM;
 
     relative_ignores = apr_array_make(pool, 0, sizeof(const char *));
-    ignores = apr_hash_make(pool);
+    ignores = tree_create(pool);
 
     // Initialize the FS library.
     SVN_ERR(svn_fs_initialize(pool));
@@ -281,7 +167,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     for (int i = 0; i < relative_ignores->nelts; i++) {
         const char *ignored_path = APR_ARRAY_IDX(relative_ignores, i, const char *);
         ignored_path = svn_relpath_join(root_path, ignored_path, pool);
-        svn_hash_sets(ignores, ignored_path, NOT_NULL);
+        tree_insert(ignores, ignored_path, ignored_path);
     }
 
     // Get the repository path.
@@ -332,14 +218,9 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
         path = "";
     }
 
-    SVN_ERR(print_tree(root,
-                       root_path,
-                       path,
-                       trees_only,
-                       recurse,
+    SVN_ERR(print_tree(root, root_path, path, trees_only, recurse,
                        (!recurse || trees_only || show_trees),
-                       ignores,
-                       pool));
+                       ignores, pool));
 
     return SVN_NO_ERROR;
 }

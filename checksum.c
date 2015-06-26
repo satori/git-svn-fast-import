@@ -21,6 +21,9 @@
  */
 
 #include "checksum.h"
+#include "node.h"
+#include "sorts.h"
+#include <svn_dirent_uri.h>
 #include <svn_hash.h>
 #include <svn_props.h>
 
@@ -176,6 +179,80 @@ set_content_checksum(svn_checksum_t **checksum,
 
     checksum_cache_set(cache, svn_checksum, git_checksum);
     *checksum = git_checksum;
+
+    return SVN_NO_ERROR;
+}
+
+svn_error_t *
+set_tree_checksum(svn_checksum_t **checksum,
+                  apr_array_header_t **entries,
+                  svn_stream_t *output,
+                  checksum_cache_t *cache,
+                  svn_fs_root_t *root,
+                  const char *path,
+                  const char *root_path,
+                  tree_t *ignores,
+                  apr_pool_t *pool)
+{
+    apr_array_header_t *sorted_entries, *nodes;
+    apr_hash_t *dir_entries;
+    const char *hdr, *ignored;
+    svn_checksum_ctx_t *ctx;
+    svn_stringbuf_t *buf;
+
+    ctx = svn_checksum_ctx_create(svn_checksum_sha1, pool);
+    buf = svn_stringbuf_create_empty(pool);
+    nodes = apr_array_make(pool, 0, sizeof(node_t));
+
+    SVN_ERR(svn_fs_dir_entries(&dir_entries, root, path, pool));
+
+    sorted_entries = svn_sort__hash(dir_entries,
+                                    svn_sort_compare_items_gitlike,
+                                    pool);
+
+    for (int i = 0; i < sorted_entries->nelts; i++) {
+        const char *node_path, *record, *subpath;
+        node_t *node;
+        svn_sort__item_t item = APR_ARRAY_IDX(sorted_entries, i,
+                                              svn_sort__item_t);
+        svn_fs_dirent_t *entry = item.value;
+
+        node_path = svn_relpath_join(path, entry->name, pool);
+        subpath = svn_dirent_skip_ancestor(root_path, node_path);
+
+        ignored = tree_find_longest_prefix(ignores, subpath);
+        if (ignored != NULL) {
+            continue;
+        }
+
+        node = apr_array_push(nodes);
+        node->kind = entry->kind;
+        node->path = node_path;
+
+        SVN_ERR(set_node_mode(&node->mode, root, node->path, pool));
+
+        if (node->kind == svn_node_dir) {
+            SVN_ERR(set_tree_checksum(&node->checksum, &node->entries, output,
+                                      cache, root, node->path, root_path,
+                                      ignores,pool));
+        } else {
+            SVN_ERR(set_content_checksum(&node->checksum, output, cache, root,
+                                         node->path, pool));
+        }
+
+        record = apr_psprintf(pool, "%o %s", node->mode, entry->name);
+        svn_stringbuf_appendbytes(buf, record, strlen(record) + 1);
+        svn_stringbuf_appendbytes(buf, (const char *)node->checksum->digest,
+                                  svn_checksum_size(node->checksum));
+    }
+
+    *entries = nodes;
+
+    hdr = apr_psprintf(pool, "tree %ld", buf->len);
+
+    SVN_ERR(svn_checksum_update(ctx, hdr, strlen(hdr) + 1));
+    SVN_ERR(svn_checksum_update(ctx, buf->data, buf->len));
+    SVN_ERR(svn_checksum_final(checksum, ctx, pool));
 
     return SVN_NO_ERROR;
 }

@@ -50,7 +50,8 @@ typedef struct
     svn_node_kind_t kind;
     node_mode_t mode;
     const char *path;
-    const svn_checksum_t *checksum;
+    svn_checksum_t *checksum;
+    apr_array_header_t *entries;
 } node_t;
 
 // Abstract type for node storage.

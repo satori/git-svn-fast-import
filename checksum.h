@@ -23,6 +23,7 @@
 #ifndef SVN_FAST_EXPORT_CHECKSUM_H_
 #define SVN_FAST_EXPORT_CHECKSUM_H_
 
+#include "tree.h"
 #include <svn_checksum.h>
 #include <svn_fs.h>
 
@@ -51,5 +52,16 @@ set_content_checksum(svn_checksum_t **checksum,
                      svn_fs_root_t *root,
                      const char *path,
                      apr_pool_t *pool);
+
+svn_error_t *
+set_tree_checksum(svn_checksum_t **checksum,
+                  apr_array_header_t **entries,
+                  svn_stream_t *output,
+                  checksum_cache_t *cache,
+                  svn_fs_root_t *root,
+                  const char *path,
+                  const char *root_path,
+                  tree_t *ignores,
+                  apr_pool_t *pool);
 
 #endif // SVN_FAST_EXPORT_CHECKSUM_H_

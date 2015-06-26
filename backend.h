@@ -25,16 +25,8 @@
 
 #include "types.h"
 
-typedef struct
-{
-    // Output stream.
-    svn_stream_t *out;
-    // Response stream.
-    svn_stream_t *back;
-} backend_t;
-
 svn_error_t *
-backend_write_commit(const backend_t *be,
+backend_write_commit(svn_stream_t *out,
                      const branch_t *branch,
                      const commit_t *commit,
                      apr_array_header_t *nodes,
@@ -44,33 +36,24 @@ backend_write_commit(const backend_t *be,
                      apr_pool_t *pool);
 
 svn_error_t *
-backend_reset_branch(const backend_t *be,
+backend_reset_branch(svn_stream_t *out,
                      const branch_t *branch,
                      const commit_t *commit,
                      apr_pool_t *pool);
 
 svn_error_t *
-backend_remove_branch(const backend_t *be,
+backend_remove_branch(svn_stream_t *out,
                       const branch_t *branch,
                       apr_pool_t *pool);
 
 svn_error_t *
-backend_notify_revision_skipped(const backend_t *be,
+backend_notify_revision_skipped(svn_stream_t *out,
                                 svn_revnum_t revnum,
                                 apr_pool_t *pool);
 
 svn_error_t *
-backend_notify_revision_imported(const backend_t *be,
+backend_notify_revision_imported(svn_stream_t *out,
                                  svn_revnum_t revnum,
                                  apr_pool_t *pool);
-
-svn_error_t *
-backend_get_mode_checksum(node_mode_t *mode,
-                          svn_checksum_t **dst,
-                          const backend_t *be,
-                          const commit_t *commit,
-                          const char *path,
-                          apr_pool_t *result_pool,
-                          apr_pool_t *scratch_pool);
 
 #endif // SVN_FAST_EXPORT_BACKEND_H_

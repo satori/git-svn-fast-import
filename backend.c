@@ -46,7 +46,7 @@ node_delete(svn_stream_t *out, const node_t *node, apr_pool_t *pool)
 }
 
 svn_error_t *
-backend_write_commit(const backend_t *be,
+backend_write_commit(svn_stream_t *out,
                      const branch_t *branch,
                      const commit_t *commit,
                      apr_array_header_t *nodes,
@@ -56,7 +56,6 @@ backend_write_commit(const backend_t *be,
                      apr_pool_t *pool)
 {
     const commit_t *copyfrom = commit_copyfrom_get(commit);
-    svn_stream_t *out = be->out;
 
     SVN_ERR(svn_stream_printf(out, pool, "commit %s\n",
                               branch_refname_get(branch)));
@@ -95,13 +94,11 @@ backend_write_commit(const backend_t *be,
 }
 
 svn_error_t *
-backend_reset_branch(const backend_t *be,
+backend_reset_branch(svn_stream_t *out,
                      const branch_t *branch,
                      const commit_t *commit,
                      apr_pool_t *pool)
 {
-    svn_stream_t *out = be->out;
-
     SVN_ERR(svn_stream_printf(out, pool, "reset %s\n",
                               branch_refname_get(branch)));
     SVN_ERR(svn_stream_printf(out, pool, "from :%d\n",
@@ -111,12 +108,10 @@ backend_reset_branch(const backend_t *be,
 }
 
 svn_error_t *
-backend_remove_branch(const backend_t *be,
+backend_remove_branch(svn_stream_t *out,
                       const branch_t *branch,
                       apr_pool_t *pool)
 {
-    svn_stream_t *out = be->out;
-
     SVN_ERR(svn_stream_printf(out, pool, "reset %s\n",
                               branch_refname_get(branch)));
     SVN_ERR(svn_stream_printf(out, pool, "from %s\n", NULL_SHA1));
@@ -125,80 +120,21 @@ backend_remove_branch(const backend_t *be,
 }
 
 svn_error_t *
-backend_notify_revision_skipped(const backend_t *be,
+backend_notify_revision_skipped(svn_stream_t *out,
                                 svn_revnum_t revnum,
                                 apr_pool_t *pool)
 {
-    SVN_ERR(svn_stream_printf(be->out, pool, "progress Skipped revision %ld\n", revnum));
+    SVN_ERR(svn_stream_printf(out, pool, "progress Skipped revision %ld\n", revnum));
 
     return SVN_NO_ERROR;
 }
 
 svn_error_t *
-backend_notify_revision_imported(const backend_t *be,
+backend_notify_revision_imported(svn_stream_t *out,
                                  svn_revnum_t revnum,
                                  apr_pool_t *pool)
 {
-    SVN_ERR(svn_stream_printf(be->out, pool, "progress Imported revision %ld\n", revnum));
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-parse_mode_checksum(node_mode_t *mode,
-                    svn_checksum_t **checksum,
-                    const svn_stringbuf_t *src,
-                    apr_pool_t *pool)
-{
-    const char *next, *prev;
-
-    // Check if path is missing
-    if (*src->data == 'm') {
-        svn_cmdline_fprintf(stderr, pool, "svn-fast-export: WARN: %s\n", src->data);
-        return SVN_NO_ERROR;
-    }
-
-    // Parse mode
-    prev = src->data;
-    next = strchr(prev, ' ');
-
-    *mode = node_mode_parse(prev, next - prev);
-
-    // Skip whitespace
-    next++;
-
-    // Skip path type
-    prev = next;
-    next = strchr(prev, ' ');
-
-    // Skip whitespace
-    next++;
-
-    // Parse checksum
-    prev = next;
-
-    SVN_ERR(svn_checksum_parse_hex(checksum, svn_checksum_sha1, prev, pool));
-
-    return SVN_NO_ERROR;
-}
-
-svn_error_t *
-backend_get_mode_checksum(node_mode_t *mode,
-                          svn_checksum_t **checksum,
-                          const backend_t *be,
-                          const commit_t *commit,
-                          const char *path,
-                          apr_pool_t *result_pool,
-                          apr_pool_t *scratch_pool)
-{
-    svn_boolean_t eof;
-    svn_stringbuf_t *buf;
-
-    SVN_ERR(svn_stream_printf(be->out, scratch_pool, "ls :%d \"%s\"\n",
-                              commit_mark_get(commit),
-                              path));
-    SVN_ERR(svn_stream_readline(be->back, &buf, "\n", &eof, scratch_pool));
-    SVN_ERR(parse_mode_checksum(mode, checksum, buf, result_pool));
+    SVN_ERR(svn_stream_printf(out, pool, "progress Imported revision %ld\n", revnum));
 
     return SVN_NO_ERROR;
 }

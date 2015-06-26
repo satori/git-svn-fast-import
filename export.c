@@ -33,8 +33,6 @@
 #include <svn_sorts.h>
 #include <svn_time.h>
 
-#define BACK_FILENO 3
-
 typedef struct
 {
     apr_pool_t *pool;
@@ -50,7 +48,7 @@ typedef struct
 typedef struct
 {
     apr_pool_t *pool;
-    backend_t backend;
+    svn_stream_t *dst;
     // Author storage.
     author_storage_t *authors;
     // Branch storage.
@@ -61,7 +59,6 @@ typedef struct
     tree_t *ignores;
     mark_t last_mark;
     revision_ctx_t *rev_ctx;
-    node_t *node;
 } parser_ctx_t;
 
 static svn_error_t *
@@ -162,8 +159,6 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
     node->action = action;
     node->path = apr_pstrdup(ctx->rev_ctx->pool, node_path);
 
-    ctx->node = node;
-
     if (action == svn_fs_path_change_delete) {
         return SVN_NO_ERROR;
     }
@@ -171,39 +166,29 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
     SVN_ERR(set_node_mode(&node->mode, ctx->rev_ctx->root, path, pool));
 
     if (kind == svn_node_file) {
-        svn_checksum_t *checksum;
-        svn_stream_t *output;
-        SVN_ERR(svn_stream_for_stdout(&output, pool));
-        SVN_ERR(set_content_checksum(&checksum, output, ctx->blobs,
+        SVN_ERR(set_content_checksum(&node->checksum, ctx->dst, ctx->blobs,
                                      ctx->rev_ctx->root, path, pool));
-        node->checksum = checksum;
     } else if (kind == svn_node_dir && copyfrom_branch != NULL) {
+        apr_array_header_t *dummy;
         const commit_t *copyfrom_commit;
+        svn_fs_t *fs = svn_fs_root_fs(ctx->rev_ctx->root);
+        svn_fs_root_t *copyfrom_root;
+
+        SVN_ERR(svn_fs_revision_root(&copyfrom_root, fs, change->copyfrom_rev, pool));
+        SVN_ERR(set_tree_checksum(&node->checksum, &dummy, ctx->dst, ctx->blobs,
+                                  copyfrom_root, copyfrom_path,
+                                  branch_path_get(copyfrom_branch),
+                                  ctx->ignores, pool));
 
         copyfrom_commit = get_copyfrom_commit(change, ctx, copyfrom_branch);
 
         if (copyfrom_commit != NULL) {
             const char *copyfrom_subpath;
-            node_mode_t mode;
-            svn_checksum_t *checksum = NULL;
 
             copyfrom_subpath = branch_skip_prefix(copyfrom_branch, copyfrom_path);
 
             if (*copyfrom_subpath == '\0') {
                 commit_copyfrom_set(commit, copyfrom_commit);
-            }
-
-            SVN_ERR(backend_get_mode_checksum(&mode,
-                                              &checksum,
-                                              &ctx->backend,
-                                              copyfrom_commit,
-                                              copyfrom_subpath,
-                                              ctx->rev_ctx->pool,
-                                              ctx->rev_ctx->pool));
-
-            if (checksum != NULL) {
-                node->mode = mode;
-                node->checksum = checksum;
             }
         }
     }
@@ -248,10 +233,10 @@ write_commit(void *p_ctx, branch_t *branch, commit_t *commit, apr_pool_t *pool)
         commit_parent_set(commit, commit_copyfrom_get(commit));
         commit_dummy_set(commit);
 
-        SVN_ERR(backend_reset_branch(&ctx->backend, branch, commit, pool));
+        SVN_ERR(backend_reset_branch(ctx->dst, branch, commit, pool));
     } else {
         commit_mark_set(commit, ctx->last_mark++);
-        SVN_ERR(backend_write_commit(&ctx->backend, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp, pool));
+        SVN_ERR(backend_write_commit(ctx->dst, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp, pool));
     }
 
     branch_head_set(branch, commit);
@@ -264,7 +249,7 @@ remove_branch(void *p_ctx, branch_t *branch, apr_pool_t *pool)
 {
     parser_ctx_t *ctx = p_ctx;
 
-    SVN_ERR(backend_remove_branch(&ctx->backend, branch, pool));
+    SVN_ERR(backend_remove_branch(ctx->dst, branch, pool));
 
     return SVN_NO_ERROR;
 }
@@ -277,7 +262,7 @@ close_revision(void *r_ctx)
     revision_t *rev = rev_ctx->rev;
 
     if (revision_commits_count(rev) == 0 && revision_removes_count(rev) == 0) {
-        SVN_ERR(backend_notify_revision_skipped(&ctx->backend,
+        SVN_ERR(backend_notify_revision_skipped(ctx->dst,
                                                 revision_revnum_get(rev),
                                                 rev_ctx->pool));
 
@@ -291,7 +276,7 @@ close_revision(void *r_ctx)
     revision_commits_apply(rev, &write_commit, ctx, rev_ctx->pool);
     revision_removes_apply(rev, &remove_branch, ctx, rev_ctx->pool);
 
-    SVN_ERR(backend_notify_revision_imported(&ctx->backend, revision_revnum_get(rev), rev_ctx->pool));
+    SVN_ERR(backend_notify_revision_imported(ctx->dst, revision_revnum_get(rev), rev_ctx->pool));
 
     ctx->rev_ctx = NULL;
 
@@ -310,28 +295,17 @@ export_revision_range(svn_stream_t *dst,
                       apr_pool_t *pool)
 {
     apr_pool_t *subpool;
-    apr_status_t apr_err;
-    int back_fd = BACK_FILENO;
-    apr_file_t *back_file;
     svn_revnum_t rev;
 
     parser_ctx_t ctx = {};
     ctx.pool = pool;
+    ctx.dst = dst;
     ctx.authors = authors;
     ctx.branches = branches;
     ctx.revisions = revisions;
     ctx.blobs = checksum_cache_create(pool);
     ctx.ignores = ignores;
     ctx.last_mark = 1;
-
-    ctx.backend.out = dst;
-
-    // Read backend answers
-    apr_err = apr_os_file_put(&back_file, &back_fd, APR_FOPEN_READ, pool);
-    if (apr_err) {
-        return svn_error_wrap_apr(apr_err, NULL);
-    }
-    ctx.backend.back = svn_stream_from_aprfile2(back_file, false, pool);
 
     subpool = svn_pool_create(pool);
 

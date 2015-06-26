@@ -74,21 +74,20 @@ done
 TMP_PREFIX=/tmp/git-svn-fast-import
 TMP_SUFFIX=$$
 CHAN=$TMP_PREFIX.chan.$TMP_SUFFIX
-BACKCHAN=$TMP_PREFIX.back.$TMP_SUFFIX
 
 # Cleanup on EXIT
 on_exit() {
-	rm -f $CHAN $BACKCHAN
+	rm -f $CHAN
 }
 
 trap 'on_exit' EXIT
 
-mkfifo $CHAN $BACKCHAN
+mkfifo $CHAN
 
-git fast-import $GIT_FAST_IMPORT_ARGS --cat-blob-fd=3 --done <$CHAN 3>$BACKCHAN &
+git fast-import $GIT_FAST_IMPORT_ARGS --done <$CHAN &
 FAST_IMPORT_PID=$!
 
-svn-fast-export $SVN_FAST_EXPORT_ARGS >$CHAN 3<$BACKCHAN
+svn-fast-export $SVN_FAST_EXPORT_ARGS >$CHAN
 RET_CODE=$?
 
 wait $FAST_IMPORT_PID

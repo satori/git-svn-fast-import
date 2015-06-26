@@ -103,16 +103,11 @@ dump_marks(revision_storage_t *revisions,
            apr_pool_t *pool)
 {
     apr_file_t *fd;
-    apr_status_t apr_err;
     svn_stream_t *output;
 
-    apr_err = apr_file_open(&fd, path,
-                            APR_CREATE | APR_TRUNCATE | APR_BUFFERED | APR_WRITE,
-                            APR_OS_DEFAULT, pool);
-
-    if (apr_err) {
-        return svn_error_wrap_apr(apr_err, NULL);
-    }
+    SVN_ERR(svn_io_file_open(&fd, path,
+                             APR_CREATE | APR_TRUNCATE | APR_BUFFERED | APR_WRITE,
+                             APR_OS_DEFAULT, pool));
 
     output = svn_stream_from_aprfile2(fd, FALSE, pool);
     SVN_ERR(revision_storage_dump(revisions, output, pool));
@@ -129,7 +124,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     const char *repo_path = NULL;
     svn_opt_revision_t start_revision, end_revision;
     svn_fs_t *fs;
-	svn_stream_t *output;
+    svn_stream_t *output;
     svn_revnum_t lower = SVN_INVALID_REVNUM, upper = SVN_INVALID_REVNUM;
     svn_revnum_t youngest;
     svn_repos_t *repo;
@@ -263,7 +258,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 
     branch_storage_add_branch(branches, "refs/heads/master", trunk_path);
 
-	SVN_ERR(svn_stream_for_stdout(&output, pool));
+    SVN_ERR(svn_stream_for_stdout(&output, pool));
 
     SVN_ERR(export_revision_range(output, fs, lower, upper, branches, revisions, authors, ignores, pool));
 

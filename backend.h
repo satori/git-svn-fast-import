@@ -73,7 +73,4 @@ backend_get_mode_checksum(node_mode_t *mode,
                           apr_pool_t *result_pool,
                           apr_pool_t *scratch_pool);
 
-svn_error_t *
-backend_finished(const backend_t *be, apr_pool_t *pool);
-
 #endif // SVN_FAST_EXPORT_BACKEND_H_

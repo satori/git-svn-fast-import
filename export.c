@@ -373,7 +373,7 @@ export_revision_range(svn_stream_t *dst,
         SVN_ERR(close_revision(r_ctx));
     }
 
-    SVN_ERR(backend_finished(&ctx.backend, pool));
+    SVN_ERR(svn_stream_printf(dst, pool, "done\n"));
 
     return SVN_NO_ERROR;
 }

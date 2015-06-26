@@ -202,11 +202,3 @@ backend_get_mode_checksum(node_mode_t *mode,
 
     return SVN_NO_ERROR;
 }
-
-svn_error_t *
-backend_finished(const backend_t *be, apr_pool_t *pool)
-{
-    SVN_ERR(svn_stream_printf(be->out, pool, "done\n"));
-
-    return SVN_NO_ERROR;
-}

@@ -21,7 +21,6 @@
  */
 
 #include "node.h"
-#include <apr_ring.h>
 
 node_mode_t
 node_mode_parse(const char *src, size_t len)
@@ -37,131 +36,6 @@ node_mode_parse(const char *src, size_t len)
     }
 
     return MODE_NORMAL;
-}
-
-// node_t implementation
-struct node_t
-{
-    svn_fs_path_change_kind_t action;
-    svn_node_kind_t kind;
-    node_mode_t mode;
-    const char *path;
-    const svn_checksum_t *checksum;
-    // Support for the ring container.
-    APR_RING_ENTRY(node_t) link;
-};
-
-svn_fs_path_change_kind_t
-node_action_get(const node_t *n)
-{
-    return n->action;
-}
-
-void
-node_action_set(node_t *n, svn_fs_path_change_kind_t action)
-{
-    n->action = action;
-}
-
-node_mode_t
-node_mode_get(const node_t *n)
-{
-    return n->mode;
-}
-
-void
-node_mode_set(node_t *n, node_mode_t mode)
-{
-    n->mode = mode;
-}
-
-svn_node_kind_t
-node_kind_get(const node_t *n)
-{
-    return n->kind;
-}
-
-void
-node_kind_set(node_t *n, svn_node_kind_t kind)
-{
-    n->kind = kind;
-}
-
-const char *
-node_path_get(const node_t *n)
-{
-    return n->path;
-}
-
-void
-node_path_set(node_t *n, const char *path)
-{
-    n->path = path;
-}
-
-const svn_checksum_t *
-node_content_checksum_get(const node_t *n)
-{
-    return n->checksum;
-}
-
-void
-node_content_checksum_set(node_t *n, const svn_checksum_t *checksum)
-{
-    n->checksum = checksum;
-}
-
-struct node_list_t {
-    size_t size;
-    node_t *next;
-    node_t *prev;
-};
-
-size_t
-node_list_count(const node_list_t *nl)
-{
-    return nl->size;
-}
-
-struct node_iter_t
-{
-    const node_list_t *lst;
-    const node_t *node;
-};
-
-node_iter_t *
-node_iter_first(const node_list_t *lst, apr_pool_t *pool)
-{
-    node_iter_t *it;
-    const node_t *node = APR_RING_FIRST(lst);
-    if (node == APR_RING_SENTINEL(lst, node_t, link)) {
-        return NULL;
-    }
-
-    it = apr_pcalloc(pool, sizeof(node_iter_t));
-    it->lst = lst;
-    it->node = node;
-
-    return it;
-}
-
-node_iter_t *
-node_iter_next(node_iter_t *it)
-{
-    const node_t *node = APR_RING_NEXT(it->node, link);
-    if (node == APR_RING_SENTINEL(it->lst, node_t, link)) {
-        return NULL;
-    }
-
-    it->node = node;
-
-    return it;
-}
-
-const node_t *
-node_iter_get(const node_iter_t *it)
-{
-    return it->node;
 }
 
 struct node_storage_t
@@ -184,24 +58,21 @@ node_t *
 node_storage_add(node_storage_t *ns,
                  const branch_t *branch)
 {
+    apr_array_header_t *nodes;
     node_t *node;
 
-    node_list_t *nodes = apr_hash_get(ns->nodes, branch, sizeof(branch_t *));
+    nodes = apr_hash_get(ns->nodes, branch, sizeof(branch_t *));
     if (nodes == NULL) {
-        nodes = apr_pcalloc(ns->pool, sizeof(node_list_t));
-        APR_RING_INIT(nodes, node_t, link);
+        nodes = apr_array_make(ns->pool, 0, sizeof(node_t));
         apr_hash_set(ns->nodes, branch, sizeof(branch_t *), nodes);
     }
 
-    nodes->size++;
-
-    node = apr_pcalloc(ns->pool, sizeof(node_t));
-    APR_RING_INSERT_TAIL(nodes, node, node_t, link);
+    node = apr_array_push(nodes);
 
     return node;
 }
 
-const node_list_t *
+apr_array_header_t *
 node_storage_list(const node_storage_t *ns,
                   const branch_t *branch)
 {

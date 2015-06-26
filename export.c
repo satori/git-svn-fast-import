@@ -169,10 +169,10 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
     }
 
     node = node_storage_add(ctx->rev_ctx->nodes, branch);
-    node_mode_set(node, get_node_default_mode(kind));
-    node_kind_set(node, kind);
-    node_action_set(node, action);
-    node_path_set(node, apr_pstrdup(ctx->rev_ctx->pool, node_path));
+    node->mode = get_node_default_mode(kind);
+    node->kind = kind;
+    node->action = action;
+    node->path = apr_pstrdup(ctx->rev_ctx->pool, node_path);
 
     ctx->node = node;
 
@@ -186,7 +186,7 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
         SVN_ERR(svn_stream_for_stdout(&output, pool));
         SVN_ERR(set_content_checksum(&checksum, output, ctx->blobs,
                                      ctx->rev_ctx->root, path, pool));
-        node_content_checksum_set(node, checksum);
+        node->checksum = checksum;
     } else if (kind == svn_node_dir && copyfrom_branch != NULL) {
         const commit_t *copyfrom_commit;
 
@@ -212,8 +212,8 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
                                               ctx->rev_ctx->pool));
 
             if (checksum != NULL) {
-                node_mode_set(node, mode);
-                node_content_checksum_set(node, checksum);
+                node->mode = mode;
+                node->checksum = checksum;
             }
         }
     }
@@ -253,10 +253,10 @@ set_node_property(void *n_ctx, const char *name, const svn_string_t *value)
     }
 
     if (strcmp(name, SVN_PROP_EXECUTABLE) == 0) {
-        node_mode_set(node, MODE_EXECUTABLE);
+        node->mode = MODE_EXECUTABLE;
     }
     else if (strcmp(name, SVN_PROP_SPECIAL) == 0) {
-        node_mode_set(node, MODE_SYMLINK);
+        node->mode = MODE_SYMLINK;
     }
 
     return SVN_NO_ERROR;
@@ -274,12 +274,13 @@ close_node(void *n_ctx)
 static svn_error_t *
 write_commit(void *p_ctx, branch_t *branch, commit_t *commit, apr_pool_t *pool)
 {
+    apr_array_header_t *nodes;
     parser_ctx_t *ctx = p_ctx;
     revision_ctx_t *rev_ctx = ctx->rev_ctx;
 
-    const node_list_t *nodes = node_storage_list(rev_ctx->nodes, branch);
+    nodes = node_storage_list(rev_ctx->nodes, branch);
 
-    if (node_list_count(nodes) == 1 && commit_copyfrom_get(commit) != NULL) {
+    if (nodes->nelts == 1 && commit_copyfrom_get(commit) != NULL) {
         // In case there is only one node in a commit and this node is
         // a root directory copied from another branch, mark this commit
         // as dummy, set copyfrom commit as its parent and reset branch to it.

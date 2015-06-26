@@ -233,15 +233,6 @@ set_revision_property(void *r_ctx, const char *name, const svn_string_t *value)
 }
 
 static svn_error_t *
-close_node(void *n_ctx)
-{
-    parser_ctx_t *ctx = n_ctx;
-    ctx->node = NULL;
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
 write_commit(void *p_ctx, branch_t *branch, commit_t *commit, apr_pool_t *pool)
 {
     apr_array_header_t *nodes;
@@ -377,7 +368,6 @@ export_revision_range(svn_stream_t *dst,
             void *n_ctx;
 
             SVN_ERR(new_node_record(&n_ctx, path, change, r_ctx, subpool));
-            SVN_ERR(close_node(n_ctx));
         }
 
         SVN_ERR(close_revision(r_ctx));

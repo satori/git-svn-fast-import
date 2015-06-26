@@ -174,16 +174,20 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
     node_action_set(node, action);
     node_path_set(node, apr_pstrdup(ctx->rev_ctx->pool, node_path));
 
-    if (kind == svn_node_file && action != svn_fs_path_change_delete) {
+    ctx->node = node;
+
+    if (action == svn_fs_path_change_delete) {
+        return SVN_NO_ERROR;
+    }
+
+    if (kind == svn_node_file) {
         svn_checksum_t *checksum;
         svn_stream_t *output;
         SVN_ERR(svn_stream_for_stdout(&output, pool));
         SVN_ERR(set_content_checksum(&checksum, output, ctx->blobs,
                                      ctx->rev_ctx->root, path, pool));
         node_content_checksum_set(node, checksum);
-    }
-
-    if (node_content_kind_get(node) == CONTENT_UNKNOWN && copyfrom_branch != NULL) {
+    } else if (kind == svn_node_dir && copyfrom_branch != NULL) {
         const commit_t *copyfrom_commit;
 
         copyfrom_commit = get_copyfrom_commit(change, ctx, copyfrom_branch);
@@ -213,8 +217,6 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
             }
         }
     }
-
-    ctx->node = node;
 
     return SVN_NO_ERROR;
 }

@@ -46,10 +46,7 @@ struct node_t
     svn_node_kind_t kind;
     node_mode_t mode;
     const char *path;
-    struct {
-        node_content_kind_t kind;
-        const svn_checksum_t *checksum;
-    } content;
+    const svn_checksum_t *checksum;
     // Support for the ring container.
     APR_RING_ENTRY(node_t) link;
 };
@@ -102,23 +99,16 @@ node_path_set(node_t *n, const char *path)
     n->path = path;
 }
 
-node_content_kind_t
-node_content_kind_get(const node_t *n)
-{
-    return n->content.kind;
-}
-
 const svn_checksum_t *
 node_content_checksum_get(const node_t *n)
 {
-    return n->content.checksum;
+    return n->checksum;
 }
 
 void
 node_content_checksum_set(node_t *n, const svn_checksum_t *checksum)
 {
-    n->content.checksum = checksum;
-    n->content.kind = CONTENT_CHECKSUM;
+    n->checksum = checksum;
 }
 
 struct node_list_t {

@@ -38,12 +38,6 @@ typedef enum
 node_mode_t
 node_mode_parse(const char *src, size_t len);
 
-typedef enum
-{
-    CONTENT_UNKNOWN,
-    CONTENT_CHECKSUM,
-} node_content_kind_t;
-
 // Abstract type for node.
 typedef struct node_t node_t;
 
@@ -80,10 +74,6 @@ node_path_get(const node_t *n);
 // Sets node path.
 void
 node_path_set(node_t *n, const char *path);
-
-// Returns content kind.
-node_content_kind_t
-node_content_kind_get(const node_t *n);
 
 // Returns content checksum.
 const svn_checksum_t *

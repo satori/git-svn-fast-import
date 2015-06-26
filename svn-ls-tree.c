@@ -90,7 +90,6 @@ static svn_error_t *
 traverse_tree(apr_array_header_t **entries,
               svn_fs_root_t *root,
               const char *path,
-              svn_boolean_t recurse,
               apr_hash_t *ignores,
               checksum_cache_t *cache,
               apr_pool_t *pool)
@@ -124,7 +123,6 @@ traverse_tree(apr_array_header_t **entries,
             SVN_ERR(traverse_tree(&subentries,
                                   root,
                                   svn_relpath_join(path, e->name, pool),
-                                  recurse,
                                   ignores,
                                   cache,
                                   pool));
@@ -213,7 +211,7 @@ print_tree(svn_fs_root_t *root,
     checksum_cache_t *cache = checksum_cache_create(pool);
     const char *abspath = svn_relpath_join(root_path, path, pool);
 
-    SVN_ERR(traverse_tree(&entries, root, abspath, recurse, ignores, cache, pool));
+    SVN_ERR(traverse_tree(&entries, root, abspath, ignores, cache, pool));
     SVN_ERR(print_entries(entries, root_path, trees_only, recurse, show_trees, pool));
 
     return SVN_NO_ERROR;

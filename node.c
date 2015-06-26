@@ -21,6 +21,8 @@
  */
 
 #include "node.h"
+#include <svn_hash.h>
+#include <svn_props.h>
 
 node_mode_t
 node_mode_parse(const char *src, size_t len)
@@ -36,6 +38,35 @@ node_mode_parse(const char *src, size_t len)
     }
 
     return MODE_NORMAL;
+}
+
+svn_error_t *
+set_node_mode(node_mode_t *mode,
+              svn_fs_root_t *root,
+              const char *path,
+              apr_pool_t *pool)
+{
+    apr_hash_t *props;
+    svn_node_kind_t kind;
+
+    SVN_ERR(svn_fs_check_path(&kind, root, path, pool));
+
+    if (kind == svn_node_dir) {
+        *mode = MODE_DIR;
+        return SVN_NO_ERROR;
+    }
+
+    SVN_ERR(svn_fs_node_proplist(&props, root, path, pool));
+
+    if (svn_hash_gets(props, SVN_PROP_EXECUTABLE)) {
+        *mode = MODE_EXECUTABLE;
+    } else if (svn_hash_gets(props, SVN_PROP_SPECIAL)) {
+        *mode = MODE_SYMLINK;
+    } else {
+        *mode = MODE_NORMAL;
+    }
+
+    return SVN_NO_ERROR;
 }
 
 struct node_storage_t

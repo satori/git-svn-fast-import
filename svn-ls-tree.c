@@ -30,7 +30,6 @@
 #include <svn_hash.h>
 #include <svn_path.h>
 #include <svn_pools.h>
-#include <svn_props.h>
 #include <svn_repos.h>
 #include <svn_utf.h>
 
@@ -119,7 +118,6 @@ traverse_tree(apr_array_header_t **entries,
             continue;
         }
 
-
         if (e->kind == svn_node_dir) {
             apr_array_header_t *subentries;
 
@@ -137,7 +135,6 @@ traverse_tree(apr_array_header_t **entries,
             }
 
             entry = apr_array_push(result);
-            entry->mode = MODE_DIR;
             entry->kind = svn_node_dir;
             entry->size = 0;
 
@@ -145,27 +142,16 @@ traverse_tree(apr_array_header_t **entries,
 
             entry->subentries = subentries;
         } else {
-            apr_hash_t *props;
             svn_stream_t *output = svn_stream_empty(pool);
 
             entry = apr_array_push(result);
-            entry->mode = MODE_NORMAL;
             entry->kind = svn_node_file;
 
-            SVN_ERR(svn_fs_node_proplist(&props, root, fname, pool));
-            if (svn_hash_gets(props, SVN_PROP_EXECUTABLE) != NULL) {
-                entry->mode = MODE_EXECUTABLE;
-            }
-
-            if (svn_hash_gets(props, SVN_PROP_SPECIAL)) {
-                entry->mode = MODE_SYMLINK;
-            }
-
             SVN_ERR(set_content_checksum(&checksum, output, cache, root, fname, pool));
-
             SVN_ERR(svn_fs_file_length(&entry->size, root, fname, pool));
         }
 
+        SVN_ERR(set_node_mode(&entry->mode, root, fname, pool));
         entry->path = fname;
         entry->checksum = checksum;
     }

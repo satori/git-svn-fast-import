@@ -38,6 +38,12 @@ typedef enum
 node_mode_t
 node_mode_parse(const char *src, size_t len);
 
+svn_error_t *
+set_node_mode(node_mode_t *mode,
+              svn_fs_root_t *root,
+              const char *path,
+              apr_pool_t *pool);
+
 typedef struct
 {
     svn_fs_path_change_kind_t action;

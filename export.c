@@ -87,17 +87,6 @@ new_revision_record(void **r_ctx,
     return SVN_NO_ERROR;
 }
 
-static uint32_t
-get_node_default_mode(svn_node_kind_t kind)
-{
-    switch(kind) {
-    case svn_node_dir:
-        return MODE_DIR;
-    default:
-        return MODE_NORMAL;
-    }
-}
-
 static const commit_t *
 get_copyfrom_commit(svn_fs_path_change2_t *change, parser_ctx_t *ctx, branch_t *copyfrom_branch)
 {
@@ -169,7 +158,6 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
     }
 
     node = node_storage_add(ctx->rev_ctx->nodes, branch);
-    node->mode = get_node_default_mode(kind);
     node->kind = kind;
     node->action = action;
     node->path = apr_pstrdup(ctx->rev_ctx->pool, node_path);
@@ -179,6 +167,8 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
     if (action == svn_fs_path_change_delete) {
         return SVN_NO_ERROR;
     }
+
+    SVN_ERR(set_node_mode(&node->mode, ctx->rev_ctx->root, path, pool));
 
     if (kind == svn_node_file) {
         svn_checksum_t *checksum;
@@ -237,26 +227,6 @@ set_revision_property(void *r_ctx, const char *name, const svn_string_t *value)
     }
     else if (strcmp(name, SVN_PROP_REVISION_LOG) == 0) {
         ctx->rev_ctx->message = apr_pstrdup(pool, value->data);
-    }
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-set_node_property(void *n_ctx, const char *name, const svn_string_t *value)
-{
-    parser_ctx_t *ctx = n_ctx;
-    node_t *node = ctx->node;
-
-    if (node == NULL) {
-        return SVN_NO_ERROR;
-    }
-
-    if (strcmp(name, SVN_PROP_EXECUTABLE) == 0) {
-        node->mode = MODE_EXECUTABLE;
-    }
-    else if (strcmp(name, SVN_PROP_SPECIAL) == 0) {
-        node->mode = MODE_SYMLINK;
     }
 
     return SVN_NO_ERROR;
@@ -407,20 +377,6 @@ export_revision_range(svn_stream_t *dst,
             void *n_ctx;
 
             SVN_ERR(new_node_record(&n_ctx, path, change, r_ctx, subpool));
-
-            if (change->change_kind != svn_fs_path_change_delete) {
-                apr_hash_t *props;
-                apr_hash_index_t *idx2;
-
-                SVN_ERR(svn_fs_node_proplist(&props, root, path, subpool));
-
-                for (idx2 = apr_hash_first(subpool, props); idx2; idx2 = apr_hash_next(idx2)) {
-                    const char *name = apr_hash_this_key(idx2);
-                    const svn_string_t *value = apr_hash_this_val(idx2);
-                    SVN_ERR(set_node_property(n_ctx, name, value));
-                }
-            }
-
             SVN_ERR(close_node(n_ctx));
         }
 

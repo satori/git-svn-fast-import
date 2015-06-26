@@ -55,6 +55,7 @@ FE_OBJECTS := svn-fast-export.o \
 
 LS_OBJECTS := svn-ls-tree.o \
 	checksum.o \
+	node.o \
 	options.o \
 	sorts.o
 

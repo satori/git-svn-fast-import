@@ -128,11 +128,22 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
     }
 
     if (kind == svn_node_dir) {
-        if (action != svn_fs_path_change_delete && copyfrom_branch == NULL) {
-            return SVN_NO_ERROR;
-        } else if (action == svn_fs_path_change_delete && branch_path_is_root(branch, path)) {
-            revision_removes_add(rev, branch);
-            return SVN_NO_ERROR;
+        switch (action) {
+        case svn_fs_path_change_add:
+        case svn_fs_path_change_modify:
+            if (copyfrom_branch == NULL) {
+                return SVN_NO_ERROR;
+            }
+            break;
+        case svn_fs_path_change_delete:
+            if (branch_path_is_root(branch, path)) {
+                revision_removes_add(rev, branch);
+                return SVN_NO_ERROR;
+            }
+            break;
+        default:
+            // do nothing
+            break;
         }
     }
 
@@ -165,6 +176,8 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
     if (kind == svn_node_file) {
         SVN_ERR(set_content_checksum(&node->checksum, ctx->dst, ctx->blobs,
                                      ctx->rev_ctx->root, path, pool));
+    } else if (kind == svn_node_dir && action == svn_fs_path_change_replace && copyfrom_path == NULL) {
+        node->action = svn_fs_path_change_delete;
     } else if (kind == svn_node_dir && copyfrom_branch != NULL) {
         apr_array_header_t *dummy;
         const commit_t *copyfrom_commit;

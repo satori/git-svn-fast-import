@@ -240,6 +240,11 @@ set_tree_checksum(svn_checksum_t **checksum,
                                          node->path, pool));
         }
 
+        // Avoid empty directories in checksum calculation.
+        if (node->kind == svn_node_dir && node->entries->nelts == 0) {
+            continue;
+        }
+
         record = apr_psprintf(pool, "%o %s", node->mode, entry->name);
         svn_stringbuf_appendbytes(buf, record, strlen(record) + 1);
         svn_stringbuf_appendbytes(buf, (const char *)node->checksum->digest,

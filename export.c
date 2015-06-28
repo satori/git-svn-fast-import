@@ -35,7 +35,6 @@
 
 typedef struct
 {
-    apr_pool_t *pool;
     const char *message;
     const author_t *author;
     int64_t timestamp;
@@ -47,7 +46,6 @@ typedef struct
 
 typedef struct
 {
-    apr_pool_t *pool;
     svn_stream_t *dst;
     // Author storage.
     author_storage_t *authors;
@@ -76,7 +74,6 @@ new_revision_record(void **r_ctx,
 
     ctx->rev_ctx->rev = rev;
     ctx->rev_ctx->nodes = node_storage_create(pool);
-    ctx->rev_ctx->pool = pool;
     ctx->rev_ctx->root = root;
 
     *r_ctx = ctx;
@@ -157,7 +154,7 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
     node = node_storage_add(ctx->rev_ctx->nodes, branch);
     node->kind = kind;
     node->action = action;
-    node->path = apr_pstrdup(ctx->rev_ctx->pool, node_path);
+    node->path = node_path;
 
     if (action == svn_fs_path_change_delete) {
         return SVN_NO_ERROR;
@@ -197,10 +194,9 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
 }
 
 static svn_error_t *
-set_revision_property(void *r_ctx, const char *name, const svn_string_t *value)
+set_revision_property(void *r_ctx, const char *name, const svn_string_t *value, apr_pool_t *pool)
 {
     parser_ctx_t *ctx = r_ctx;
-    apr_pool_t *pool = ctx->rev_ctx->pool;
 
     if (strcmp(name, SVN_PROP_REVISION_AUTHOR) == 0) {
         ctx->rev_ctx->author = author_storage_lookup(ctx->authors, value->data);
@@ -211,7 +207,7 @@ set_revision_property(void *r_ctx, const char *name, const svn_string_t *value)
         ctx->rev_ctx->timestamp = apr_time_sec(timestamp);
     }
     else if (strcmp(name, SVN_PROP_REVISION_LOG) == 0) {
-        ctx->rev_ctx->message = apr_pstrdup(pool, value->data);
+        ctx->rev_ctx->message = value->data;
     }
 
     return SVN_NO_ERROR;
@@ -255,7 +251,7 @@ remove_branch(void *p_ctx, branch_t *branch, apr_pool_t *pool)
 }
 
 static svn_error_t *
-close_revision(void *r_ctx)
+close_revision(void *r_ctx, apr_pool_t *pool)
 {
     parser_ctx_t *ctx = r_ctx;
     revision_ctx_t *rev_ctx = ctx->rev_ctx;
@@ -264,7 +260,7 @@ close_revision(void *r_ctx)
     if (revision_commits_count(rev) == 0 && revision_removes_count(rev) == 0) {
         SVN_ERR(backend_notify_revision_skipped(ctx->dst,
                                                 revision_revnum_get(rev),
-                                                rev_ctx->pool));
+                                                pool));
 
         return SVN_NO_ERROR;
     }
@@ -273,10 +269,10 @@ close_revision(void *r_ctx)
         rev_ctx->author = author_storage_default_author(ctx->authors);
     }
 
-    revision_commits_apply(rev, &write_commit, ctx, rev_ctx->pool);
-    revision_removes_apply(rev, &remove_branch, ctx, rev_ctx->pool);
+    revision_commits_apply(rev, &write_commit, ctx, pool);
+    revision_removes_apply(rev, &remove_branch, ctx, pool);
 
-    SVN_ERR(backend_notify_revision_imported(ctx->dst, revision_revnum_get(rev), rev_ctx->pool));
+    SVN_ERR(backend_notify_revision_imported(ctx->dst, revision_revnum_get(rev), pool));
 
     ctx->rev_ctx = NULL;
 
@@ -298,7 +294,6 @@ export_revision_range(svn_stream_t *dst,
     svn_revnum_t rev;
 
     parser_ctx_t ctx = {};
-    ctx.pool = pool;
     ctx.dst = dst;
     ctx.authors = authors;
     ctx.branches = branches;
@@ -326,7 +321,7 @@ export_revision_range(svn_stream_t *dst,
         for (idx = apr_hash_first(subpool, revprops); idx; idx = apr_hash_next(idx)) {
             const char *name = apr_hash_this_key(idx);
             const svn_string_t *value = apr_hash_this_val(idx);
-            SVN_ERR(set_revision_property(r_ctx, name, value));
+            SVN_ERR(set_revision_property(r_ctx, name, value, subpool));
         }
 
         // Fetch the paths changed under root.
@@ -344,7 +339,7 @@ export_revision_range(svn_stream_t *dst,
             SVN_ERR(new_node_record(&n_ctx, path, change, r_ctx, subpool));
         }
 
-        SVN_ERR(close_revision(r_ctx));
+        SVN_ERR(close_revision(r_ctx, subpool));
     }
 
     SVN_ERR(svn_stream_printf(dst, pool, "done\n"));

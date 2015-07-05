@@ -84,23 +84,29 @@ new_revision_record(void **r_ctx,
 static const commit_t *
 get_copyfrom_commit(svn_fs_path_change2_t *change, parser_ctx_t *ctx, branch_t *copyfrom_branch)
 {
-    const commit_t *commit = NULL;
-    const revision_t *rev;
+    svn_revnum_t revnum = change->copyfrom_rev;
 
     if (!change->copyfrom_known) {
         return NULL;
     }
 
-    rev = revision_storage_get_by_revnum(ctx->revisions, change->copyfrom_rev);
-    if (rev != NULL) {
-        commit = revision_commits_get(rev, copyfrom_branch);
+    while (revnum > 0) {
+        const revision_t *rev;
+        const commit_t *commit = NULL;
+        rev = revision_storage_get_by_revnum(ctx->revisions, revnum);
+
+        if (rev != NULL) {
+            commit = revision_commits_get(rev, copyfrom_branch);
+        }
+
+        if (commit != NULL) {
+            return commit;
+        }
+
+        --revnum;
     }
 
-    if (commit == NULL) {
-        commit = branch_head_get(copyfrom_branch);
-    }
-
-    return commit;
+    return NULL;
 }
 
 static svn_error_t *

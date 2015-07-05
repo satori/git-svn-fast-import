@@ -211,11 +211,13 @@ set_tree_checksum(svn_checksum_t **checksum,
                                     pool);
 
     for (int i = 0; i < sorted_entries->nelts; i++) {
+        apr_array_header_t *subentries = NULL;
         const char *node_path, *record, *subpath;
         node_t *node;
         svn_sort__item_t item = APR_ARRAY_IDX(sorted_entries, i,
                                               svn_sort__item_t);
         svn_fs_dirent_t *entry = item.value;
+        svn_checksum_t *node_checksum;
 
         node_path = svn_relpath_join(path, entry->name, pool);
         subpath = svn_dirent_skip_ancestor(root_path, node_path);
@@ -225,25 +227,25 @@ set_tree_checksum(svn_checksum_t **checksum,
             continue;
         }
 
+        if (entry->kind == svn_node_dir) {
+            SVN_ERR(set_tree_checksum(&node_checksum, &subentries, output,
+                                      cache, root, node_path, root_path,
+                                      ignores, pool));
+            // Skip empty directories.
+            if (subentries->nelts == 0) {
+                continue;
+            }
+        } else {
+            SVN_ERR(set_content_checksum(&node_checksum, output, cache, root,
+                                         node_path, pool));
+        }
+
         node = apr_array_push(nodes);
         node->kind = entry->kind;
         node->path = node_path;
-
+        node->checksum = node_checksum;
+        node->entries = subentries;
         SVN_ERR(set_node_mode(&node->mode, root, node->path, pool));
-
-        if (node->kind == svn_node_dir) {
-            SVN_ERR(set_tree_checksum(&node->checksum, &node->entries, output,
-                                      cache, root, node->path, root_path,
-                                      ignores,pool));
-        } else {
-            SVN_ERR(set_content_checksum(&node->checksum, output, cache, root,
-                                         node->path, pool));
-        }
-
-        // Avoid empty directories in checksum calculation.
-        if (node->kind == svn_node_dir && node->entries->nelts == 0) {
-            continue;
-        }
 
         record = apr_psprintf(pool, "%o %s", node->mode, entry->name);
         svn_stringbuf_appendbytes(buf, record, strlen(record) + 1);

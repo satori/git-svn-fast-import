@@ -33,9 +33,13 @@ class Repo(object):
 
 
 class SvnRepo(Repo):
-    def get_tree(self, rev, path, ignored):
+    def get_tree(self, rev, path, checksum_cache, ignored):
         cmd_options = ["svn-ls-tree", "-r", "-t",
                        "--root", path]
+
+        if checksum_cache:
+            cmd_options.append("--checksum-cache")
+            cmd_options.append(checksum_cache)
 
         for p in ignored:
             cmd_options.append("--ignore-path")
@@ -86,7 +90,7 @@ def parse_git_marks(path):
     return marks
 
 
-def compare_repositories(svn_path, git_path, svn_marks, git_marks, ignored):
+def compare_repositories(svn_path, git_path, svn_marks, git_marks, checksum_cache, ignored):
     svn = SvnRepo(svn_path)
     git = GitRepo(git_path)
 
@@ -101,7 +105,7 @@ def compare_repositories(svn_path, git_path, svn_marks, git_marks, ignored):
         for (ref, branch, mark) in commits:
             commit = git_marks[mark]
 
-            svn_tree = svn.get_tree(rev, branch, ignored)
+            svn_tree = svn.get_tree(rev, branch, checksum_cache, ignored)
             git_tree = git.get_tree(commit)
 
             errors = []
@@ -128,6 +132,7 @@ def main():
     parser.add_argument("--marks", dest="git_marks", type=str, required=True)
     parser.add_argument("--rev-marks", dest="svn_marks", type=str, required=True)
     parser.add_argument("--ignore-path", dest="ignored", type=str, action="append")
+    parser.add_argument("--checksum-cache", dest="checksum_cache", type=str)
 
     args = parser.parse_args()
 
@@ -139,6 +144,7 @@ def main():
                          args.git_path,
                          args.svn_marks,
                          args.git_marks,
+                         args.checksum_cache,
                          ignored)
 
 

@@ -284,6 +284,10 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
         SVN_ERR(load_authors(authors, authors_path, pool));
     }
 
+    if (checksum_cache_path != NULL) {
+        SVN_ERR(checksum_cache_load_path(cache, checksum_cache_path, pool));
+    }
+
     branch_storage_add_branch(branches, "refs/heads/master", trunk_path);
 
     SVN_ERR(svn_stream_for_stdout(&output, pool));

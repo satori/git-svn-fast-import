@@ -40,6 +40,7 @@ static struct apr_getopt_option_t cmdline_options[] = {
     {NULL, 't', 0, "Show tree entries even when going to recurse them. Has no effect if -r was not passed. -d implies -t."},
     {"root", 'R', 1, "Set path as root directory."},
     {"ignore-path", 'I', 1, "Ignore path relative to root."},
+    {"checksum-cache", 'c', 1, "Use checksum cache."},
     {0, 0, 0, 0}
 };
 
@@ -88,11 +89,11 @@ print_tree(svn_fs_root_t *root,
            svn_boolean_t trees_only,
            svn_boolean_t recurse,
            svn_boolean_t show_trees,
+           checksum_cache_t *cache,
            tree_t *ignores,
            apr_pool_t *pool)
 {
     apr_array_header_t *entries;
-    checksum_cache_t *cache = checksum_cache_create(pool);
     const char *abspath = svn_relpath_join(root_path, path, pool);
     svn_checksum_t *checksum;
     svn_stream_t *dummy = svn_stream_empty(pool);
@@ -108,9 +109,11 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 {
     apr_array_header_t *relative_ignores;
     tree_t *ignores;
+    checksum_cache_t *cache;
     apr_getopt_t *opt_parser;
     apr_status_t apr_err;
     const char *path = NULL, *repo_path = NULL, *root_path = "";
+    const char *checksum_cache_path = NULL;
     svn_boolean_t trees_only = FALSE, recurse = FALSE, show_trees = FALSE;
     svn_fs_t *fs;
     svn_fs_root_t *root;
@@ -119,6 +122,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 
     relative_ignores = apr_array_make(pool, 0, sizeof(const char *));
     ignores = tree_create(pool);
+    cache = checksum_cache_create(pool);
 
     // Initialize the FS library.
     SVN_ERR(svn_fs_initialize(pool));
@@ -156,6 +160,9 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
             break;
         case 'I':
             APR_ARRAY_PUSH(relative_ignores, const char *) = opt_arg;
+            break;
+        case 'c':
+            checksum_cache_path = opt_arg;
             break;
         case 'h':
             print_usage(cmdline_options, pool);
@@ -218,9 +225,13 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
         path = "";
     }
 
+    if (checksum_cache_path != NULL) {
+        SVN_ERR(checksum_cache_load_path(cache, checksum_cache_path, pool));
+    }
+
     SVN_ERR(print_tree(root, root_path, path, trees_only, recurse,
                        (!recurse || trees_only || show_trees),
-                       ignores, pool));
+                       cache, ignores, pool));
 
     return SVN_NO_ERROR;
 }

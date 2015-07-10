@@ -45,6 +45,11 @@ checksum_cache_load(checksum_cache_t *c,
                     apr_pool_t *pool);
 
 svn_error_t *
+checksum_cache_load_path(checksum_cache_t *c,
+                         const char *path,
+                         apr_pool_t *pool);
+
+svn_error_t *
 set_content_checksum(svn_checksum_t **checksum,
                      svn_stream_t *output,
                      checksum_cache_t *cache,

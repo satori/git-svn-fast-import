@@ -85,6 +85,71 @@ checksum_cache_dump(checksum_cache_t *c,
     return SVN_NO_ERROR;
 }
 
+svn_error_t *
+checksum_cache_load(checksum_cache_t *c,
+                    svn_stream_t *src,
+                    apr_pool_t *pool)
+{
+    svn_boolean_t eof;
+    int lineno = 0;
+
+    while (TRUE) {
+        const char *next;
+        svn_checksum_t *svn_checksum, *git_checksum;
+        svn_stringbuf_t *buf;
+
+        SVN_ERR(svn_stream_readline(src, &buf, "\n", &eof, pool));
+        if (eof) {
+            break;
+        }
+
+        lineno++;
+
+        // Parse Subversion checksum.
+        SVN_ERR(svn_checksum_parse_hex(&svn_checksum, svn_checksum_sha1,
+                                       buf->data, pool));
+
+        // Parse Git checksum.
+        next = strchr(buf->data, ' ');
+        if (next == NULL) {
+            return svn_error_createf(SVN_ERR_MALFORMED_FILE, NULL,
+                                     "line %d: %s", lineno, buf->data);
+        }
+        next++;
+
+        SVN_ERR(svn_checksum_parse_hex(&git_checksum, svn_checksum_sha1,
+                                       next, pool));
+
+        checksum_cache_set(c, svn_checksum, git_checksum);
+    }
+
+    return SVN_NO_ERROR;
+}
+
+svn_error_t *
+checksum_cache_load_path(checksum_cache_t *cache,
+                         const char *path,
+                         apr_pool_t *pool)
+{
+    svn_error_t *err;
+    svn_stream_t *src;
+    svn_node_kind_t kind;
+
+    SVN_ERR(svn_io_check_path(path, &kind, pool));
+    if (kind == svn_node_none) {
+        return SVN_NO_ERROR;
+    }
+
+    SVN_ERR(svn_stream_open_readonly(&src, path, pool, pool));
+    err = checksum_cache_load(cache, src, pool);
+    if (err) {
+        return svn_error_quick_wrap(err, "Malformed checksum cache file");
+    }
+    SVN_ERR(svn_stream_close(src));
+
+    return SVN_NO_ERROR;
+}
+
 typedef struct
 {
     svn_stream_t *stream;

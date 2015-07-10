@@ -20,6 +20,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include "checksum.h"
 #include "export.h"
 #include "options.h"
 #include "tree.h"
@@ -41,6 +42,7 @@ static struct apr_getopt_option_t cmdline_options[] = {
     {"ignore-path", 'I', 1, ""},
     {"authors-file", 'A', 1, ""},
     {"export-rev-marks", 'e', 1, ""},
+    {"checksum-cache", 'c', 1, "Use checksum cache."},
     {0, 0, 0, 0}
 };
 
@@ -117,6 +119,25 @@ dump_marks(revision_storage_t *revisions,
 }
 
 static svn_error_t *
+dump_checksum_cache(checksum_cache_t *cache,
+                    const char *path,
+                    apr_pool_t *pool)
+{
+    apr_file_t *fd;
+    svn_stream_t *output;
+
+    SVN_ERR(svn_io_file_open(&fd, path,
+                             APR_CREATE | APR_TRUNCATE | APR_BUFFERED | APR_WRITE,
+                             APR_OS_DEFAULT, pool));
+
+    output = svn_stream_from_aprfile2(fd, FALSE, pool);
+    SVN_ERR(checksum_cache_dump(cache, output, pool));
+    SVN_ERR(svn_stream_close(output));
+
+    return SVN_NO_ERROR;
+}
+
+static svn_error_t *
 do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 {
     apr_getopt_t *opt_parser;
@@ -141,6 +162,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     const char *authors_path = NULL;
     // Path to a file where marks should be exported.
     const char *export_marks_path = NULL;
+    const char *checksum_cache_path = NULL;
 
     // Author storage.
     author_storage_t *authors;
@@ -148,6 +170,8 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     branch_storage_t *branches;
     // Revision storage.
     revision_storage_t *revisions;
+    // Checksum cache.
+    checksum_cache_t *cache;
 
     // Initialize the FS library.
     SVN_ERR(svn_fs_initialize(pool));
@@ -207,6 +231,9 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
         case 'e':
             export_marks_path = opt_arg;
             break;
+        case 'c':
+            checksum_cache_path = opt_arg;
+            break;
         case 'h':
             print_usage(cmdline_options, pool);
             *exit_code = EXIT_FAILURE;
@@ -251,6 +278,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     authors = author_storage_create(pool);
     branches = branch_storage_create(pool, branches_pfx, tags_pfx);
     revisions = revision_storage_create(pool);
+    cache = checksum_cache_create(pool);
 
     if (authors_path != NULL) {
         SVN_ERR(load_authors(authors, authors_path, pool));
@@ -260,10 +288,14 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 
     SVN_ERR(svn_stream_for_stdout(&output, pool));
 
-    SVN_ERR(export_revision_range(output, fs, lower, upper, branches, revisions, authors, ignores, pool));
+    SVN_ERR(export_revision_range(output, fs, lower, upper, branches, revisions, authors, cache, ignores, pool));
 
     if (export_marks_path != NULL) {
         SVN_ERR(dump_marks(revisions, export_marks_path, pool));
+    }
+
+    if (checksum_cache_path != NULL) {
+        SVN_ERR(dump_checksum_cache(cache, checksum_cache_path, pool));
     }
 
     return SVN_NO_ERROR;

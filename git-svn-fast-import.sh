@@ -35,6 +35,7 @@ A,authors-file=file     load from <file> the mapping of SVN committer names to G
 export-rev-marks=file   dump the SVN revision marks to <file>
 export-marks=file       load Git marks from <file>
 import-marks=file       dump Git marks into <file>
+c,checksum-cache=file   use <file> as a checksum cache
 force                   force updating modified existing branches, even if doing so would cause commits to be lost
 v,verbose               verbose output mode"
 

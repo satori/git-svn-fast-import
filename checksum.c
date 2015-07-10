@@ -45,21 +45,44 @@ checksum_cache_create(apr_pool_t *pool)
     return c;
 }
 
-svn_checksum_t *
+static svn_checksum_t *
 checksum_cache_get(checksum_cache_t *c,
-                   const svn_checksum_t *svn_checksum)
+                   const svn_checksum_t *svn_checksum,
+                   apr_pool_t *pool)
 {
-    return apr_hash_get(c->cache, svn_checksum->digest, svn_checksum_size(svn_checksum));
+    return svn_hash_gets(c->cache, svn_checksum_serialize(svn_checksum, pool, pool));
 }
 
-void
+static void
 checksum_cache_set(checksum_cache_t *c,
                    const svn_checksum_t *svn_checksum,
                    const svn_checksum_t *git_checksum)
 {
     svn_checksum_t *key = svn_checksum_dup(svn_checksum, c->pool);
     svn_checksum_t *val = svn_checksum_dup(git_checksum, c->pool);
-    apr_hash_set(c->cache, key->digest, svn_checksum_size(key), val);
+    svn_hash_sets(c->cache, svn_checksum_serialize(key, c->pool, c->pool), val);
+}
+
+svn_error_t *
+checksum_cache_dump(checksum_cache_t *c,
+                    svn_stream_t *dst,
+                    apr_pool_t *pool)
+{
+    apr_hash_index_t *idx;
+
+    for (idx = apr_hash_first(pool, c->cache); idx; idx = apr_hash_next(idx)) {
+        const svn_checksum_t *svn_checksum;
+        const svn_checksum_t *git_checksum = apr_hash_this_val(idx);
+
+        SVN_ERR(svn_checksum_deserialize(&svn_checksum, apr_hash_this_key(idx),
+                                         pool, pool));
+
+        SVN_ERR(svn_stream_printf(dst, pool, "%s %s\n",
+                                  svn_checksum_to_cstring_display(svn_checksum, pool),
+                                  svn_checksum_to_cstring_display(git_checksum, pool)));
+    }
+
+    return SVN_NO_ERROR;
 }
 
 typedef struct
@@ -146,7 +169,7 @@ set_content_checksum(svn_checksum_t **checksum,
     SVN_ERR(svn_fs_file_checksum(&svn_checksum, svn_checksum_sha1,
                                  root, path, FALSE, pool));
 
-    git_checksum = checksum_cache_get(cache, svn_checksum);
+    git_checksum = checksum_cache_get(cache, svn_checksum, pool);
     if (git_checksum != NULL) {
         *checksum = git_checksum;
         return SVN_NO_ERROR;

@@ -34,16 +34,15 @@ typedef struct checksum_cache_t checksum_cache_t;
 checksum_cache_t *
 checksum_cache_create(apr_pool_t *pool);
 
-// Returns a Git checksum for SVN checksum.
-svn_checksum_t *
-checksum_cache_get(checksum_cache_t *c,
-                   const svn_checksum_t *svn_checksum);
+svn_error_t *
+checksum_cache_dump(checksum_cache_t *c,
+                    svn_stream_t *dst,
+                    apr_pool_t *pool);
 
-// Sets a Git checksum for SVN checksum.
-void
-checksum_cache_set(checksum_cache_t *c,
-                   const svn_checksum_t *svn_checksum,
-                   const svn_checksum_t *git_checksum);
+svn_error_t *
+checksum_cache_load(checksum_cache_t *c,
+                    svn_stream_t *src,
+                    apr_pool_t *pool);
 
 svn_error_t *
 set_content_checksum(svn_checksum_t **checksum,

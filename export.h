@@ -23,6 +23,7 @@
 #ifndef SVN_FAST_EXPORT_H_
 #define SVN_FAST_EXPORT_H_
 
+#include "checksum.h"
 #include "types.h"
 #include <svn_fs.h>
 
@@ -34,6 +35,7 @@ export_revision_range(svn_stream_t *dst,
                       branch_storage_t *branches,
                       revision_storage_t *revisions,
                       author_storage_t *authors,
+                      checksum_cache_t *cache,
                       tree_t *ignores,
                       apr_pool_t *pool);
 

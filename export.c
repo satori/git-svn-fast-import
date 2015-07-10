@@ -197,14 +197,10 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
 
         copyfrom_commit = get_copyfrom_commit(change, ctx, copyfrom_branch);
 
-        if (copyfrom_commit != NULL) {
-            const char *copyfrom_subpath;
-
-            copyfrom_subpath = branch_skip_prefix(copyfrom_branch, copyfrom_path);
-
-            if (*copyfrom_subpath == '\0') {
-                commit_copyfrom_set(commit, copyfrom_commit);
-            }
+        if (copyfrom_commit != NULL &&
+                branch_path_is_root(branch, path) &&
+                branch_path_is_root(copyfrom_branch, copyfrom_path)) {
+            commit_copyfrom_set(commit, copyfrom_commit);
         }
     }
 

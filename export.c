@@ -109,7 +109,7 @@ get_copyfrom_commit(svn_fs_path_change2_t *change, parser_ctx_t *ctx, branch_t *
 }
 
 static svn_error_t *
-new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, void *r_ctx, apr_pool_t *pool)
+process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_ctx, apr_pool_t *pool)
 {
     const char *copyfrom_path = NULL, *node_path, *ignored;
     parser_ctx_t *ctx = r_ctx;
@@ -119,8 +119,6 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
     node_t *node;
     svn_fs_path_change_kind_t action = change->change_kind;
     svn_node_kind_t kind = change->node_kind;
-
-    *n_ctx = ctx;
 
     if (change->copyfrom_known && SVN_IS_VALID_REVNUM(change->copyfrom_rev)) {
         copyfrom_path = svn_dirent_skip_ancestor("/", change->copyfrom_path);
@@ -341,7 +339,6 @@ export_revision_range(svn_stream_t *dst,
 
         // Fetch the paths changed under root.
         SVN_ERR(svn_fs_paths_changed2(&fs_changes, root, subpool));
-
         changes = svn_sort__hash(fs_changes, svn_sort_compare_items_lexically, subpool);
 
         for (int i = 0; i < changes->nelts; i++) {
@@ -349,9 +346,8 @@ export_revision_range(svn_stream_t *dst,
             const char *path = item.key;
             svn_fs_path_change2_t *change = item.value;
             path = svn_dirent_skip_ancestor("/", path);
-            void *n_ctx;
 
-            SVN_ERR(new_node_record(&n_ctx, path, change, r_ctx, subpool));
+            SVN_ERR(process_change_record(path, change, r_ctx, subpool));
         }
 
         SVN_ERR(close_revision(r_ctx, subpool));

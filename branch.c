@@ -94,31 +94,34 @@ branch_storage_create(apr_pool_t *pool, tree_t *bpfx, tree_t *tpfx)
 }
 
 branch_t *
-branch_storage_add_branch(branch_storage_t *bs, const char *refname, const char *path)
+branch_storage_add_branch(branch_storage_t *bs,
+                          const char *refname,
+                          const char *path,
+                          apr_pool_t *pool)
 {
     branch_t *b = apr_pcalloc(bs->pool, sizeof(branch_t));
     b->refname = refname;
     b->path = path;
 
-    tree_insert(bs->branches, b->path, b);
+    tree_insert(bs->branches, b->path, b, pool);
 
     return b;
 }
 
 branch_t *
-branch_storage_lookup_path(branch_storage_t *bs, const char *path)
+branch_storage_lookup_path(branch_storage_t *bs, const char *path, apr_pool_t *pool)
 {
     branch_t *branch;
     const char *prefix, *root, *subpath;
 
-    branch = (branch_t *) tree_find_longest_prefix(bs->branches, path);
+    branch = (branch_t *) tree_match(bs->branches, path, pool);
     if (branch != NULL) {
         return branch;
     }
 
-    prefix = tree_find_longest_prefix(bs->bpfx, path);
+    prefix = tree_match(bs->bpfx, path, pool);
     if (prefix == NULL) {
-        prefix = tree_find_longest_prefix(bs->tpfx, path);
+        prefix = tree_match(bs->tpfx, path, pool);
     }
 
     if (prefix == NULL) {
@@ -145,7 +148,7 @@ branch_storage_lookup_path(branch_storage_t *bs, const char *path)
 
     branch->refname = apr_psprintf(bs->pool, "refs/heads/%s", branch->path);
 
-    tree_insert(bs->branches, branch->path, branch);
+    tree_insert(bs->branches, branch->path, branch, pool);
 
     return branch;
 }

@@ -174,7 +174,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     for (int i = 0; i < relative_ignores->nelts; i++) {
         const char *ignored_path = APR_ARRAY_IDX(relative_ignores, i, const char *);
         ignored_path = svn_relpath_join(root_path, ignored_path, pool);
-        tree_insert(ignores, ignored_path, ignored_path);
+        tree_insert(ignores, ignored_path, ignored_path, pool);
     }
 
     // Get the repository path.

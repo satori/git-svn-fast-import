@@ -210,20 +210,20 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
             break;
         case 's':
             trunk_path = "trunk";
-            tree_insert(branches_pfx, "branches", "branches");
-            tree_insert(tags_pfx, "tags", "tags");
+            tree_insert(branches_pfx, "branches", "branches", pool);
+            tree_insert(tags_pfx, "tags", "tags", pool);
             break;
         case 'T':
             trunk_path = opt_arg;
             break;
         case 't':
-            tree_insert(tags_pfx, opt_arg, opt_arg);
+            tree_insert(tags_pfx, opt_arg, opt_arg, pool);
             break;
         case 'b':
-            tree_insert(branches_pfx, opt_arg, opt_arg);
+            tree_insert(branches_pfx, opt_arg, opt_arg, pool);
             break;
         case 'I':
-            tree_insert(ignores, opt_arg, opt_arg);
+            tree_insert(ignores, opt_arg, opt_arg, pool);
             break;
         case 'A':
             authors_path = opt_arg;
@@ -288,7 +288,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
         SVN_ERR(checksum_cache_load_path(cache, checksum_cache_path, pool));
     }
 
-    branch_storage_add_branch(branches, "refs/heads/master", trunk_path);
+    branch_storage_add_branch(branches, "refs/heads/master", trunk_path, pool);
 
     SVN_ERR(svn_stream_for_stdout(&output, pool));
 

@@ -124,10 +124,10 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
 
     if (change->copyfrom_known && SVN_IS_VALID_REVNUM(change->copyfrom_rev)) {
         copyfrom_path = svn_dirent_skip_ancestor("/", change->copyfrom_path);
-        copyfrom_branch = branch_storage_lookup_path(ctx->branches, copyfrom_path);
+        copyfrom_branch = branch_storage_lookup_path(ctx->branches, copyfrom_path, pool);
     }
 
-    branch = branch_storage_lookup_path(ctx->branches, path);
+    branch = branch_storage_lookup_path(ctx->branches, path, pool);
     if (branch == NULL) {
         return SVN_NO_ERROR;
     }
@@ -157,7 +157,7 @@ new_node_record(void **n_ctx, const char *path, svn_fs_path_change2_t *change, v
         return SVN_NO_ERROR;
     }
 
-    ignored = tree_find_longest_prefix(ctx->ignores, node_path);
+    ignored = tree_match(ctx->ignores, node_path, pool);
     if (ignored != NULL) {
         return SVN_NO_ERROR;
     }

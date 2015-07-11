@@ -21,6 +21,8 @@
  */
 
 #include "tree.h"
+#include <svn_hash.h>
+#include <svn_path.h>
 
 tree_t *
 tree_create(apr_pool_t *pool)
@@ -33,38 +35,23 @@ tree_create(apr_pool_t *pool)
     return t;
 }
 
-static size_t
-iter_first(const char *key) {
-    const char *next = strchr(key, '/');
-    if (next != NULL) {
-        return next - key;
-    }
-    return strlen(key);
-}
-
-static size_t
-iter_next(const char **next, size_t len)
-{
-    const char *key = *next;
-    const char *nextKey = key + len;
-    if (*nextKey == '/') {
-        nextKey++;
-    }
-
-    *next = nextKey;
-
-    return iter_first(nextKey);
-}
-
 void
-tree_insert(tree_t *t, const char *key, const void *value)
+tree_insert(tree_t *t,
+            const char *path,
+            const void *value,
+            apr_pool_t *pool)
 {
-    for (size_t len = iter_first(key); len; len = iter_next(&key, len)) {
-        tree_t *subtree = apr_hash_get(t->nodes, key, len);
+    apr_array_header_t *components = svn_path_decompose(path, pool);
+
+    for (int i = 0; i < components->nelts; i++) {
+        const char *key = APR_ARRAY_IDX(components, i, const char *);
+        tree_t *subtree = svn_hash_gets(t->nodes, key);
+
         if (subtree == NULL) {
             subtree = tree_create(t->pool);
-            apr_hash_set(t->nodes, key, len, subtree);
+            svn_hash_sets(t->nodes, apr_pstrdup(t->pool, key), subtree);
         }
+
         t = subtree;
     }
 
@@ -72,29 +59,27 @@ tree_insert(tree_t *t, const char *key, const void *value)
 }
 
 const void *
-tree_find_longest_prefix(const tree_t *t, const char *key)
+tree_match(const tree_t *t,
+           const char *path,
+           apr_pool_t *pool)
 {
-    for (size_t len = iter_first(key); len; len = iter_next(&key, len)) {
-        tree_t *subtree = apr_hash_get(t->nodes, key, len);
+    const void *value = t->value;
+    apr_array_header_t *components = svn_path_decompose(path, pool);
+
+    for (int i = 0; i < components->nelts; i++) {
+        const char *key = APR_ARRAY_IDX(components, i, const char *);
+        tree_t *subtree = svn_hash_gets(t->nodes, key);
+
         if (subtree == NULL) {
             break;
         }
-        t = subtree;
-    }
 
-    return t->value;
-}
-
-const void *
-tree_find_exact(const tree_t *t, const char *key)
-{
-    for (size_t len = iter_first(key); len; len = iter_next(&key, len)) {
-        tree_t *subtree = apr_hash_get(t->nodes, key, len);
-        if (subtree == NULL) {
-            return NULL;
+        if (subtree->value != NULL) {
+            value = subtree->value;
         }
+
         t = subtree;
     }
 
-    return t->value;
+    return value;
 }

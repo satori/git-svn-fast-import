@@ -37,12 +37,14 @@ tree_t *
 tree_create(apr_pool_t *pool);
 
 void
-tree_insert(tree_t *t, const char *key, const void *value);
+tree_insert(tree_t *t,
+            const char *path,
+            const void *value,
+            apr_pool_t *pool);
 
 const void *
-tree_find_longest_prefix(const tree_t *t, const char *key);
-
-const void *
-tree_find_exact(const tree_t *t, const char *key);
+tree_match(const tree_t *t,
+           const char *path,
+           apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_TREE_H_

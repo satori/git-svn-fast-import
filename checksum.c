@@ -310,7 +310,7 @@ set_tree_checksum(svn_checksum_t **checksum,
         node_path = svn_relpath_join(path, entry->name, pool);
         subpath = svn_dirent_skip_ancestor(root_path, node_path);
 
-        ignored = tree_find_longest_prefix(ignores, subpath);
+        ignored = tree_match(ignores, subpath, pool);
         if (ignored != NULL) {
             continue;
         }

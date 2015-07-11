@@ -66,10 +66,10 @@ branch_storage_create(apr_pool_t *pool, tree_t *bpfx, tree_t *tpfx);
 
 // Add new branch reference name and path.
 branch_t *
-branch_storage_add_branch(branch_storage_t *bs, const char *ref, const char *path);
+branch_storage_add_branch(branch_storage_t *bs, const char *ref, const char *path, apr_pool_t *pool);
 
 // Lookup a branch by path.
 branch_t *
-branch_storage_lookup_path(branch_storage_t *bs, const char *path);
+branch_storage_lookup_path(branch_storage_t *bs, const char *path, apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_BRANCH_H_

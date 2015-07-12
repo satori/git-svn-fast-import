@@ -190,8 +190,7 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
         SVN_ERR(svn_fs_revision_root(&copyfrom_root, fs, change->copyfrom_rev, pool));
         SVN_ERR(set_tree_checksum(&node->checksum, &dummy, ctx->dst, ctx->blobs,
                                   copyfrom_root, copyfrom_path,
-                                  branch_path_get(copyfrom_branch),
-                                  ctx->ignores, pool));
+                                  copyfrom_branch->path, ctx->ignores, pool));
 
         copyfrom_commit = get_copyfrom_commit(change, ctx, copyfrom_branch);
 
@@ -247,7 +246,7 @@ write_commit(void *p_ctx, branch_t *branch, commit_t *commit, apr_pool_t *pool)
         SVN_ERR(backend_write_commit(ctx->dst, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp, pool));
     }
 
-    branch_head_set(branch, commit);
+    branch->head = commit;
 
     return SVN_NO_ERROR;
 }

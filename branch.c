@@ -25,42 +25,10 @@
 #include <apr_strings.h>
 #include <svn_dirent_uri.h>
 
-// branch_t implementation.
-struct branch_t
-{
-    const char *refname;
-    const char *path;
-    const commit_t *head;
-};
-
-const char *
-branch_refname_get(const branch_t *b)
-{
-    return b->refname;
-}
-
-const char *
-branch_path_get(const branch_t *b)
-{
-    return b->path;
-}
-
 const char *
 branch_skip_prefix(const branch_t *b, const char *path)
 {
     return svn_dirent_skip_ancestor(b->path, path);
-}
-
-const commit_t *
-branch_head_get(const branch_t *b)
-{
-    return b->head;
-}
-
-void
-branch_head_set(branch_t *b, const commit_t *c)
-{
-    b->head = c;
 }
 
 bool

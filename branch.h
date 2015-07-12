@@ -28,28 +28,16 @@
 #include "tree.h"
 #include <apr_pools.h>
 
-// Abstract type for branch.
-typedef struct branch_t branch_t;
-
-// Returns branch reference name.
-const char *
-branch_refname_get(const branch_t *b);
-
-// Returns branch path.
-const char *
-branch_path_get(const branch_t *b);
+typedef struct
+{
+    const char *refname;
+    const char *path;
+    const commit_t *head;
+} branch_t;
 
 // Skips branch path prefix from absolute path.
 const char *
 branch_skip_prefix(const branch_t *b, const char *path);
-
-// Returns branch head commit.
-const commit_t *
-branch_head_get(const branch_t *b);
-
-// Set commit as branch head.
-void
-branch_head_set(branch_t *b, const commit_t *c);
 
 // Tests if path is branch's root
 bool

@@ -57,8 +57,7 @@ backend_write_commit(svn_stream_t *out,
 {
     const commit_t *copyfrom = commit_copyfrom_get(commit);
 
-    SVN_ERR(svn_stream_printf(out, pool, "commit %s\n",
-                              branch_refname_get(branch)));
+    SVN_ERR(svn_stream_printf(out, pool, "commit %s\n", branch->refname));
     SVN_ERR(svn_stream_printf(out, pool, "mark :%d\n",
                               commit_mark_get(commit)));
     SVN_ERR(svn_stream_printf(out, pool, "committer %s %"PRId64" +0000\n",
@@ -99,8 +98,7 @@ backend_reset_branch(svn_stream_t *out,
                      const commit_t *commit,
                      apr_pool_t *pool)
 {
-    SVN_ERR(svn_stream_printf(out, pool, "reset %s\n",
-                              branch_refname_get(branch)));
+    SVN_ERR(svn_stream_printf(out, pool, "reset %s\n", branch->refname));
     SVN_ERR(svn_stream_printf(out, pool, "from :%d\n",
                               commit_mark_get(commit)));
 
@@ -112,8 +110,7 @@ backend_remove_branch(svn_stream_t *out,
                       const branch_t *branch,
                       apr_pool_t *pool)
 {
-    SVN_ERR(svn_stream_printf(out, pool, "reset %s\n",
-                              branch_refname_get(branch)));
+    SVN_ERR(svn_stream_printf(out, pool, "reset %s\n", branch->refname));
     SVN_ERR(svn_stream_printf(out, pool, "from %s\n", NULL_SHA1));
 
     return SVN_NO_ERROR;

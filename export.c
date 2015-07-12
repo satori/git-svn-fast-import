@@ -193,8 +193,9 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
         const commit_t *copyfrom_commit;
         svn_fs_t *fs = svn_fs_root_fs(ctx->rev_ctx->root);
         svn_fs_root_t *copyfrom_root;
+        tree_t *ignores;
         const tree_t *subbranches = tree_subtree(ctx->branches->tree, copyfrom_branch->path, pool);
-        tree_t *ignores = tree_merge(ctx->ignores, subbranches, pool);
+        tree_merge(&ignores, ctx->ignores, subbranches, pool);
 
         SVN_ERR(svn_fs_revision_root(&copyfrom_root, fs, change->copyfrom_rev, pool));
         SVN_ERR(set_tree_checksum(&node->checksum, &dummy, ctx->dst, ctx->blobs,

@@ -139,11 +139,18 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
             }
             break;
         case svn_fs_path_change_delete:
+            {
+            apr_array_header_t *removes = branch_storage_collect_branches(ctx->branches, path, pool);
+            for (int i = 0; i < removes->nelts; i++) {
+                const branch_t *b = APR_ARRAY_IDX(removes, i, branch_t *);
+                revision_removes_add(rev, b);
+            }
+
             if (branch_path_is_root(branch, path)) {
-                revision_removes_add(rev, branch);
                 return SVN_NO_ERROR;
             }
             break;
+            }
         default:
             // do nothing
             break;
@@ -186,11 +193,13 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
         const commit_t *copyfrom_commit;
         svn_fs_t *fs = svn_fs_root_fs(ctx->rev_ctx->root);
         svn_fs_root_t *copyfrom_root;
+        const tree_t *subbranches = tree_subtree(ctx->branches->tree, copyfrom_branch->path, pool);
+        tree_t *ignores = tree_merge(ctx->ignores, subbranches, pool);
 
         SVN_ERR(svn_fs_revision_root(&copyfrom_root, fs, change->copyfrom_rev, pool));
         SVN_ERR(set_tree_checksum(&node->checksum, &dummy, ctx->dst, ctx->blobs,
                                   copyfrom_root, copyfrom_path,
-                                  copyfrom_branch->path, ctx->ignores, pool));
+                                  copyfrom_branch->path, ignores, pool));
 
         copyfrom_commit = get_copyfrom_commit(change, ctx, copyfrom_branch);
 

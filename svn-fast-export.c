@@ -34,11 +34,12 @@
 
 static struct apr_getopt_option_t cmdline_options[] = {
     {"help", 'h', 0, "Print this message and exit"},
-    {"revision", 'r', 1, ""},
+    {"revision", 'r', 1, "Set revision range."},
     {"stdlayout", 's', 0, ""},
-    {"trunk", 'T', 1, ""},
-    {"tags", 't', 1, ""},
-    {"branches", 'b', 1, ""},
+    {"branch", 'b', 1, "Set repository path as a branch."},
+    {"branches", 'B', 1, "Set repository path as a branches' root."},
+    {"tag", 't', 1, "Set repository path as a tag."},
+    {"tags", 'T', 1, "Set repository path as a tags' root."},
     {"ignore-path", 'I', 1, ""},
     {"authors-file", 'A', 1, ""},
     {"export-rev-marks", 'e', 1, ""},
@@ -165,13 +166,13 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     const char *checksum_cache_path = NULL;
 
     // Author storage.
-    author_storage_t *authors;
+    author_storage_t *authors = author_storage_create(pool);
     // Branch storage.
-    branch_storage_t *branches;
+    branch_storage_t *branches = branch_storage_create(pool, branches_pfx, tags_pfx);
     // Revision storage.
-    revision_storage_t *revisions;
+    revision_storage_t *revisions = revision_storage_create(pool);
     // Checksum cache.
-    checksum_cache_t *cache;
+    checksum_cache_t *cache = checksum_cache_create(pool);
 
     // Initialize the FS library.
     SVN_ERR(svn_fs_initialize(pool));
@@ -213,14 +214,15 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
             tree_insert(branches_pfx, "branches", "branches", pool);
             tree_insert(tags_pfx, "tags", "tags", pool);
             break;
-        case 'T':
-            trunk_path = opt_arg;
-            break;
-        case 't':
-            tree_insert(tags_pfx, opt_arg, opt_arg, pool);
-            break;
         case 'b':
+        case 't':
+            branch_storage_add_branch(branches, branch_refname_from_path(opt_arg, pool), opt_arg, pool);
+            break;
+        case 'B':
             tree_insert(branches_pfx, opt_arg, opt_arg, pool);
+            break;
+        case 'T':
+            tree_insert(tags_pfx, opt_arg, opt_arg, pool);
             break;
         case 'I':
             tree_insert(ignores, opt_arg, opt_arg, pool);
@@ -274,11 +276,6 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
         return svn_error_create(SVN_ERR_CL_ARG_PARSING_ERROR, NULL,
                                 "First revision cannot be higher than second");
     }
-
-    authors = author_storage_create(pool);
-    branches = branch_storage_create(pool, branches_pfx, tags_pfx);
-    revisions = revision_storage_create(pool);
-    cache = checksum_cache_create(pool);
 
     if (authors_path != NULL) {
         SVN_ERR(load_authors(authors, authors_path, pool));

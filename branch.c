@@ -24,6 +24,7 @@
 #include "utils.h"
 #include <apr_strings.h>
 #include <svn_dirent_uri.h>
+#include <svn_string.h>
 
 const char *
 branch_skip_prefix(const branch_t *b, const char *path)
@@ -37,16 +38,22 @@ branch_path_is_root(const branch_t *b, const char *path)
     return strcmp(b->path, path) == 0;
 }
 
-// branch_storage_t implementation.
-struct branch_storage_t
+const char *
+branch_refname_from_path(const char *path, apr_pool_t *pool)
 {
-    apr_pool_t *pool;
-    tree_t *branches;
-    // Branch path prefixes.
-    tree_t *bpfx;
-    // Tag path prefixes.
-    tree_t *tpfx;
-};
+    apr_array_header_t *strings = svn_cstring_split(path, "/", FALSE, pool);
+    svn_stringbuf_t *buf = svn_stringbuf_create_empty(pool);
+
+    for (int i = 0; i < strings->nelts; i++) {
+        const char *str = APR_ARRAY_IDX(strings, i, const char *);
+        if (buf->len > 0) {
+            svn_stringbuf_appendcstr(buf, "--");
+        }
+        svn_stringbuf_appendcstr(buf, str);
+    }
+
+    return apr_psprintf(pool, "refs/heads/%s", buf->data);
+}
 
 branch_storage_t *
 branch_storage_create(apr_pool_t *pool, tree_t *bpfx, tree_t *tpfx)
@@ -54,7 +61,7 @@ branch_storage_create(apr_pool_t *pool, tree_t *bpfx, tree_t *tpfx)
     branch_storage_t *bs = apr_pcalloc(pool, sizeof(branch_storage_t));
 
     bs->pool = pool;
-    bs->branches = tree_create(pool);
+    bs->tree = tree_create(pool);
     bs->bpfx = bpfx;
     bs->tpfx = tpfx;
 
@@ -71,7 +78,7 @@ branch_storage_add_branch(branch_storage_t *bs,
     b->refname = refname;
     b->path = path;
 
-    tree_insert(bs->branches, b->path, b, pool);
+    tree_insert(bs->tree, b->path, b, pool);
 
     return b;
 }
@@ -82,7 +89,7 @@ branch_storage_lookup_path(branch_storage_t *bs, const char *path, apr_pool_t *p
     branch_t *branch;
     const char *prefix, *root, *subpath;
 
-    branch = (branch_t *) tree_match(bs->branches, path, pool);
+    branch = (branch_t *) tree_match(bs->tree, path, pool);
     if (branch != NULL) {
         return branch;
     }
@@ -114,9 +121,37 @@ branch_storage_lookup_path(branch_storage_t *bs, const char *path, apr_pool_t *p
         branch->path = apr_pstrndup(bs->pool, path, root - path);
     }
 
-    branch->refname = apr_psprintf(bs->pool, "refs/heads/%s", branch->path);
+    branch->refname = branch_refname_from_path(branch->path, bs->pool);
 
-    tree_insert(bs->branches, branch->path, branch, pool);
+    tree_insert(bs->tree, branch->path, branch, pool);
 
     return branch;
+}
+
+static void
+collect_values(const tree_t *t, apr_array_header_t *values, apr_pool_t *pool)
+{
+    apr_hash_index_t *idx;
+
+    if (t->value != NULL) {
+        APR_ARRAY_PUSH(values, const branch_t *) = t->value;
+    }
+
+    for (idx = apr_hash_first(pool, t->nodes); idx; idx = apr_hash_next(idx)) {
+        const tree_t *subtree = apr_hash_this_val(idx);
+        collect_values(subtree, values, pool);
+    }
+}
+
+apr_array_header_t *
+branch_storage_collect_branches(branch_storage_t *bs, const char *path, apr_pool_t *pool)
+{
+    apr_array_header_t *values = apr_array_make(pool, 0, sizeof(branch_t *));
+    const tree_t *t = tree_subtree(bs->tree, path, pool);
+
+    if (t != NULL) {
+        collect_values(t, values, pool);
+    }
+
+    return values;
 }

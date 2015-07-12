@@ -33,7 +33,7 @@ EOF
 
 test_export_import() {
 	test_expect_success 'Import dump into Git' '
-	(cd repo.git && git-svn-fast-import --stdlayout --force -c ../cache.txt -I data -A ../authors.txt --export-rev-marks ../rev-marks.txt --export-marks ../marks.txt ../repo)
+	(cd repo.git && git-svn-fast-import --stdlayout -b branches/some-feature/sub-branch --force -c ../cache.txt -I data -A ../authors.txt --export-rev-marks ../rev-marks.txt --export-marks ../marks.txt ../repo)
 	'
 }
 
@@ -76,12 +76,12 @@ test_expect_success 'Create branch without parent' '
 test_export_import
 
 cat >expect <<EOF
-  branches/without_parent
+  branches--without_parent
 EOF
 
 test_expect_success 'Validate branch creation' '
 (cd repo.git &&
-	git branch --list branches/without_parent >actual &&
+	git branch --list branches--without_parent >actual &&
 	test_cmp ../expect actual)
 '
 
@@ -426,19 +426,19 @@ test_expect_success 'Commit new tag from trunk' '
 test_export_import
 
 cat >expect <<EOF
-  tags/release-1.0
+  tags--release-1.0
 EOF
 
 test_expect_success 'Validate tag create' '
 (cd repo.git &&
-	git branch --list tags/release-1.0 >actual &&
+	git branch --list tags--release-1.0 >actual &&
 	test_cmp ../expect actual)
 '
 
 test_expect_failure 'Compare source and target commit-ish' '
 (cd repo.git &&
 	git describe --always master >expect &&
-	git describe --always tags/release-1.0 >actual &&
+	git describe --always tags--release-1.0 >actual &&
 	test_cmp expect actual)
 '
 
@@ -453,20 +453,40 @@ test_expect_success 'Commit new branch' '
 test_export_import
 
 cat >expect <<EOF
-  branches/some-feature
+  branches--some-feature
 EOF
 
 test_expect_success 'Validate branch create' '
 (cd repo.git &&
-	git branch --list branches/some-feature >actual &&
+	git branch --list branches--some-feature >actual &&
 	test_cmp ../expect actual)
 '
 
 test_expect_failure 'Compare source and target commit-ish' '
 (cd repo.git &&
 	git describe --always master >expect &&
-	git describe --always branches/some-feature >actual &&
+	git describe --always branches--some-feature >actual &&
 	test_cmp expect actual)
+'
+
+test_tick
+
+test_expect_success 'Create sub-branch' '
+(cd repo.svn &&
+	svn cp trunk branches/some-feature/sub-branch &&
+	svn_commit "Create sub-branch")
+'
+
+test_export_import
+
+cat >expect <<EOF
+  branches--some-feature--sub-branch
+EOF
+
+test_expect_success 'Validate branch create' '
+(cd repo.git &&
+	git branch --list branches--some-feature--sub-branch >actual &&
+	test_cmp ../expect actual)
 '
 
 test_tick
@@ -493,7 +513,7 @@ EOF
 
 test_expect_success 'Validate new file in branch' '
 (cd repo.git &&
-	git diff-tree branches/some-feature^ branches/some-feature >actual &&
+	git diff-tree branches--some-feature^ branches--some-feature >actual &&
 	test_cmp ../expect actual)
 '
 
@@ -521,7 +541,7 @@ EOF
 
 test_expect_success 'Validate file modify in branch' '
 (cd repo.git &&
-	git diff-tree branches/some-feature^ branches/some-feature >actual &&
+	git diff-tree branches--some-feature^ branches--some-feature >actual &&
 	test_cmp ../expect actual)
 '
 
@@ -553,7 +573,7 @@ EOF
 
 test_expect_success 'Validate new dir in branch' '
 (cd repo.git &&
-	git diff-tree branches/some-feature^ branches/some-feature >actual &&
+	git diff-tree branches--some-feature^ branches--some-feature >actual &&
 	test_cmp ../expect actual)
 '
 
@@ -563,7 +583,7 @@ EOF
 
 test_expect_success 'Validate new file inside new dir in branch' '
 (cd repo.git &&
-	git diff-tree -r branches/some-feature^ branches/some-feature >actual &&
+	git diff-tree -r branches--some-feature^ branches--some-feature >actual &&
 	test_cmp ../expect actual)
 '
 
@@ -628,12 +648,12 @@ test_expect_success 'Validate tag create from branch' '
 test_export_import
 
 cat >expect <<EOF
-  tags/some-feature-before-remove
+  tags--some-feature-before-remove
 EOF
 
 test_expect_success 'Validate tag create' '
 (cd repo.git &&
-	git branch --list tags/some-feature-before-remove >actual &&
+	git branch --list tags--some-feature-before-remove >actual &&
 	test_cmp ../expect actual)
 '
 
@@ -653,7 +673,13 @@ EOF
 
 test_expect_success 'Validate branch remove' '
 (cd repo.git &&
-	git branch --list branches/some-feature >actual &&
+	git branch --list branches--some-feature >actual &&
+	test_cmp ../expect actual)
+'
+
+test_expect_success 'Validate sub-branch remove' '
+(cd repo.git &&
+	git branch --list branches--some-feature--sub-branch >actual &&
 	test_cmp ../expect actual)
 '
 
@@ -668,19 +694,19 @@ test_expect_success 'Create new branch' '
 test_export_import
 
 cat >expect <<EOF
-  branches/new-feature
+  branches--new-feature
 EOF
 
 test_expect_success 'Validate branch creation' '
 (cd repo.git &&
-	git branch --list branches/new-feature >actual &&
+	git branch --list branches--new-feature >actual &&
 	test_cmp ../expect actual)
 '
 
 test_expect_success 'Compare source and target commit-ish' '
 (cd repo.git &&
 	git describe --always master >expect &&
-	git describe --always branches/new-feature >actual &&
+	git describe --always branches--new-feature >actual &&
 	test_cmp expect actual)
 '
 
@@ -695,19 +721,19 @@ test_expect_success 'Create another branch' '
 test_export_import
 
 cat >expect <<EOF
-  branches/new-feature-2
+  branches--new-feature-2
 EOF
 
 test_expect_success 'Validate branch creation' '
 (cd repo.git &&
-	git branch --list branches/new-feature-2 >actual &&
+	git branch --list branches--new-feature-2 >actual &&
 	test_cmp ../expect actual)
 '
 
 test_expect_success 'Compare source and target commit-ish' '
 (cd repo.git &&
 	git describe --always master >expect &&
-	git describe --always branches/new-feature-2 >actual &&
+	git describe --always branches--new-feature-2 >actual &&
 	test_cmp expect actual)
 '
 
@@ -722,19 +748,19 @@ test_expect_success 'Create one more branch' '
 test_export_import
 
 cat >expect <<EOF
-  branches/another-feature
+  branches--another-feature
 EOF
 
 test_expect_success 'Validate branch creation' '
 (cd repo.git &&
-	git branch --list branches/another-feature >actual &&
+	git branch --list branches--another-feature >actual &&
 	test_cmp ../expect actual)
 '
 
 test_expect_success 'Compare source and target commit-ish' '
 (cd repo.git &&
-	git describe --always branches/new-feature-2 >expect &&
-	git describe --always branches/another-feature >actual &&
+	git describe --always branches--new-feature-2 >expect &&
+	git describe --always branches--another-feature >actual &&
 	test_cmp expect actual)
 '
 
@@ -772,19 +798,19 @@ test_expect_success 'Create branch after garbage removal' '
 test_export_import
 
 cat >expect <<EOF
-  branches/no-features
+  branches--no-features
 EOF
 
 test_expect_success 'Validate branch creation' '
 (cd repo.git &&
-	git branch --list branches/no-features >actual &&
+	git branch --list branches--no-features >actual &&
 	test_cmp ../expect actual)
 '
 
 test_expect_success 'Compare source and target commit-ish' '
 (cd repo.git &&
-	git describe --always branches/another-feature >expect &&
-	git describe --always branches/no-features >actual &&
+	git describe --always branches--another-feature >expect &&
+	git describe --always branches--no-features >actual &&
 	test_cmp expect actual)
 '
 
@@ -813,7 +839,7 @@ EOF
 
 test_expect_success 'Validate commit into first branch' '
 (cd repo.git &&
-	git diff-tree branches/another-feature^ branches/another-feature >actual &&
+	git diff-tree branches--another-feature^ branches--another-feature >actual &&
 	test_cmp ../expect actual)
 '
 
@@ -823,7 +849,7 @@ EOF
 
 test_expect_success 'Validate commit into second branch' '
 (cd repo.git &&
-	git diff-tree branches/new-feature^ branches/new-feature >actual &&
+	git diff-tree branches--new-feature^ branches--new-feature >actual &&
 	test_cmp ../expect actual)
 '
 
@@ -842,24 +868,24 @@ EOF
 
 test_expect_success 'Validate old branch name disappeared' '
 (cd repo.git &&
-	git branch --list branches/no-features >actual &&
+	git branch --list branches--no-features >actual &&
 	test_cmp ../expect actual)
 '
 
 cat >expect <<EOF
-  branches/mega-features
+  branches--mega-features
 EOF
 
 test_expect_success 'Validate branch with new name appeared' '
 (cd repo.git &&
-	git branch --list branches/mega-features >actual &&
+	git branch --list branches--mega-features >actual &&
 	test_cmp ../expect actual)
 '
 
 test_tick
 
 (cd repo.git &&
-	git describe --always branches/new-feature-2 >branch-before-remove)
+	git describe --always branches--new-feature-2 >branch-before-remove)
 
 
 test_expect_success 'Remove branch' '
@@ -875,7 +901,7 @@ EOF
 
 test_expect_success 'Validate branch removed' '
 (cd repo.git &&
-	git branch --list branches/new-feature-2 >actual &&
+	git branch --list branches--new-feature-2 >actual &&
 	test_cmp ../expect actual)
 '
 
@@ -891,18 +917,18 @@ test_expect_success 'Restore branch using svn merge' '
 test_export_import
 
 cat >expect <<EOF
-  branches/new-feature-2
+  branches--new-feature-2
 EOF
 
 test_expect_success 'Validate branch restored' '
 (cd repo.git &&
-	git branch --list branches/new-feature-2 >actual &&
+	git branch --list branches--new-feature-2 >actual &&
 	test_cmp ../expect actual)
 '
 
 test_expect_success 'Compare branch commit-ish before and after restoration' '
 (cd repo.git &&
-	git describe --always branches/new-feature-2 >actual &&
+	git describe --always branches--new-feature-2 >actual &&
 	test_cmp branch-before-remove actual)
 '
 

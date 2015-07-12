@@ -27,9 +27,10 @@ git-svn-fast-import [options] <repo>
 h,help                  show the help
 r,revision=             set revision range
 s,stdlayout             set trunk,tags,branches as the relative paths, which is SVN default
-T,trunk=path            set trunk to a relative repository <path>
-t,tags=path             set tags to a relative repository <path>, can be specified multiple times
-b,branches=path         set branches to a relative repository <path>, can be specified multiple times
+b,branch=path           set repository <path> as a branch
+B,branches=path         set repository <path> as a root for branches
+t,tag=path              set repository <path> as a tag
+T,tags=path             set repository <path> as a root for tags
 I,ignore-path=path      ignore a relative repository <path>, can be specified multiple times
 A,authors-file=file     load from <file> the mapping of SVN committer names to Git commit authors
 export-rev-marks=file   dump the SVN revision marks to <file>
@@ -50,7 +51,7 @@ case $1 in
         SVN_FAST_EXPORT_ARGS="$SVN_FAST_EXPORT_ARGS $1"
         shift
         ;;
-    -r|-T|-t|-b|-I|-A|--export-rev-marks)
+    -r|-t|-T|-b|-B|-I|-A|--export-rev-marks)
         SVN_FAST_EXPORT_ARGS="$SVN_FAST_EXPORT_ARGS $1 $2"
         shift 2
         ;;

@@ -27,6 +27,7 @@
 #include "commit.h"
 #include "tree.h"
 #include <apr_pools.h>
+#include <apr_tables.h>
 
 typedef struct
 {
@@ -43,8 +44,18 @@ branch_skip_prefix(const branch_t *b, const char *path);
 bool
 branch_path_is_root(const branch_t *b, const char *path);
 
-// Abstract type for branch storage.
-typedef struct branch_storage_t branch_storage_t;
+const char *
+branch_refname_from_path(const char *path, apr_pool_t *pool);
+
+typedef struct
+{
+    apr_pool_t *pool;
+    tree_t *tree;
+    // Branch path prefixes.
+    tree_t *bpfx;
+    // Tag path prefixes.
+    tree_t *tpfx;
+} branch_storage_t;
 
 // Create new branch storage.
 // Use bpfx as branch path prefixes.
@@ -59,5 +70,8 @@ branch_storage_add_branch(branch_storage_t *bs, const char *ref, const char *pat
 // Lookup a branch by path.
 branch_t *
 branch_storage_lookup_path(branch_storage_t *bs, const char *path, apr_pool_t *pool);
+
+apr_array_header_t *
+branch_storage_collect_branches(branch_storage_t *bs, const char *path, apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_BRANCH_H_

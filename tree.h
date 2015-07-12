@@ -36,6 +36,12 @@ typedef struct
 tree_t *
 tree_create(apr_pool_t *pool);
 
+tree_t *
+tree_copy(const tree_t *src, apr_pool_t *pool);
+
+tree_t *
+tree_merge(const tree_t *t1, const tree_t *t2, apr_pool_t *pool);
+
 void
 tree_insert(tree_t *t,
             const char *path,
@@ -46,5 +52,10 @@ const void *
 tree_match(const tree_t *t,
            const char *path,
            apr_pool_t *pool);
+
+const tree_t *
+tree_subtree(const tree_t *t,
+             const char *path,
+             apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_TREE_H_

@@ -35,6 +35,58 @@ tree_create(apr_pool_t *pool)
     return t;
 }
 
+tree_t *
+tree_copy(const tree_t *src, apr_pool_t *pool)
+{
+    apr_hash_index_t *idx;
+    tree_t *t = tree_create(pool);
+    t->value = src->value;
+
+    for (idx = apr_hash_first(pool, src->nodes); idx; idx = apr_hash_next(idx)) {
+        const char *key = apr_hash_this_key(idx);
+        const tree_t *val = apr_hash_this_val(idx);
+        tree_insert(t, key, tree_copy(val, pool), pool);
+    }
+
+    return t;
+}
+
+tree_t *
+tree_merge(const tree_t *t1, const tree_t *t2, apr_pool_t *pool)
+{
+    apr_hash_index_t *idx;
+
+    if (t1 == NULL) {
+        return tree_copy(t2, pool);
+    }
+
+    if (t2 == NULL) {
+        return tree_copy(t1, pool);
+    }
+
+    tree_t *t = tree_create(pool);
+
+    for (idx = apr_hash_first(pool, t1->nodes); idx; idx = apr_hash_next(idx)) {
+        const char *key1 = apr_hash_this_key(idx);
+        const tree_t *val1 = apr_hash_this_val(idx);
+        const tree_t *val2 = svn_hash_gets(t2->nodes, key1);
+
+        tree_insert(t, key1, tree_merge(val1, val2, pool), pool);
+    }
+
+    for (idx = apr_hash_first(pool, t2->nodes); idx; idx = apr_hash_next(idx)) {
+        const char *key2 = apr_hash_this_key(idx);
+        const tree_t *val2 = apr_hash_this_val(idx);
+        const tree_t *val1 = svn_hash_gets(t1->nodes, key2);
+
+        if (val1 == NULL) {
+            tree_insert(t, key2, tree_copy(val2, pool), pool);
+        }
+    }
+
+    return t;
+}
+
 void
 tree_insert(tree_t *t,
             const char *path,
@@ -59,9 +111,7 @@ tree_insert(tree_t *t,
 }
 
 const void *
-tree_match(const tree_t *t,
-           const char *path,
-           apr_pool_t *pool)
+tree_match(const tree_t *t, const char *path, apr_pool_t *pool)
 {
     const void *value = t->value;
     apr_array_header_t *components = svn_path_decompose(path, pool);
@@ -82,4 +132,20 @@ tree_match(const tree_t *t,
     }
 
     return value;
+}
+
+const tree_t *
+tree_subtree(const tree_t *t, const char *path, apr_pool_t *pool)
+{
+    apr_array_header_t *components = svn_path_decompose(path, pool);
+
+    for (int i = 0; i < components->nelts; i++) {
+        const char *key = APR_ARRAY_IDX(components, i, const char *);
+        t = svn_hash_gets(t->nodes, key);
+        if (t == NULL) {
+            break;
+        }
+    }
+
+    return t;
 }

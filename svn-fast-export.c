@@ -145,6 +145,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     apr_status_t apr_err;
     const char *repo_path = NULL;
     svn_opt_revision_t start_revision, end_revision;
+    svn_error_t *err;
     svn_fs_t *fs;
     svn_stream_t *output;
     svn_revnum_t lower = SVN_INVALID_REVNUM, upper = SVN_INVALID_REVNUM;
@@ -289,17 +290,17 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 
     SVN_ERR(svn_stream_for_stdout(&output, pool));
 
-    SVN_ERR(export_revision_range(output, fs, lower, upper, branches, revisions, authors, cache, ignores, pool));
+    err = export_revision_range(output, fs, lower, upper, branches, revisions, authors, cache, ignores, pool);
 
     if (export_marks_path != NULL) {
-        SVN_ERR(dump_marks(revisions, export_marks_path, pool));
+        err = svn_error_compose_create(err, dump_marks(revisions, export_marks_path, pool));
     }
 
     if (checksum_cache_path != NULL) {
-        SVN_ERR(dump_checksum_cache(cache, checksum_cache_path, pool));
+        err = svn_error_compose_create(err, dump_checksum_cache(cache, checksum_cache_path, pool));
     }
 
-    return SVN_NO_ERROR;
+    return err;
 }
 
 int

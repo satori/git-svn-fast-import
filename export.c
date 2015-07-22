@@ -32,6 +32,8 @@
 #include <svn_sorts.h>
 #include <svn_time.h>
 
+#define NULL_SHA1 "0000000000000000000000000000000000000000"
+
 typedef struct
 {
     const char *message;
@@ -235,6 +237,18 @@ set_revision_property(void *r_ctx, const char *name, const svn_string_t *value, 
 }
 
 static svn_error_t *
+reset_branch(void *p_ctx, const branch_t *branch, const commit_t *commit, apr_pool_t *pool)
+{
+    parser_ctx_t *ctx = p_ctx;
+
+    SVN_ERR(svn_stream_printf(ctx->dst, pool, "reset %s\n", branch->refname));
+    SVN_ERR(svn_stream_printf(ctx->dst, pool, "from :%d\n",
+                              commit_mark_get(commit)));
+
+    return SVN_NO_ERROR;
+}
+
+static svn_error_t *
 write_commit(void *p_ctx, branch_t *branch, commit_t *commit, apr_pool_t *pool)
 {
     apr_array_header_t *nodes;
@@ -250,7 +264,7 @@ write_commit(void *p_ctx, branch_t *branch, commit_t *commit, apr_pool_t *pool)
         commit_parent_set(commit, commit_copyfrom_get(commit));
         commit_dummy_set(commit);
 
-        SVN_ERR(backend_reset_branch(ctx->dst, branch, commit, pool));
+        SVN_ERR(reset_branch(ctx, branch, commit, pool));
     } else {
         commit_mark_set(commit, ctx->last_mark++);
         SVN_ERR(backend_write_commit(ctx->dst, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp, pool));
@@ -266,7 +280,8 @@ remove_branch(void *p_ctx, branch_t *branch, apr_pool_t *pool)
 {
     parser_ctx_t *ctx = p_ctx;
 
-    SVN_ERR(backend_remove_branch(ctx->dst, branch, pool));
+    SVN_ERR(svn_stream_printf(ctx->dst, pool, "reset %s\n", branch->refname));
+    SVN_ERR(svn_stream_printf(ctx->dst, pool, "from %s\n", NULL_SHA1));
 
     return SVN_NO_ERROR;
 }
@@ -279,10 +294,9 @@ close_revision(void *r_ctx, apr_pool_t *pool)
     revision_t *rev = rev_ctx->rev;
 
     if (revision_commits_count(rev) == 0 && revision_removes_count(rev) == 0) {
-        SVN_ERR(backend_notify_revision_skipped(ctx->dst,
-                                                revision_revnum_get(rev),
-                                                pool));
-
+        SVN_ERR(svn_stream_printf(ctx->dst, pool,
+                                  "progress Skipped revision %ld\n",
+                                  revision_revnum_get(rev)));
         return SVN_NO_ERROR;
     }
 
@@ -293,7 +307,9 @@ close_revision(void *r_ctx, apr_pool_t *pool)
     revision_commits_apply(rev, &write_commit, ctx, pool);
     revision_removes_apply(rev, &remove_branch, ctx, pool);
 
-    SVN_ERR(backend_notify_revision_imported(ctx->dst, revision_revnum_get(rev), pool));
+    SVN_ERR(svn_stream_printf(ctx->dst, pool,
+                              "progress Imported revision %ld\n",
+                              revision_revnum_get(rev)));
 
     ctx->rev_ctx = NULL;
 

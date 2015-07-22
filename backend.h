@@ -35,25 +35,4 @@ backend_write_commit(svn_stream_t *out,
                      int64_t timestamp,
                      apr_pool_t *pool);
 
-svn_error_t *
-backend_reset_branch(svn_stream_t *out,
-                     const branch_t *branch,
-                     const commit_t *commit,
-                     apr_pool_t *pool);
-
-svn_error_t *
-backend_remove_branch(svn_stream_t *out,
-                      const branch_t *branch,
-                      apr_pool_t *pool);
-
-svn_error_t *
-backend_notify_revision_skipped(svn_stream_t *out,
-                                svn_revnum_t revnum,
-                                apr_pool_t *pool);
-
-svn_error_t *
-backend_notify_revision_imported(svn_stream_t *out,
-                                 svn_revnum_t revnum,
-                                 apr_pool_t *pool);
-
 #endif // SVN_FAST_EXPORT_BACKEND_H_

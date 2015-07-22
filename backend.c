@@ -21,7 +21,6 @@
  */
 
 #include "backend.h"
-#include <svn_cmdline.h>
 
 #define NULL_SHA1 "0000000000000000000000000000000000000000"
 
@@ -88,50 +87,6 @@ backend_write_commit(svn_stream_t *out,
             break;
         }
     }
-
-    return SVN_NO_ERROR;
-}
-
-svn_error_t *
-backend_reset_branch(svn_stream_t *out,
-                     const branch_t *branch,
-                     const commit_t *commit,
-                     apr_pool_t *pool)
-{
-    SVN_ERR(svn_stream_printf(out, pool, "reset %s\n", branch->refname));
-    SVN_ERR(svn_stream_printf(out, pool, "from :%d\n",
-                              commit_mark_get(commit)));
-
-    return SVN_NO_ERROR;
-}
-
-svn_error_t *
-backend_remove_branch(svn_stream_t *out,
-                      const branch_t *branch,
-                      apr_pool_t *pool)
-{
-    SVN_ERR(svn_stream_printf(out, pool, "reset %s\n", branch->refname));
-    SVN_ERR(svn_stream_printf(out, pool, "from %s\n", NULL_SHA1));
-
-    return SVN_NO_ERROR;
-}
-
-svn_error_t *
-backend_notify_revision_skipped(svn_stream_t *out,
-                                svn_revnum_t revnum,
-                                apr_pool_t *pool)
-{
-    SVN_ERR(svn_stream_printf(out, pool, "progress Skipped revision %ld\n", revnum));
-
-    return SVN_NO_ERROR;
-}
-
-svn_error_t *
-backend_notify_revision_imported(svn_stream_t *out,
-                                 svn_revnum_t revnum,
-                                 apr_pool_t *pool)
-{
-    SVN_ERR(svn_stream_printf(out, pool, "progress Imported revision %ld\n", revnum));
 
     return SVN_NO_ERROR;
 }

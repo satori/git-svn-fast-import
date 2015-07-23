@@ -34,7 +34,7 @@ EOF
 test_export_import() {
 	test_expect_success 'Import dump into Git' '
 	(cd repo.git &&
-		git-svn-fast-import --force -c ../cache.txt -I data -A ../authors.txt --export-rev-marks ../marks.txt ../repo)
+		git-svn-fast-import --quiet --force -c ../cache.txt -I data -A ../authors.txt --export-rev-marks ../marks.txt ../repo)
 	'
 }
 

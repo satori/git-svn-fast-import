@@ -180,3 +180,22 @@ revision_storage_dump(const revision_storage_t *rs,
 
     return SVN_NO_ERROR;
 }
+
+svn_error_t *
+revision_storage_dump_path(revision_storage_t *rs,
+                           const char *path,
+                           apr_pool_t *pool)
+{
+    apr_file_t *fd;
+    svn_stream_t *dst;
+
+    SVN_ERR(svn_io_file_open(&fd, path,
+                             APR_CREATE | APR_TRUNCATE | APR_BUFFERED | APR_WRITE,
+                             APR_OS_DEFAULT, pool));
+
+    dst = svn_stream_from_aprfile2(fd, FALSE, pool);
+    SVN_ERR(revision_storage_dump(rs, dst, pool));
+    SVN_ERR(svn_stream_close(dst));
+
+    return SVN_NO_ERROR;
+}

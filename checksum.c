@@ -86,6 +86,25 @@ checksum_cache_dump(checksum_cache_t *c,
 }
 
 svn_error_t *
+checksum_cache_dump_path(checksum_cache_t *c,
+                         const char *path,
+                         apr_pool_t *pool)
+{
+    apr_file_t *fd;
+    svn_stream_t *dst;
+
+    SVN_ERR(svn_io_file_open(&fd, path,
+                             APR_CREATE | APR_TRUNCATE | APR_BUFFERED | APR_WRITE,
+                             APR_OS_DEFAULT, pool));
+
+    dst = svn_stream_from_aprfile2(fd, FALSE, pool);
+    SVN_ERR(checksum_cache_dump(c, dst, pool));
+    SVN_ERR(svn_stream_close(dst));
+
+    return SVN_NO_ERROR;
+}
+
+svn_error_t *
 checksum_cache_load(checksum_cache_t *c,
                     svn_stream_t *src,
                     apr_pool_t *pool)

@@ -83,62 +83,6 @@ get_revnum(svn_revnum_t *revnum,
 }
 
 static svn_error_t *
-load_authors(author_storage_t *authors,
-             const char *path,
-             apr_pool_t *pool)
-{
-    svn_stream_t *input;
-    svn_error_t *err;
-
-    SVN_ERR(svn_stream_open_readonly(&input, path, pool, pool));
-    err = author_storage_load(authors, input, pool);
-    if (err) {
-        return svn_error_quick_wrap(err, "Malformed authors file");
-    }
-    SVN_ERR(svn_stream_close(input));
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-dump_marks(revision_storage_t *revisions,
-           const char *path,
-           apr_pool_t *pool)
-{
-    apr_file_t *fd;
-    svn_stream_t *output;
-
-    SVN_ERR(svn_io_file_open(&fd, path,
-                             APR_CREATE | APR_TRUNCATE | APR_BUFFERED | APR_WRITE,
-                             APR_OS_DEFAULT, pool));
-
-    output = svn_stream_from_aprfile2(fd, FALSE, pool);
-    SVN_ERR(revision_storage_dump(revisions, output, pool));
-    SVN_ERR(svn_stream_close(output));
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-dump_checksum_cache(checksum_cache_t *cache,
-                    const char *path,
-                    apr_pool_t *pool)
-{
-    apr_file_t *fd;
-    svn_stream_t *output;
-
-    SVN_ERR(svn_io_file_open(&fd, path,
-                             APR_CREATE | APR_TRUNCATE | APR_BUFFERED | APR_WRITE,
-                             APR_OS_DEFAULT, pool));
-
-    output = svn_stream_from_aprfile2(fd, FALSE, pool);
-    SVN_ERR(checksum_cache_dump(cache, output, pool));
-    SVN_ERR(svn_stream_close(output));
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
 do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 {
     apr_getopt_t *opt_parser;
@@ -279,7 +223,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     }
 
     if (authors_path != NULL) {
-        SVN_ERR(load_authors(authors, authors_path, pool));
+        SVN_ERR(author_storage_load_path(authors, authors_path, pool));
     }
 
     if (checksum_cache_path != NULL) {
@@ -293,11 +237,11 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     err = export_revision_range(output, fs, lower, upper, branches, revisions, authors, cache, ignores, pool);
 
     if (export_marks_path != NULL) {
-        err = svn_error_compose_create(err, dump_marks(revisions, export_marks_path, pool));
+        err = svn_error_compose_create(err, revision_storage_dump_path(revisions, export_marks_path, pool));
     }
 
     if (checksum_cache_path != NULL) {
-        err = svn_error_compose_create(err, dump_checksum_cache(cache, checksum_cache_path, pool));
+        err = svn_error_compose_create(err, checksum_cache_dump_path(cache, checksum_cache_path, pool));
     }
 
     return err;

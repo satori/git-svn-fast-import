@@ -50,8 +50,13 @@ author_storage_default_author(const author_storage_t *as);
 // Loads author storage from stream.
 // Uses pool for temporary allocations.
 svn_error_t *
-author_storage_load(const author_storage_t *as,
+author_storage_load(author_storage_t *as,
                     svn_stream_t *src,
                     apr_pool_t *pool);
+
+svn_error_t *
+author_storage_load_path(author_storage_t *as,
+                         const char *path,
+                         apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_AUTHOR_H_

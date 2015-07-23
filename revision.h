@@ -93,4 +93,9 @@ revision_storage_dump(const revision_storage_t *rs,
                       svn_stream_t *dst,
                       apr_pool_t *pool);
 
+svn_error_t *
+revision_storage_dump_path(revision_storage_t *rs,
+                           const char *path,
+                           apr_pool_t *pool);
+
 #endif // GIT_SVN_FAST_IMPORT_REVISION_H_

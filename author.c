@@ -94,7 +94,7 @@ svn_malformed_file_error(int lineno, const char *line)
 }
 
 svn_error_t *
-author_storage_load(const author_storage_t *as,
+author_storage_load(author_storage_t *as,
                     svn_stream_t *src,
                     apr_pool_t *pool)
 {
@@ -153,6 +153,24 @@ author_storage_load(const author_storage_t *as,
         // Save
         svn_hash_sets(as->authors, author->svn_name, author);
     }
+
+    return SVN_NO_ERROR;
+}
+
+svn_error_t *
+author_storage_load_path(author_storage_t *as,
+                         const char *path,
+                         apr_pool_t *pool)
+{
+    svn_error_t *err;
+    svn_stream_t *src;
+
+    SVN_ERR(svn_stream_open_readonly(&src, path, pool, pool));
+    err = author_storage_load(as, src, pool);
+    if (err) {
+        return svn_error_quick_wrap(err, "Malformed authors file");
+    }
+    SVN_ERR(svn_stream_close(src));
 
     return SVN_NO_ERROR;
 }

@@ -20,8 +20,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef SVN_FAST_EXPORT_CHECKSUM_H_
-#define SVN_FAST_EXPORT_CHECKSUM_H_
+#ifndef GIT_SVN_FAST_IMPORT_CHECKSUM_H_
+#define GIT_SVN_FAST_IMPORT_CHECKSUM_H_
 
 #include "tree.h"
 #include <svn_checksum.h>
@@ -38,6 +38,11 @@ svn_error_t *
 checksum_cache_dump(checksum_cache_t *c,
                     svn_stream_t *dst,
                     apr_pool_t *pool);
+
+svn_error_t *
+checksum_cache_dump_path(checksum_cache_t *c,
+                         const char *path,
+                         apr_pool_t *pool);
 
 svn_error_t *
 checksum_cache_load(checksum_cache_t *c,
@@ -68,4 +73,4 @@ set_tree_checksum(svn_checksum_t **checksum,
                   tree_t *ignores,
                   apr_pool_t *pool);
 
-#endif // SVN_FAST_EXPORT_CHECKSUM_H_
+#endif // GIT_SVN_FAST_IMPORT_CHECKSUM_H_

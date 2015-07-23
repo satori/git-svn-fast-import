@@ -42,6 +42,6 @@ $(TESTS):
 	$(SHELL) $@ $(GIT_SVN_TEST_OPTS)
 
 clean:
-	$(RM) -r trash*
+	$(RM) -r test-results trash*
 
 .PHONY: all $(TESTS) prove clean

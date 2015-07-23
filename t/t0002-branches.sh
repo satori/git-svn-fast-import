@@ -1114,7 +1114,7 @@ cat >expect <<EOF
 * master
 EOF
 
-test_expect_failure 'Validate branches and tags removed' '
+test_expect_success 'Validate branches and tags removed' '
 (cd repo.git &&
     git branch --list >actual &&
     test_cmp ../expect actual)

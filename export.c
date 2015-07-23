@@ -128,9 +128,6 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
     }
 
     branch = branch_storage_lookup_path(ctx->branches, path, pool);
-    if (branch == NULL) {
-        return SVN_NO_ERROR;
-    }
 
     if (kind == svn_node_dir) {
         switch (action) {
@@ -148,7 +145,7 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
                 revision_removes_add(rev, b);
             }
 
-            if (branch_path_is_root(branch, path)) {
+            if (branch != NULL && branch_path_is_root(branch, path)) {
                 return SVN_NO_ERROR;
             }
             break;
@@ -157,6 +154,10 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
             // do nothing
             break;
         }
+    }
+
+    if (branch == NULL) {
+        return SVN_NO_ERROR;
     }
 
     node_path = branch_skip_prefix(branch, path);

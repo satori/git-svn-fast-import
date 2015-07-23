@@ -74,7 +74,16 @@ node_storage_add(node_storage_t *ns,
                  const branch_t *branch)
 {
     apr_array_header_t *nodes;
-    node_t *node;
+    nodes = node_storage_list(ns, branch);
+
+    return apr_array_push(nodes);
+}
+
+apr_array_header_t *
+node_storage_list(const node_storage_t *ns,
+                  const branch_t *branch)
+{
+    apr_array_header_t *nodes;
 
     nodes = apr_hash_get(ns->nodes, branch, sizeof(branch_t *));
     if (nodes == NULL) {
@@ -82,14 +91,5 @@ node_storage_add(node_storage_t *ns,
         apr_hash_set(ns->nodes, branch, sizeof(branch_t *), nodes);
     }
 
-    node = apr_array_push(nodes);
-
-    return node;
-}
-
-apr_array_header_t *
-node_storage_list(const node_storage_t *ns,
-                  const branch_t *branch)
-{
-    return apr_hash_get(ns->nodes, branch, sizeof(branch_t *));
+    return nodes;
 }

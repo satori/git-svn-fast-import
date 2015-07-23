@@ -33,7 +33,7 @@ EOF
 
 test_export_import() {
 	test_expect_success 'Import dump into Git' '
-	(cd repo.git && git-svn-fast-import --quiet --stdlayout -b branches/some-feature/sub-branch --force -c ../cache.txt -I data -A ../authors.txt --export-rev-marks ../rev-marks.txt --export-marks ../marks.txt ../repo)
+	(cd repo.git && git-svn-fast-import --quiet --stdlayout -B branches-2 -b branches/some-feature/sub-branch --force -c ../cache.txt -I data -A ../authors.txt --export-rev-marks ../rev-marks.txt --export-marks ../marks.txt ../repo)
 	'
 }
 
@@ -1101,9 +1101,27 @@ test_expect_success 'Restore revision author property' '
 
 test_tick
 
+test_expect_success 'Copy branches recursively' '
+(cd repo.svn &&
+    svn cp branches branches-2 &&
+    svn_commit "Copied branches recursively")
+'
+
+test_export_import
+
+test_expect_failure 'Validate branches copied recursively' '
+(cd repo.git &&
+    git branch --list branches--* | sed s/branches/branches-2/ >expect &&
+    git branch --list branches-2* >actual &&
+    test_cmp expect actual)
+'
+
+test_tick
+
 test_expect_success 'Remove all branches and tags' '
 (cd repo.svn &&
     svn rm branches &&
+    svn rm branches-2 &&
     svn rm tags &&
     svn_commit "Removed all branches and tags")
 '

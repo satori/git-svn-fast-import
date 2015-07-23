@@ -1099,4 +1099,25 @@ test_expect_success 'Restore revision author property' '
 	svn propset svn:author --revprop -r HEAD author1)
 '
 
+test_tick
+
+test_expect_success 'Remove all branches and tags' '
+(cd repo.svn &&
+    svn rm branches &&
+    svn rm tags &&
+    svn_commit "Removed all branches and tags")
+'
+
+test_export_import
+
+cat >expect <<EOF
+* master
+EOF
+
+test_expect_failure 'Validate branches and tags removed' '
+(cd repo.git &&
+    git branch --list >actual &&
+    test_cmp ../expect actual)
+'
+
 test_done

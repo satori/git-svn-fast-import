@@ -23,7 +23,6 @@
 #ifndef GIT_SVN_FAST_IMPORT_REVISION_H_
 #define GIT_SVN_FAST_IMPORT_REVISION_H_
 
-#include "compat.h"
 #include "branch.h"
 #include "commit.h"
 #include <svn_io.h>

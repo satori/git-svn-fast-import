@@ -23,6 +23,8 @@
 #ifndef GIT_SVN_FAST_IMPORT_MARK_H_
 #define GIT_SVN_FAST_IMPORT_MARK_H_
 
+#include <inttypes.h>
+
 typedef uint32_t mark_t;
 
 #endif // GIT_SVN_FAST_IMPORT_MARK_H_

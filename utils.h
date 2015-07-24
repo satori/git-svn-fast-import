@@ -23,8 +23,6 @@
 #ifndef SVN_FAST_EXPORT_UTILS_H_
 #define SVN_FAST_EXPORT_UTILS_H_
 
-#include "compat.h"
-
 const char *
 cstring_skip_whitespace(const char *src);
 

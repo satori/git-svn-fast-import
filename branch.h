@@ -23,7 +23,6 @@
 #ifndef GIT_SVN_FAST_IMPORT_BRANCH_H_
 #define GIT_SVN_FAST_IMPORT_BRANCH_H_
 
-#include "compat.h"
 #include "commit.h"
 #include "tree.h"
 #include <apr_pools.h>

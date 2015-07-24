@@ -23,7 +23,6 @@
 #ifndef GIT_SVN_FAST_IMPORT_COMMIT_H_
 #define GIT_SVN_FAST_IMPORT_COMMIT_H_
 
-#include "compat.h"
 #include "mark.h"
 #include <apr_pools.h>
 #include <svn_types.h>

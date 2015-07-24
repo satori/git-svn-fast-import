@@ -22,10 +22,10 @@
 
 #include "checksum.h"
 #include "node.h"
-#include "sorts.h"
 #include <svn_dirent_uri.h>
 #include <svn_hash.h>
 #include <svn_props.h>
+#include <svn_sorts.h>
 
 #define SYMLINK_CONTENT_PREFIX "link"
 
@@ -290,6 +290,42 @@ set_content_checksum(svn_checksum_t **checksum,
     return SVN_NO_ERROR;
 }
 
+static int
+compare_items_gitlike(const svn_sort__item_t *a,
+                      const svn_sort__item_t *b)
+{
+    int val;
+    apr_size_t len;
+    svn_fs_dirent_t *entry;
+
+    // Compare bytes of a's key and b's key up to the common length
+    len = (a->klen < b->klen) ? a ->klen : b->klen;
+    val = memcmp(a->key, b->key, len);
+    if (val != 0) {
+        return val;
+    }
+
+    // They match up until one of them ends.
+    // If lesser key stands for directory entry,
+    // compare "/" suffix with the rest of the larger key.
+    // Otherwise whichever is longer is greater.
+    if (a->klen < b->klen) {
+        entry = a->value;
+        if (entry->kind == svn_node_dir) {
+            return memcmp("/", b->key + len, 1);
+        }
+        return -1;
+    } else if (a->klen > b->klen) {
+        entry = b->value;
+        if (entry->kind == svn_node_dir) {
+            return memcmp(a->key + len, "/", 1);
+        }
+        return 1;
+    }
+
+    return 0;
+}
+
 svn_error_t *
 set_tree_checksum(svn_checksum_t **checksum,
                   apr_array_header_t **entries,
@@ -313,9 +349,7 @@ set_tree_checksum(svn_checksum_t **checksum,
 
     SVN_ERR(svn_fs_dir_entries(&dir_entries, root, path, pool));
 
-    sorted_entries = svn_sort__hash(dir_entries,
-                                    svn_sort_compare_items_gitlike,
-                                    pool);
+    sorted_entries = svn_sort__hash(dir_entries, compare_items_gitlike, pool);
 
     for (int i = 0; i < sorted_entries->nelts; i++) {
         apr_array_header_t *subentries = NULL;

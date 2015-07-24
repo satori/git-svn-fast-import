@@ -23,7 +23,6 @@
 #include "checksum.h"
 #include "node.h"
 #include "options.h"
-#include "sorts.h"
 #include "tree.h"
 #include <svn_cmdline.h>
 #include <svn_dirent_uri.h>

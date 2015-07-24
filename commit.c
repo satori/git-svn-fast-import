@@ -22,15 +22,6 @@
 
 #include "commit.h"
 
-// commit_t implementation.
-struct commit_t
-{
-    mark_t mark;
-    bool dummy;
-    const commit_t *parent;
-    const commit_t *copyfrom;
-};
-
 static const commit_t *
 get_effective_commit(const commit_t *commit)
 {
@@ -41,52 +32,10 @@ get_effective_commit(const commit_t *commit)
     return commit;
 }
 
-commit_t *
-commit_create(apr_pool_t *pool)
-{
-    return apr_pcalloc(pool, sizeof(commit_t));
-}
-
 mark_t
 commit_mark_get(const commit_t *c)
 {
     const commit_t *commit = get_effective_commit(c);
 
     return commit->mark;
-}
-
-void
-commit_mark_set(commit_t *c, mark_t mark)
-{
-    c->mark = mark;
-}
-
-const commit_t *
-commit_copyfrom_get(const commit_t *c)
-{
-    return c->copyfrom;
-}
-
-void
-commit_copyfrom_set(commit_t *c, const commit_t *copyfrom)
-{
-    c->copyfrom = copyfrom;
-}
-
-const commit_t *
-commit_parent_get(const commit_t *c)
-{
-    return c->parent;
-}
-
-void
-commit_parent_set(commit_t *c, const commit_t *p)
-{
-    c->parent = p;
-}
-
-void
-commit_dummy_set(commit_t *c)
-{
-    c->dummy = true;
 }

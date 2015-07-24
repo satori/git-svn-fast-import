@@ -52,8 +52,8 @@ commit_t *
 revision_commits_add(const revision_t *rev, branch_t *b)
 {
     apr_pool_t *pool = apr_hash_pool_get(rev->commits);
-    commit_t *commit = commit_create(pool);
-    commit_parent_set(commit, b->head);
+    commit_t *commit = apr_pcalloc(pool, sizeof(commit_t));
+    commit->parent = b->head;
 
     apr_hash_set(rev->commits, b, sizeof(branch_t *), commit);
 

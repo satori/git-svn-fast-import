@@ -54,7 +54,7 @@ backend_write_commit(svn_stream_t *out,
                      int64_t timestamp,
                      apr_pool_t *pool)
 {
-    const commit_t *copyfrom = commit_copyfrom_get(commit);
+    const commit_t *copyfrom = commit->copyfrom;
 
     SVN_ERR(svn_stream_printf(out, pool, "commit %s\n", branch->refname));
     SVN_ERR(svn_stream_printf(out, pool, "mark :%d\n",

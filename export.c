@@ -132,7 +132,7 @@ copy_branches_recursively(const char *dst,
         if (commit == NULL) {
             commit = revision_commits_add(rev, new_branch);
         }
-        commit_copyfrom_set(commit, branch->head);
+        commit->copyfrom = branch->head;
     }
 
     return SVN_NO_ERROR;
@@ -256,7 +256,7 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
         if (copyfrom_commit != NULL &&
                 branch_path_is_root(branch, path) &&
                 branch_path_is_root(copyfrom_branch, copyfrom_path)) {
-            commit_copyfrom_set(commit, copyfrom_commit);
+            commit->copyfrom = copyfrom_commit;
         }
     }
 
@@ -308,16 +308,15 @@ write_commit(void *p_ctx, branch_t *branch, commit_t *commit, apr_pool_t *pool)
         // In case there is only one node in a commit and this node is
         // a root directory copied from another branch, mark this commit
         // as dummy, set copyfrom commit as its parent and reset branch to it.
-        commit_parent_set(commit, commit_copyfrom_get(commit));
-        commit_dummy_set(commit);
-
-        SVN_ERR(reset_branch(ctx, branch, commit, pool));
-    } else if (nodes->nelts == 0 && commit_copyfrom_get(commit) != NULL) {
-        commit_parent_set(commit, commit_copyfrom_get(commit));
-        commit_dummy_set(commit);
-        SVN_ERR(reset_branch(ctx, branch, commit, pool));
+        commit->dummy = TRUE;
+        commit->parent = commit->copyfrom;
+        SVN_ERR(reset_branch(ctx, branch, commit->copyfrom, pool));
+    } else if (nodes->nelts == 0 && commit->copyfrom != NULL) {
+        commit->dummy = TRUE;
+        commit->parent = commit->copyfrom;
+        SVN_ERR(reset_branch(ctx, branch, commit->copyfrom, pool));
     } else {
-        commit_mark_set(commit, ctx->last_mark++);
+        commit->mark = ctx->last_mark++;
         SVN_ERR(backend_write_commit(ctx->dst, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp, pool));
     }
 

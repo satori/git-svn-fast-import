@@ -28,6 +28,7 @@
 #include "tree.h"
 #include <apr_pools.h>
 #include <apr_tables.h>
+#include <svn_types.h>
 
 typedef struct
 {
@@ -41,7 +42,7 @@ const char *
 branch_skip_prefix(const branch_t *b, const char *path);
 
 // Tests if path is branch's root
-bool
+svn_boolean_t
 branch_path_is_root(const branch_t *b, const char *path);
 
 const char *

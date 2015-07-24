@@ -32,7 +32,7 @@ branch_skip_prefix(const branch_t *b, const char *path)
     return svn_dirent_skip_ancestor(b->path, path);
 }
 
-bool
+svn_boolean_t
 branch_path_is_root(const branch_t *b, const char *path)
 {
     return strcmp(b->path, path) == 0;

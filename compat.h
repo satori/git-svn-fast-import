@@ -29,7 +29,4 @@
 // Include <stddef.h> for size_t definition.
 #include <stddef.h>
 
-// Include <stdbool.h> for boolean definitions.
-#include <stdbool.h>
-
 #endif // GIT_SVN_FAST_IMPORT_COMPAT_H_

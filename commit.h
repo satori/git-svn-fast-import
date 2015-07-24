@@ -26,6 +26,7 @@
 #include "compat.h"
 #include "mark.h"
 #include <apr_pools.h>
+#include <svn_types.h>
 
 // Abstract type for commit.
 typedef struct commit_t commit_t;
@@ -33,7 +34,7 @@ typedef struct commit_t commit_t;
 struct commit_t
 {
     mark_t mark;
-    bool dummy;
+    svn_boolean_t dummy;
     const commit_t *parent;
     const commit_t *copyfrom;
 };

@@ -101,7 +101,7 @@ author_storage_load(author_storage_t *as,
     svn_boolean_t eof;
     int lineno = 0;
 
-    while (true) {
+    while (TRUE) {
         author_t *author = apr_pcalloc(as->pool, sizeof(author_t));
         const char *next, *prev, *end;
         svn_stringbuf_t *buf;

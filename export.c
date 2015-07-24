@@ -83,14 +83,8 @@ new_revision_record(void **r_ctx,
 }
 
 static const commit_t *
-get_copyfrom_commit(svn_fs_path_change2_t *change, parser_ctx_t *ctx, branch_t *copyfrom_branch)
+get_copyfrom_commit(svn_revnum_t revnum, parser_ctx_t *ctx, branch_t *copyfrom_branch)
 {
-    svn_revnum_t revnum = change->copyfrom_rev;
-
-    if (!change->copyfrom_known) {
-        return NULL;
-    }
-
     while (revnum > 0) {
         const revision_t *rev;
         const commit_t *commit = NULL;
@@ -113,6 +107,7 @@ get_copyfrom_commit(svn_fs_path_change2_t *change, parser_ctx_t *ctx, branch_t *
 static svn_error_t *
 copy_branches_recursively(const char *dst,
                           const char *src,
+                          svn_revnum_t src_rev,
                           parser_ctx_t *ctx,
                           revision_t *rev,
                           apr_pool_t *pool)
@@ -132,7 +127,7 @@ copy_branches_recursively(const char *dst,
         if (commit == NULL) {
             commit = revision_commits_add(rev, new_branch);
         }
-        commit->copyfrom = branch->head;
+        commit->copyfrom = get_copyfrom_commit(src_rev, ctx, branch);
     }
 
     return SVN_NO_ERROR;
@@ -179,7 +174,7 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
         case svn_fs_path_change_modify:
             {
                 if (copyfrom_path != NULL) {
-                    SVN_ERR(copy_branches_recursively(path, copyfrom_path, ctx, rev, pool));
+                    SVN_ERR(copy_branches_recursively(path, copyfrom_path, change->copyfrom_rev, ctx, rev, pool));
                 }
 
                 if (copyfrom_branch == NULL) {

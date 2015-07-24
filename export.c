@@ -21,7 +21,6 @@
  */
 
 #include "export.h"
-#include "backend.h"
 #include "tree.h"
 #include "utils.h"
 #include <apr_portable.h>
@@ -287,10 +286,31 @@ reset_branch(void *p_ctx, const branch_t *branch, const commit_t *commit, apr_po
 }
 
 static svn_error_t *
+node_modify(svn_stream_t *dst, const node_t *node, apr_pool_t *pool)
+{
+    const char *checksum;
+    checksum = svn_checksum_to_cstring_display(node->checksum, pool);
+
+    SVN_ERR(svn_stream_printf(dst, pool, "M %o %s \"%s\"\n",
+                              node->mode, checksum, node->path));
+
+    return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+node_delete(svn_stream_t *dst, const node_t *node, apr_pool_t *pool)
+{
+    SVN_ERR(svn_stream_printf(dst, pool, "D \"%s\"\n", node->path));
+
+    return SVN_NO_ERROR;
+}
+
+static svn_error_t *
 write_commit(void *p_ctx, branch_t *branch, commit_t *commit, apr_pool_t *pool)
 {
     apr_array_header_t *nodes;
     parser_ctx_t *ctx = p_ctx;
+    svn_stream_t *dst = ctx->dst;
     revision_ctx_t *rev_ctx = ctx->rev_ctx;
 
     nodes = node_storage_list(rev_ctx->nodes, branch);
@@ -304,7 +324,38 @@ write_commit(void *p_ctx, branch_t *branch, commit_t *commit, apr_pool_t *pool)
         SVN_ERR(reset_branch(ctx, branch, commit->copyfrom, pool));
     } else {
         commit->mark = ctx->last_mark++;
-        SVN_ERR(backend_write_commit(ctx->dst, branch, commit, nodes, rev_ctx->author, rev_ctx->message, rev_ctx->timestamp, pool));
+
+        SVN_ERR(svn_stream_printf(dst, pool, "commit %s\n", branch->refname));
+        SVN_ERR(svn_stream_printf(dst, pool, "mark :%d\n", commit->mark));
+        SVN_ERR(svn_stream_printf(dst, pool, "committer %s %"PRId64" +0000\n",
+                                  author_to_cstring(rev_ctx->author, pool),
+                                  rev_ctx->timestamp));
+        SVN_ERR(svn_stream_printf(dst, pool, "data %ld\n", strlen(rev_ctx->message)));
+        SVN_ERR(svn_stream_printf(dst, pool, "%s\n", rev_ctx->message));
+
+        if (commit->copyfrom != NULL) {
+            SVN_ERR(svn_stream_printf(dst, pool, "from :%d\n",
+                                      commit_mark_get(commit->copyfrom)));
+        }
+    }
+
+    for (int i = 0; i < nodes->nelts; i++) {
+        const node_t *node = &APR_ARRAY_IDX(nodes, i, node_t);
+        switch (node->action) {
+        case svn_fs_path_change_add:
+        case svn_fs_path_change_modify:
+            SVN_ERR(node_modify(dst, node, pool));
+            break;
+        case svn_fs_path_change_delete:
+            SVN_ERR(node_delete(dst, node, pool));
+            break;
+        case svn_fs_path_change_replace:
+            SVN_ERR(node_delete(dst, node, pool));
+            SVN_ERR(node_modify(dst, node, pool));
+        default:
+            // noop
+            break;
+        }
     }
 
     branch->head = commit;

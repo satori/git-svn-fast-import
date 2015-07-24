@@ -42,7 +42,6 @@ SVN_LS_TREE := svn-ls-tree
 
 FE_OBJECTS := svn-fast-export.o \
 	author.o \
-	backend.o \
 	branch.o \
 	checksum.o \
 	commit.o \

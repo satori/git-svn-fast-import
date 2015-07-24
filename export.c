@@ -341,8 +341,8 @@ close_revision(void *r_ctx, apr_pool_t *pool)
         rev_ctx->author = author_storage_default_author(ctx->authors);
     }
 
-    revision_commits_apply(rev, &write_commit, ctx, pool);
     revision_removes_apply(rev, &remove_branch, ctx, pool);
+    revision_commits_apply(rev, &write_commit, ctx, pool);
 
     SVN_ERR(svn_stream_printf(ctx->dst, pool,
                               "progress Imported revision %ld\n",

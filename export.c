@@ -169,31 +169,36 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
     branch = branch_storage_lookup_path(ctx->branches, path, pool);
 
     if (kind == svn_node_dir) {
-        switch (action) {
-        case svn_fs_path_change_add:
-        case svn_fs_path_change_modify:
-            {
-                if (copyfrom_path != NULL) {
-                    SVN_ERR(copy_branches_recursively(path, copyfrom_path, change->copyfrom_rev, ctx, rev, pool));
-                }
+        svn_boolean_t remove = (action == svn_fs_path_change_replace ||
+                                action == svn_fs_path_change_delete);
 
-                if (copyfrom_branch == NULL) {
-                    return SVN_NO_ERROR;
-                }
-                break;
-            }
-        case svn_fs_path_change_delete:
-            {
-                SVN_ERR(remove_branches_recursively(path, ctx, rev, pool));
+        svn_boolean_t modify = (action == svn_fs_path_change_replace ||
+                                action == svn_fs_path_change_add ||
+                                action == svn_fs_path_change_modify);
 
-                if (branch != NULL && branch_path_is_root(branch, path)) {
-                    return SVN_NO_ERROR;
-                }
-                break;
+        svn_boolean_t dst_is_root = (branch != NULL && branch_path_is_root(branch, path));
+        svn_boolean_t src_is_root = (copyfrom_branch != NULL && branch_path_is_root(copyfrom_branch, copyfrom_path));
+
+        if (remove) {
+            SVN_ERR(remove_branches_recursively(path, ctx, rev, pool));
+        }
+
+        if (action == svn_fs_path_change_delete && dst_is_root) {
+            return SVN_NO_ERROR;
+        }
+
+        if (modify) {
+            if (copyfrom_path != NULL) {
+                SVN_ERR(copy_branches_recursively(path, copyfrom_path, change->copyfrom_rev, ctx, rev, pool));
             }
-        default:
-            // do nothing
-            break;
+
+            if (copyfrom_branch == NULL) {
+                return SVN_NO_ERROR;
+            }
+
+            if (dst_is_root && src_is_root) {
+                return SVN_NO_ERROR;
+            }
         }
     }
 
@@ -234,7 +239,6 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
         node->action = svn_fs_path_change_delete;
     } else if (kind == svn_node_dir && copyfrom_branch != NULL) {
         apr_array_header_t *dummy;
-        const commit_t *copyfrom_commit;
         svn_fs_t *fs = svn_fs_root_fs(ctx->rev_ctx->root);
         svn_fs_root_t *copyfrom_root;
         tree_t *ignores;
@@ -245,14 +249,6 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
         SVN_ERR(set_tree_checksum(&node->checksum, &dummy, ctx->dst, ctx->blobs,
                                   copyfrom_root, copyfrom_path,
                                   copyfrom_branch->path, ignores, pool));
-
-        copyfrom_commit = get_copyfrom_commit(change, ctx, copyfrom_branch);
-
-        if (copyfrom_commit != NULL &&
-                branch_path_is_root(branch, path) &&
-                branch_path_is_root(copyfrom_branch, copyfrom_path)) {
-            commit->copyfrom = copyfrom_commit;
-        }
     }
 
     return SVN_NO_ERROR;
@@ -299,14 +295,10 @@ write_commit(void *p_ctx, branch_t *branch, commit_t *commit, apr_pool_t *pool)
 
     nodes = node_storage_list(rev_ctx->nodes, branch);
 
-    if (nodes->nelts == 1 && commit_copyfrom_get(commit) != NULL) {
+    if (nodes->nelts == 0 && commit->copyfrom != NULL) {
         // In case there is only one node in a commit and this node is
         // a root directory copied from another branch, mark this commit
         // as dummy, set copyfrom commit as its parent and reset branch to it.
-        commit->dummy = TRUE;
-        commit->parent = commit->copyfrom;
-        SVN_ERR(reset_branch(ctx, branch, commit->copyfrom, pool));
-    } else if (nodes->nelts == 0 && commit->copyfrom != NULL) {
         commit->dummy = TRUE;
         commit->parent = commit->copyfrom;
         SVN_ERR(reset_branch(ctx, branch, commit->copyfrom, pool));

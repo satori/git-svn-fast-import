@@ -49,7 +49,6 @@ FE_OBJECTS := svn-fast-export.o \
 	node.o \
 	options.o \
 	revision.o \
-	sorts.o \
 	tree.o \
 	utils.o
 
@@ -57,7 +56,6 @@ LS_OBJECTS := svn-ls-tree.o \
 	checksum.o \
 	node.o \
 	options.o \
-	sorts.o \
 	tree.o
 
 all: $(GIT_SVN_FAST_IMPORT) $(GIT_SVN_VERIFY_IMPORT) $(SVN_FAST_EXPORT) $(SVN_LS_TREE)

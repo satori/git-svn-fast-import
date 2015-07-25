@@ -178,24 +178,31 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
         svn_boolean_t dst_is_root = (branch != NULL && branch_path_is_root(branch, path));
         svn_boolean_t src_is_root = (copyfrom_branch != NULL && branch_path_is_root(copyfrom_branch, copyfrom_path));
 
+        // Remove branches recursively if action is delete or replace.
         if (remove) {
             SVN_ERR(remove_branches_recursively(path, ctx, rev, pool));
         }
 
+        // Copy branches recursively if action is one of add, modify or replace.
+        if (modify && copyfrom_path != NULL) {
+            SVN_ERR(copy_branches_recursively(path, copyfrom_path, change->copyfrom_rev, ctx, rev, pool));
+
+            // Return early if destination path is branch root and source path is branch root.
+            // In that case we've just added new commit with copyfrom commit known.
+            if (dst_is_root && src_is_root) {
+                return SVN_NO_ERROR;
+            }
+        }
+
+        // Return early if action is remove and dst path is branch root.
         if (action == svn_fs_path_change_delete && dst_is_root) {
             return SVN_NO_ERROR;
         }
 
-        if (modify) {
-            if (copyfrom_path != NULL) {
-                SVN_ERR(copy_branches_recursively(path, copyfrom_path, change->copyfrom_rev, ctx, rev, pool));
-            }
-
+        // Return early if action is add or modify and source branch is unknown.
+        // We need to go further in case of replace action as it will be handled as delete action.
+        if (action == svn_fs_path_change_add || action == svn_fs_path_change_modify) {
             if (copyfrom_branch == NULL) {
-                return SVN_NO_ERROR;
-            }
-
-            if (dst_is_root && src_is_root) {
                 return SVN_NO_ERROR;
             }
         }

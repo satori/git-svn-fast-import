@@ -38,13 +38,7 @@ test_export_import() {
 	'
 }
 
-test_expect_success 'Initialize repositories' '
-svnadmin create repo &&
-	echo "#!/bin/sh" >repo/hooks/pre-revprop-change &&
-	chmod +x repo/hooks/pre-revprop-change &&
-	svn checkout "file:///$(pwd)/repo" repo.svn &&
-	git init repo.git
-'
+init_repos
 
 test_tick
 

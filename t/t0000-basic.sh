@@ -23,15 +23,10 @@
 
 test_description='Test basic support'
 
+. ./helpers.sh
 . ./sharness/sharness.sh
 
-test_expect_success 'Initialize Subversion repository' '
-svnadmin create repo &&
-    svn checkout "file:///$(pwd)/repo" repo.svn
-'
-test_expect_success 'Initialize Git repository' '
-git init repo.git
-'
+init_repos
 
 test_expect_success 'Import dump into Git' '
 (cd repo.git &&

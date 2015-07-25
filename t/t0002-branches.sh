@@ -37,18 +37,8 @@ test_export_import() {
 	'
 }
 
-test_init_repos() {
-	test_expect_success 'Initialize repositories' '
-	rm -rf repo repo.svn repo.git &&
-		svnadmin create repo &&
-		echo "#!/bin/sh" >repo/hooks/pre-revprop-change &&
-		chmod +x repo/hooks/pre-revprop-change &&
-		svn checkout "file:///$(pwd)/repo" repo.svn &&
-		git init repo.git
-	'
-}
 
-test_init_repos
+init_repos
 
 test_tick
 
@@ -85,7 +75,7 @@ test_expect_success 'Validate branch creation' '
 	test_cmp ../expect actual)
 '
 
-test_init_repos
+init_repos
 
 test_tick
 
@@ -886,7 +876,6 @@ test_tick
 
 (cd repo.git &&
 	git describe --always branches--new-feature-2 >branch-before-remove)
-
 
 test_expect_success 'Remove branch' '
 (cd repo.svn &&

@@ -43,6 +43,15 @@ test_tick() {
 	export COMMIT_DATE
 }
 
+init_repos() {
+	rm -rf repo repo.svn repo.git &&
+		svnadmin create repo &&
+		echo "#!/bin/sh" >repo/hooks/pre-revprop-change &&
+		chmod +x repo/hooks/pre-revprop-change &&
+		svn co -q "file:///$(pwd)/repo" repo.svn &&
+		git init -q repo.git
+}
+
 svn_commit() {
 	test "$#" = 1 ||
 		error "bug in the test script: not 1 parameter to svn_commit"

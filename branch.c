@@ -26,12 +26,6 @@
 #include <svn_dirent_uri.h>
 #include <svn_string.h>
 
-const char *
-branch_skip_prefix(const branch_t *b, const char *path)
-{
-    return svn_dirent_skip_ancestor(b->path, path);
-}
-
 svn_boolean_t
 branch_path_is_root(const branch_t *b, const char *path)
 {

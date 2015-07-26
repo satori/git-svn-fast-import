@@ -36,10 +36,6 @@ typedef struct
     const commit_t *head;
 } branch_t;
 
-// Skips branch path prefix from absolute path.
-const char *
-branch_skip_prefix(const branch_t *b, const char *path);
-
 // Tests if path is branch's root
 svn_boolean_t
 branch_path_is_root(const branch_t *b, const char *path);

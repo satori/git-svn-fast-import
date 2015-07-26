@@ -146,7 +146,7 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
         return SVN_NO_ERROR;
     }
 
-    node_path = branch_skip_prefix(branch, path);
+    node_path = svn_relpath_skip_ancestor(branch->path, path);
     if (node_path == NULL) {
         return SVN_NO_ERROR;
     }

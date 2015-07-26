@@ -113,13 +113,10 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
     branch_t *branch = NULL, *src_branch = NULL;
     node_t *node;
     svn_boolean_t dst_is_root, src_is_root;
-    svn_boolean_t modify, remove;
+    svn_boolean_t modify;
     svn_fs_path_change_kind_t action = change->change_kind;
     svn_node_kind_t kind = change->node_kind;
     svn_revnum_t src_rev = change->copyfrom_rev;
-
-    remove = (action == svn_fs_path_change_replace ||
-              action == svn_fs_path_change_delete);
 
     modify = (action == svn_fs_path_change_replace ||
               action == svn_fs_path_change_add ||

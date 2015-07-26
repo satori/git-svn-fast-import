@@ -1029,7 +1029,7 @@ test_expect_success 'Copy branches recursively' '
 
 test_export_import
 
-test_expect_failure 'Validate branches copied recursively' '
+test_expect_success 'Validate branches copied recursively' '
 (cd repo.git &&
     git branch --list branches--* | sed s/branches/branches-2/ >expect &&
     git branch --list branches-2* >actual &&

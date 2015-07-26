@@ -104,111 +104,48 @@ get_copyfrom_commit(svn_revnum_t revnum, parser_ctx_t *ctx, branch_t *copyfrom_b
 }
 
 static svn_error_t *
-copy_branches_recursively(const char *dst,
-                          const char *src,
-                          svn_revnum_t src_rev,
-                          parser_ctx_t *ctx,
-                          revision_t *rev,
-                          apr_pool_t *pool)
-{
-    apr_array_header_t *copies = branch_storage_collect_branches(ctx->branches, src, pool);
-
-    for (int i = 0; i < copies->nelts; i++) {
-        const char *new_path;
-        branch_t *branch, *new_branch;
-        commit_t *commit;
-
-        branch = APR_ARRAY_IDX(copies, i, branch_t *);
-        new_path = svn_relpath_join(dst, svn_relpath_skip_ancestor(src, branch->path), pool);
-        new_branch = branch_storage_lookup_path(ctx->branches, new_path, pool);
-
-        commit = revision_commits_get(rev, new_branch);
-        if (commit == NULL) {
-            commit = revision_commits_add(rev, new_branch);
-        }
-        commit->copyfrom = get_copyfrom_commit(src_rev, ctx, branch);
-    }
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
-remove_branches_recursively(const char *path,
-                            parser_ctx_t *ctx,
-                            revision_t *rev,
-                            apr_pool_t *pool)
-{
-    apr_array_header_t *removes = branch_storage_collect_branches(ctx->branches, path, pool);
-
-    for (int i = 0; i < removes->nelts; i++) {
-        branch_t *b = APR_ARRAY_IDX(removes, i, branch_t *);
-        revision_removes_add(rev, b);
-    }
-
-    return SVN_NO_ERROR;
-}
-
-static svn_error_t *
 process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_ctx, apr_pool_t *pool)
 {
-    const char *copyfrom_path = NULL, *node_path, *ignored;
+    const char *src_path = NULL, *node_path, *ignored;
     parser_ctx_t *ctx = r_ctx;
     revision_t *rev = ctx->rev_ctx->rev;
     commit_t *commit;
-    branch_t *branch = NULL, *copyfrom_branch = NULL;
+    branch_t *branch = NULL, *src_branch = NULL;
     node_t *node;
+    svn_boolean_t dst_is_root, src_is_root;
+    svn_boolean_t modify, remove;
     svn_fs_path_change_kind_t action = change->change_kind;
     svn_node_kind_t kind = change->node_kind;
+    svn_revnum_t src_rev = change->copyfrom_rev;
 
-    if (change->copyfrom_known && SVN_IS_VALID_REVNUM(change->copyfrom_rev)) {
-        copyfrom_path = svn_dirent_skip_ancestor("/", change->copyfrom_path);
-        copyfrom_branch = branch_storage_lookup_path(ctx->branches, copyfrom_path, pool);
+    remove = (action == svn_fs_path_change_replace ||
+              action == svn_fs_path_change_delete);
+
+    modify = (action == svn_fs_path_change_replace ||
+              action == svn_fs_path_change_add ||
+              action == svn_fs_path_change_modify);
+
+    if (change->copyfrom_known && SVN_IS_VALID_REVNUM(src_rev)) {
+        src_path = change->copyfrom_path;
+        src_branch = branch_storage_lookup_path(ctx->branches, src_path, pool);
+        src_is_root = (src_branch != NULL && branch_path_is_root(src_branch, src_path));
     }
 
     branch = branch_storage_lookup_path(ctx->branches, path, pool);
+    if (branch == NULL) {
+        return SVN_NO_ERROR;
+    }
 
-    if (kind == svn_node_dir) {
-        svn_boolean_t remove = (action == svn_fs_path_change_replace ||
-                                action == svn_fs_path_change_delete);
+    dst_is_root = branch_path_is_root(branch, path);
 
-        svn_boolean_t modify = (action == svn_fs_path_change_replace ||
-                                action == svn_fs_path_change_add ||
-                                action == svn_fs_path_change_modify);
-
-        svn_boolean_t dst_is_root = (branch != NULL && branch_path_is_root(branch, path));
-        svn_boolean_t src_is_root = (copyfrom_branch != NULL && branch_path_is_root(copyfrom_branch, copyfrom_path));
-
-        // Remove branches recursively if action is delete or replace.
-        if (remove) {
-            SVN_ERR(remove_branches_recursively(path, ctx, rev, pool));
-        }
-
-        // Copy branches recursively if action is one of add, modify or replace.
-        if (modify && copyfrom_path != NULL) {
-            SVN_ERR(copy_branches_recursively(path, copyfrom_path, change->copyfrom_rev, ctx, rev, pool));
-
-            // Return early if destination path is branch root and source path is branch root.
-            // In that case we've just added new commit with copyfrom commit known.
-            if (dst_is_root && src_is_root) {
-                return SVN_NO_ERROR;
-            }
-        }
-
-        // Return early if action is remove and dst path is branch root.
-        if (action == svn_fs_path_change_delete && dst_is_root) {
-            return SVN_NO_ERROR;
-        }
-
-        // Return early if action is add or modify and source branch is unknown.
-        // We need to go further in case of replace action as it will be handled as delete action.
+    if (kind == svn_node_dir && src_branch == NULL) {
         if (action == svn_fs_path_change_add || action == svn_fs_path_change_modify) {
-            if (copyfrom_branch == NULL) {
-                return SVN_NO_ERROR;
-            }
+            return SVN_NO_ERROR;
         }
     }
 
-    if (branch == NULL) {
+    if (action == svn_fs_path_change_delete && dst_is_root) {
+        revision_removes_add(rev, branch);
         return SVN_NO_ERROR;
     }
 
@@ -227,6 +164,11 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
         commit = revision_commits_add(rev, branch);
     }
 
+    if (modify && dst_is_root && src_is_root) {
+        commit->copyfrom = get_copyfrom_commit(change->copyfrom_rev, ctx, src_branch);
+        return SVN_NO_ERROR;
+    }
+
     node = node_storage_add(ctx->rev_ctx->nodes, branch);
     node->kind = kind;
     node->action = action;
@@ -236,25 +178,31 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
         return SVN_NO_ERROR;
     }
 
+    if (action == svn_fs_path_change_replace && src_path == NULL) {
+        node->action = svn_fs_path_change_delete;
+        return SVN_NO_ERROR;
+    }
+
     SVN_ERR(set_node_mode(&node->mode, ctx->rev_ctx->root, path, pool));
 
     if (kind == svn_node_file) {
         SVN_ERR(set_content_checksum(&node->checksum, ctx->dst, ctx->blobs,
                                      ctx->rev_ctx->root, path, pool));
-    } else if (kind == svn_node_dir && action == svn_fs_path_change_replace && copyfrom_path == NULL) {
-        node->action = svn_fs_path_change_delete;
-    } else if (kind == svn_node_dir && copyfrom_branch != NULL) {
+        return SVN_NO_ERROR;
+    }
+
+    if (kind == svn_node_dir && src_branch != NULL) {
         apr_array_header_t *dummy;
         svn_fs_t *fs = svn_fs_root_fs(ctx->rev_ctx->root);
-        svn_fs_root_t *copyfrom_root;
+        svn_fs_root_t *src_root;
         tree_t *ignores;
-        const tree_t *subbranches = tree_subtree(ctx->branches->tree, copyfrom_branch->path, pool);
+        const tree_t *subbranches = tree_subtree(ctx->branches->tree, src_branch->path, pool);
         tree_merge(&ignores, ctx->ignores, subbranches, pool);
 
-        SVN_ERR(svn_fs_revision_root(&copyfrom_root, fs, change->copyfrom_rev, pool));
+        SVN_ERR(svn_fs_revision_root(&src_root, fs, change->copyfrom_rev, pool));
         SVN_ERR(set_tree_checksum(&node->checksum, &dummy, ctx->dst, ctx->blobs,
-                                  copyfrom_root, copyfrom_path,
-                                  copyfrom_branch->path, ignores, pool));
+                                  src_root, src_path, src_branch->path, ignores,
+                                  pool));
     }
 
     return SVN_NO_ERROR;
@@ -411,6 +359,101 @@ close_revision(void *r_ctx, apr_pool_t *pool)
     return SVN_NO_ERROR;
 }
 
+static svn_error_t *
+prepare_changes(apr_array_header_t **dst,
+                apr_array_header_t *fs_changes,
+                svn_fs_root_t *root,
+                parser_ctx_t *ctx,
+                apr_pool_t *pool)
+{
+    apr_array_header_t *changes = apr_array_make(pool, 0, sizeof(svn_sort__item_t));
+
+    for (int i = 0; i < fs_changes->nelts; i++) {
+        apr_array_header_t *copies, *removes;
+        svn_boolean_t remove, modify;
+        svn_sort__item_t item = APR_ARRAY_IDX(fs_changes, i, svn_sort__item_t);
+        svn_fs_path_change2_t *change = item.value;
+        svn_fs_path_change_kind_t action = change->change_kind;
+
+        // Convert dirent paths to relpaths.
+        const char *path = svn_dirent_skip_ancestor("/", item.key);
+        if (change->copyfrom_known && SVN_IS_VALID_REVNUM(change->copyfrom_rev)) {
+            change->copyfrom_path = svn_dirent_skip_ancestor("/", change->copyfrom_path);
+        }
+
+        svn_sort__item_t *new_item = apr_array_push(changes);
+        new_item->key = path;
+        new_item->value = change;
+
+        if (change->node_kind != svn_node_dir) {
+            continue;
+        }
+
+        remove = (action == svn_fs_path_change_replace ||
+                  action == svn_fs_path_change_delete);
+
+        modify = (action == svn_fs_path_change_replace ||
+                  action == svn_fs_path_change_add ||
+                  action == svn_fs_path_change_modify);
+
+        if (remove) {
+            removes = branch_storage_collect_branches(ctx->branches, path, pool);
+
+            for (int i = 0; i < removes->nelts; i++) {
+                branch_t *branch = APR_ARRAY_IDX(removes, i, branch_t *);
+                if (branch_path_is_root(branch, path)) {
+                    continue;
+                }
+                svn_sort__item_t *subitem = apr_array_push(changes);
+                svn_fs_path_change2_t *subchange = apr_pcalloc(pool, sizeof(svn_fs_path_change2_t));
+                subitem->key = branch->path;
+                subitem->value = subchange;
+
+                subchange->change_kind = svn_fs_path_change_delete;
+                subchange->node_kind = svn_node_dir;
+            }
+        }
+
+        if (modify && change->copyfrom_known && SVN_IS_VALID_REVNUM(change->copyfrom_rev)) {
+            const char *src_path = change->copyfrom_path;
+            svn_fs_t *fs = svn_fs_root_fs(root);
+            svn_fs_root_t *src_root;
+            SVN_ERR(svn_fs_revision_root(&src_root, fs, change->copyfrom_rev, pool));
+            copies = branch_storage_collect_branches(ctx->branches, src_path, pool);
+
+            for (int i = 0; i < copies->nelts; i++) {
+                const char *new_path;
+                svn_node_kind_t kind;
+                branch_t *branch = APR_ARRAY_IDX(copies, i, branch_t *);
+                if (branch_path_is_root(branch, path)) {
+                    continue;
+                }
+                SVN_ERR(svn_fs_check_path(&kind, src_root, branch->path, pool));
+                if (kind == svn_node_none) {
+                    continue;
+                }
+
+                new_path = svn_relpath_join(path, svn_relpath_skip_ancestor(src_path, branch->path), pool);
+
+                svn_sort__item_t *subitem = apr_array_push(changes);
+                svn_fs_path_change2_t *subchange = apr_pcalloc(pool, sizeof(svn_fs_path_change2_t));
+                subitem->key = new_path;
+                subitem->value = subchange;
+
+                subchange->change_kind = svn_fs_path_change_add;
+                subchange->node_kind = svn_node_dir;
+                subchange->copyfrom_known = TRUE;
+                subchange->copyfrom_rev = change->copyfrom_rev;
+                subchange->copyfrom_path = branch->path;
+            }
+        }
+    }
+
+    *dst = changes;
+
+    return SVN_NO_ERROR;
+}
+
 svn_error_t *
 export_revision_range(svn_stream_t *dst,
                       svn_fs_t *fs,
@@ -438,7 +481,7 @@ export_revision_range(svn_stream_t *dst,
     subpool = svn_pool_create(pool);
 
     for (rev = lower; rev <= upper; rev++) {
-        apr_array_header_t *changes;
+        apr_array_header_t *changes, *sorted_changes;
         apr_hash_t *fs_changes, *revprops;
         apr_hash_index_t *idx;
         svn_fs_root_t *root;
@@ -459,15 +502,12 @@ export_revision_range(svn_stream_t *dst,
 
         // Fetch the paths changed under root.
         SVN_ERR(svn_fs_paths_changed2(&fs_changes, root, subpool));
-        changes = svn_sort__hash(fs_changes, svn_sort_compare_items_lexically, subpool);
+        sorted_changes = svn_sort__hash(fs_changes, svn_sort_compare_items_lexically, subpool);
+        SVN_ERR(prepare_changes(&changes, sorted_changes, root, &ctx, subpool));
 
         for (int i = 0; i < changes->nelts; i++) {
             svn_sort__item_t item = APR_ARRAY_IDX(changes, i, svn_sort__item_t);
-            const char *path = item.key;
-            svn_fs_path_change2_t *change = item.value;
-            path = svn_dirent_skip_ancestor("/", path);
-
-            SVN_ERR(process_change_record(path, change, r_ctx, subpool));
+            SVN_ERR(process_change_record(item.key, item.value, r_ctx, subpool));
         }
 
         SVN_ERR(close_revision(r_ctx, subpool));

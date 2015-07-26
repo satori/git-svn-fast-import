@@ -175,7 +175,7 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
         return SVN_NO_ERROR;
     }
 
-    if (action == svn_fs_path_change_replace && src_path == NULL) {
+    if (action == svn_fs_path_change_replace && kind == svn_node_dir && src_path == NULL) {
         node->action = svn_fs_path_change_delete;
         return SVN_NO_ERROR;
     }

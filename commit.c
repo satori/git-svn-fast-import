@@ -35,6 +35,7 @@ commit_cache_create(apr_pool_t *pool)
     c->pool = pool;
     c->commits = apr_array_make(pool, 0, sizeof(commit_t));
     c->idx = apr_hash_make(pool);
+    c->marks = apr_hash_make(pool);
     c->last_mark = 1;
 
     return c;
@@ -49,6 +50,12 @@ commit_cache_get(commit_cache_t *c, svn_revnum_t revnum, branch_t *branch)
 }
 
 commit_t *
+commit_cache_get_by_mark(commit_cache_t *c, mark_t mark)
+{
+    return apr_hash_get(c->marks, &mark, sizeof(mark_t));
+}
+
+commit_t *
 commit_cache_add(commit_cache_t *c, svn_revnum_t revnum, branch_t *branch)
 {
     commit_t *commit = apr_array_push(c->commits);
@@ -59,6 +66,13 @@ commit_cache_add(commit_cache_t *c, svn_revnum_t revnum, branch_t *branch)
     apr_hash_set(c->idx, commit, sizeof(cache_key_t), commit);
 
     return commit;
+}
+
+void
+commit_cache_set_mark(commit_cache_t *c, commit_t *commit)
+{
+    commit->mark = c->last_mark++;
+    apr_hash_set(c->marks, &commit->mark, sizeof(mark_t), commit);
 }
 
 svn_error_t *

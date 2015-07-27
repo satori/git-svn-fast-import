@@ -314,7 +314,10 @@ write_commit(svn_stream_t *dst,
         commit->mark = commit->copyfrom;
         SVN_ERR(reset_branch(dst, branch, commit, pool));
     } else {
-        commit->mark = ctx->commits->last_mark++;
+        apr_hash_t *merges = apr_hash_make(pool);
+        apr_hash_index_t *idx;
+
+        commit_cache_set_mark(ctx->commits, commit);
 
         SVN_ERR(svn_stream_printf(dst, pool, "commit %s\n", branch->refname));
         SVN_ERR(svn_stream_printf(dst, pool, "mark :%d\n", commit->mark));
@@ -330,7 +333,16 @@ write_commit(svn_stream_t *dst,
 
         for (int i = 0; i < commit->merges->nelts; i++) {
             mark_t merge = APR_ARRAY_IDX(commit->merges, i, mark_t);
-            SVN_ERR(svn_stream_printf(dst, pool, "merge :%d\n", merge));
+            commit_t *other = commit_cache_get_by_mark(ctx->commits, merge);
+            commit_t *merged = apr_hash_get(merges, other->branch, sizeof(branch_t *));
+            if (merged == NULL || merged->revnum < other->revnum) {
+                apr_hash_set(merges, other->branch, sizeof(branch_t *), other);
+            }
+        }
+
+        for (idx = apr_hash_first(pool, merges); idx; idx = apr_hash_next(idx)) {
+            commit_t *other = apr_hash_this_val(idx);
+            SVN_ERR(svn_stream_printf(dst, pool, "merge :%d\n", other->mark));
         }
     }
 

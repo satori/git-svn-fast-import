@@ -43,6 +43,7 @@ typedef struct
     apr_pool_t *pool;
     apr_array_header_t *commits;
     apr_hash_t *idx;
+    apr_hash_t *marks;
     mark_t last_mark;
 } commit_cache_t;
 
@@ -51,6 +52,12 @@ commit_cache_create(apr_pool_t *pool);
 
 commit_t *
 commit_cache_get(commit_cache_t *c, svn_revnum_t revnum, branch_t *branch);
+
+commit_t *
+commit_cache_get_by_mark(commit_cache_t *c, mark_t mark);
+
+void
+commit_cache_set_mark(commit_cache_t *c, commit_t *commit);
 
 commit_t *
 commit_cache_add(commit_cache_t *c, svn_revnum_t revnum, branch_t *branch);

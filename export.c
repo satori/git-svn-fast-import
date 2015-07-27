@@ -477,6 +477,7 @@ export_revision_range(svn_stream_t *dst,
                       svn_revnum_t lower,
                       svn_revnum_t upper,
                       export_ctx_t *ctx,
+                      svn_cancel_func_t cancel_func,
                       apr_pool_t *pool)
 {
     apr_pool_t *subpool;
@@ -484,6 +485,7 @@ export_revision_range(svn_stream_t *dst,
     subpool = svn_pool_create(pool);
 
     for (svn_revnum_t revnum = lower; revnum <= upper; revnum++) {
+        SVN_ERR(cancel_func(NULL));
         apr_array_header_t *changes, *sorted_changes;
         apr_hash_t *fs_changes;
         revision_t *rev;

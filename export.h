@@ -44,6 +44,7 @@ export_revision_range(svn_stream_t *dst,
                       svn_revnum_t lower,
                       svn_revnum_t upper,
                       export_ctx_t *ctx,
+                      svn_cancel_func_t cancel_func,
                       apr_pool_t *pool);
 
 #endif // SVN_FAST_EXPORT_H_

@@ -22,12 +22,45 @@
 
 #include "export.h"
 #include "options.h"
+#include <apr_signal.h>
 #include <svn_cmdline.h>
 #include <svn_dirent_uri.h>
 #include <svn_opt.h>
 #include <svn_pools.h>
 #include <svn_repos.h>
 #include <svn_utf.h>
+
+// A flag to see if the process has been cancelled.
+static volatile sig_atomic_t cancelled = FALSE;
+
+// A signal handler to support cancellation.
+static void
+signal_handler(int signum)
+{
+    apr_signal(signum, SIG_IGN);
+    cancelled = TRUE;
+}
+
+// Setups signal handlers.
+static void
+setup_signal_handlers()
+{
+    apr_signal(SIGINT, signal_handler);
+#ifdef SIGPIPE
+    // Disable SIGPIPE generation for the platforms that have it.
+    apr_signal(SIGPIPE, SIG_IGN);
+#endif
+}
+
+// Cancellation callback.
+static svn_error_t *
+check_cancel(void *ctx)
+{
+    if (cancelled) {
+        return svn_error_create(SVN_ERR_CANCELLED, NULL, "Caught signal");
+    }
+    return SVN_NO_ERROR;
+}
 
 static struct apr_getopt_option_t cmdline_options[] = {
     {"help", 'h', 0, "Print this message and exit"},
@@ -232,7 +265,9 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 
     SVN_ERR(svn_stream_for_stdout(&output, pool));
 
-    err = export_revision_range(output, fs, lower, upper, ctx, pool);
+    setup_signal_handlers();
+
+    err = export_revision_range(output, fs, lower, upper, ctx, check_cancel, pool);
 
     if (export_marks_path != NULL) {
         err = svn_error_compose_create(err, commit_cache_dump_path(ctx->commits, export_marks_path, pool));

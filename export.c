@@ -139,7 +139,7 @@ process_change_record(const char *path,
     commit_t *commit;
     branch_t *branch = NULL, *src_branch = NULL;
     node_t *node;
-    svn_boolean_t dst_is_root, src_is_root;
+    svn_boolean_t dst_is_root = FALSE, src_is_root = FALSE;
     svn_boolean_t modify;
     svn_fs_path_change_kind_t action = change->change_kind;
     svn_node_kind_t kind = change->node_kind;

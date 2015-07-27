@@ -40,7 +40,7 @@ typedef struct
     svn_revnum_t revnum;
     apr_time_t timestamp;
     const author_t *author;
-    const char *message;
+    svn_string_t *message;
     apr_hash_t *commits;
     apr_hash_t *removes;
     apr_hash_t *changes;
@@ -88,7 +88,7 @@ get_revision(revision_t **rev,
 
     value = svn_hash_gets(revprops, SVN_PROP_REVISION_LOG);
     if (value != NULL) {
-        r->message = value->data;
+        r->message = value;
     }
 
     *rev = r;
@@ -300,8 +300,8 @@ write_commit(svn_stream_t *dst,
         SVN_ERR(svn_stream_printf(dst, pool, "committer %s %ld +0000\n",
                                   author_to_cstring(rev->author, pool),
                                   apr_time_sec(rev->timestamp)));
-        SVN_ERR(svn_stream_printf(dst, pool, "data %ld\n", strlen(rev->message)));
-        SVN_ERR(svn_stream_printf(dst, pool, "%s\n", rev->message));
+        SVN_ERR(svn_stream_printf(dst, pool, "data %ld\n", rev->message->len));
+        SVN_ERR(svn_stream_printf(dst, pool, "%s\n", rev->message->data));
 
         if (commit->copyfrom) {
             SVN_ERR(svn_stream_printf(dst, pool, "from :%d\n", commit->copyfrom));

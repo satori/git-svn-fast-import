@@ -41,6 +41,7 @@ static struct apr_getopt_option_t cmdline_options[] = {
     {"tag", 't', 1, "Set repository path as a tag."},
     {"tags", 'T', 1, "Set repository path as a root for tags."},
     {"ignore-path", 'I', 1, ""},
+    {"ignore-abspath", 'i', 1, ""},
     {"authors-file", 'A', 1, ""},
     {"export-rev-marks", 'e', 1, ""},
     {"checksum-cache", 'c', 1, "Use checksum cache."},
@@ -103,6 +104,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     tree_t *tags_pfx = tree_create(pool);
     // Ignore path prefixes.
     tree_t *ignores = tree_create(pool);
+    tree_t *absignores = tree_create(pool);
     // Path to a file containing mapping of
     // Subversion committers to Git authors.
     const char *authors_path = NULL;
@@ -169,6 +171,9 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
         case 'T':
             tree_insert(tags_pfx, opt_arg, opt_arg, pool);
             break;
+        case 'i':
+            tree_insert(absignores, opt_arg, opt_arg, pool);
+            break;
         case 'I':
             tree_insert(ignores, opt_arg, opt_arg, pool);
             break;
@@ -234,7 +239,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 
     SVN_ERR(svn_stream_for_stdout(&output, pool));
 
-    err = export_revision_range(output, fs, lower, upper, branches, revisions, authors, cache, ignores, pool);
+    err = export_revision_range(output, fs, lower, upper, branches, revisions, authors, cache, ignores, absignores, pool);
 
     if (export_marks_path != NULL) {
         err = svn_error_compose_create(err, revision_storage_dump_path(revisions, export_marks_path, pool));

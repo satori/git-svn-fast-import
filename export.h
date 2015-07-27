@@ -37,6 +37,7 @@ export_revision_range(svn_stream_t *dst,
                       author_storage_t *authors,
                       checksum_cache_t *cache,
                       tree_t *ignores,
+                      tree_t *absignores,
                       apr_pool_t *pool);
 
 #endif // SVN_FAST_EXPORT_H_

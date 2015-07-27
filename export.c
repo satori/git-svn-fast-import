@@ -55,6 +55,7 @@ typedef struct
     revision_storage_t *revisions;
     checksum_cache_t *blobs;
     tree_t *ignores;
+    tree_t *absignores;
     mark_t last_mark;
     revision_ctx_t *rev_ctx;
 } parser_ctx_t;
@@ -117,6 +118,11 @@ process_change_record(const char *path, svn_fs_path_change2_t *change, void *r_c
     svn_fs_path_change_kind_t action = change->change_kind;
     svn_node_kind_t kind = change->node_kind;
     svn_revnum_t src_rev = change->copyfrom_rev;
+
+    ignored = tree_match(ctx->absignores, path, pool);
+    if (ignored != NULL) {
+        return SVN_NO_ERROR;
+    }
 
     modify = (action == svn_fs_path_change_replace ||
               action == svn_fs_path_change_add ||
@@ -461,6 +467,7 @@ export_revision_range(svn_stream_t *dst,
                       author_storage_t *authors,
                       checksum_cache_t *cache,
                       tree_t *ignores,
+                      tree_t *absignores,
                       apr_pool_t *pool)
 {
     apr_pool_t *subpool;
@@ -473,6 +480,7 @@ export_revision_range(svn_stream_t *dst,
     ctx.revisions = revisions;
     ctx.blobs = cache;
     ctx.ignores = ignores;
+    ctx.absignores = absignores;
     ctx.last_mark = 1;
 
     subpool = svn_pool_create(pool);

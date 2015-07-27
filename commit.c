@@ -32,6 +32,7 @@ commit_cache_t *
 commit_cache_create(apr_pool_t *pool)
 {
     commit_cache_t *c = apr_pcalloc(pool, sizeof(commit_cache_t));
+    c->pool = pool;
     c->commits = apr_array_make(pool, 0, sizeof(commit_t));
     c->idx = apr_hash_make(pool);
     c->last_mark = 1;
@@ -53,6 +54,7 @@ commit_cache_add(commit_cache_t *c, svn_revnum_t revnum, branch_t *branch)
     commit_t *commit = apr_array_push(c->commits);
     commit->revnum = revnum;
     commit->branch = branch;
+    commit->merges = apr_array_make(c->pool, 0, sizeof(mark_t));
 
     apr_hash_set(c->idx, commit, sizeof(cache_key_t), commit);
 

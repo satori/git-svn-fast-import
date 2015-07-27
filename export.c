@@ -194,9 +194,15 @@ process_change_record(const char *path,
         apr_hash_set(rev->commits, branch, sizeof(branch_t *), commit);
     }
 
-    if (modify && dst_is_root && src_is_root) {
-        commit->copyfrom = get_copyfrom_commit(change->copyfrom_rev, ctx, src_branch);
-        return SVN_NO_ERROR;
+    if (modify && src_branch != NULL) {
+        mark_t copyfrom = get_copyfrom_commit(change->copyfrom_rev, ctx, src_branch);
+
+        if (dst_is_root && src_is_root) {
+            commit->copyfrom = copyfrom;
+            return SVN_NO_ERROR;
+        } else {
+            APR_ARRAY_PUSH(commit->merges, mark_t) = copyfrom;
+        }
     }
 
     apr_array_header_t *changes = get_branch_changes(rev, branch);
@@ -305,6 +311,11 @@ write_commit(svn_stream_t *dst,
 
         if (commit->copyfrom) {
             SVN_ERR(svn_stream_printf(dst, pool, "from :%d\n", commit->copyfrom));
+        }
+
+        for (int i = 0; i < commit->merges->nelts; i++) {
+            mark_t merge = APR_ARRAY_IDX(commit->merges, i, mark_t);
+            SVN_ERR(svn_stream_printf(dst, pool, "merge :%d\n", merge));
         }
     }
 

@@ -26,7 +26,6 @@
 #include "branch.h"
 #include <inttypes.h>
 #include <svn_io.h>
-#include <svn_types.h>
 
 typedef uint32_t mark_t;
 
@@ -36,10 +35,12 @@ typedef struct
     branch_t *branch;
     mark_t mark;
     mark_t copyfrom;
+    apr_array_header_t *merges;
 } commit_t;
 
 typedef struct
 {
+    apr_pool_t *pool;
     apr_array_header_t *commits;
     apr_hash_t *idx;
     mark_t last_mark;

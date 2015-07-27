@@ -32,6 +32,7 @@ B,branches=path         set repository <path> as a root for branches
 t,tag=path              set repository <path> as a tag
 T,tags=path             set repository <path> as a root for tags
 I,ignore-path=path      ignore a relative repository <path>, can be specified multiple times
+i,ignore-abspath=path   ignore repository <path>
 A,authors-file=file     load from <file> the mapping of SVN committer names to Git commit authors
 export-rev-marks=file   dump the SVN revision marks to <file>
 export-marks=file       load Git marks from <file>
@@ -51,7 +52,7 @@ case $1 in
         SVN_FAST_EXPORT_ARGS="$SVN_FAST_EXPORT_ARGS $1"
         shift
         ;;
-    -r|-t|-T|-b|-B|-I|-A|--export-rev-marks)
+    -r|-t|-T|-b|-B|-i|-I|-A|--export-rev-marks)
         SVN_FAST_EXPORT_ARGS="$SVN_FAST_EXPORT_ARGS $1 $2"
         shift 2
         ;;

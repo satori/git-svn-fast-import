@@ -48,7 +48,6 @@ FE_OBJECTS := svn-fast-export.o \
 	export.o \
 	node.o \
 	options.o \
-	revision.o \
 	tree.o \
 	utils.o
 

@@ -42,29 +42,11 @@ set_node_mode(node_mode_t *mode,
 
 typedef struct
 {
-    svn_fs_path_change_kind_t action;
     svn_node_kind_t kind;
     node_mode_t mode;
     const char *path;
     svn_checksum_t *checksum;
     apr_array_header_t *entries;
 } node_t;
-
-// Abstract type for node storage.
-typedef struct node_storage_t node_storage_t;
-
-// Returns new node storage.
-node_storage_t *
-node_storage_create(apr_pool_t *pool);
-
-// Adds new node for branch and returns it.
-node_t *
-node_storage_add(node_storage_t *ns,
-                 const branch_t *branch);
-
-// Returns nodes list. 
-apr_array_header_t *
-node_storage_list(const node_storage_t *ns,
-                  const branch_t *branch);
 
 #endif // SVN_FAST_EXPORT_NODE_H_

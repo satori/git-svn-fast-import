@@ -23,21 +23,27 @@
 #ifndef SVN_FAST_EXPORT_H_
 #define SVN_FAST_EXPORT_H_
 
+#include "author.h"
 #include "checksum.h"
-#include "types.h"
+#include "commit.h"
 #include <svn_fs.h>
+
+typedef struct
+{
+    author_storage_t *authors;
+    branch_storage_t *branches;
+    commit_cache_t *commits;
+    checksum_cache_t *blobs;
+    tree_t *ignores;
+    tree_t *absignores;
+} export_ctx_t;
 
 svn_error_t *
 export_revision_range(svn_stream_t *dst,
                       svn_fs_t *fs,
                       svn_revnum_t lower,
                       svn_revnum_t upper,
-                      branch_storage_t *branches,
-                      revision_storage_t *revisions,
-                      author_storage_t *authors,
-                      checksum_cache_t *cache,
-                      tree_t *ignores,
-                      tree_t *absignores,
+                      export_ctx_t *ctx,
                       apr_pool_t *pool);
 
 #endif // SVN_FAST_EXPORT_H_

@@ -23,23 +23,41 @@
 #ifndef GIT_SVN_FAST_IMPORT_COMMIT_H_
 #define GIT_SVN_FAST_IMPORT_COMMIT_H_
 
-#include "mark.h"
-#include <apr_pools.h>
+#include "branch.h"
+#include <inttypes.h>
+#include <svn_io.h>
 #include <svn_types.h>
 
-// Abstract type for commit.
-typedef struct commit_t commit_t;
+typedef uint32_t mark_t;
 
-struct commit_t
+typedef struct
 {
+    svn_revnum_t revnum;
+    branch_t *branch;
     mark_t mark;
-    svn_boolean_t dummy;
-    const commit_t *parent;
-    const commit_t *copyfrom;
-};
+    mark_t copyfrom;
+} commit_t;
 
-// Return commit mark.
-mark_t
-commit_mark_get(const commit_t *c);
+typedef struct
+{
+    apr_array_header_t *commits;
+    apr_hash_t *idx;
+    mark_t last_mark;
+} commit_cache_t;
+
+commit_cache_t *
+commit_cache_create(apr_pool_t *pool);
+
+commit_t *
+commit_cache_get(commit_cache_t *c, svn_revnum_t revnum, branch_t *branch);
+
+commit_t *
+commit_cache_add(commit_cache_t *c, svn_revnum_t revnum, branch_t *branch);
+
+svn_error_t *
+commit_cache_dump(commit_cache_t *c, svn_stream_t *dst, apr_pool_t *pool);
+
+svn_error_t *
+commit_cache_dump_path(commit_cache_t *c, const char *path, apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_COMMIT_H_

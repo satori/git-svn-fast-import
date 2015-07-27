@@ -20,11 +20,8 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "checksum.h"
 #include "export.h"
 #include "options.h"
-#include "tree.h"
-#include "types.h"
 #include <svn_cmdline.h>
 #include <svn_dirent_uri.h>
 #include <svn_opt.h>
@@ -102,9 +99,6 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     // Branches and tags prefixes.
     tree_t *branches_pfx = tree_create(pool);
     tree_t *tags_pfx = tree_create(pool);
-    // Ignore path prefixes.
-    tree_t *ignores = tree_create(pool);
-    tree_t *absignores = tree_create(pool);
     // Path to a file containing mapping of
     // Subversion committers to Git authors.
     const char *authors_path = NULL;
@@ -112,14 +106,13 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     const char *export_marks_path = NULL;
     const char *checksum_cache_path = NULL;
 
-    // Author storage.
-    author_storage_t *authors = author_storage_create(pool);
-    // Branch storage.
-    branch_storage_t *branches = branch_storage_create(pool, branches_pfx, tags_pfx);
-    // Revision storage.
-    revision_storage_t *revisions = revision_storage_create(pool);
-    // Checksum cache.
-    checksum_cache_t *cache = checksum_cache_create(pool);
+    export_ctx_t *ctx = apr_pcalloc(pool, sizeof(export_ctx_t));
+    ctx->authors = author_storage_create(pool);
+    ctx->branches = branch_storage_create(pool, branches_pfx, tags_pfx);
+    ctx->commits = commit_cache_create(pool);
+    ctx->blobs = checksum_cache_create(pool);
+    ctx->ignores = tree_create(pool);
+    ctx->absignores = tree_create(pool);
 
     // Initialize the FS library.
     SVN_ERR(svn_fs_initialize(pool));
@@ -163,7 +156,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
             break;
         case 'b':
         case 't':
-            branch_storage_add_branch(branches, branch_refname_from_path(opt_arg, pool), opt_arg, pool);
+            branch_storage_add_branch(ctx->branches, branch_refname_from_path(opt_arg, pool), opt_arg, pool);
             break;
         case 'B':
             tree_insert(branches_pfx, opt_arg, opt_arg, pool);
@@ -172,10 +165,10 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
             tree_insert(tags_pfx, opt_arg, opt_arg, pool);
             break;
         case 'i':
-            tree_insert(absignores, opt_arg, opt_arg, pool);
+            tree_insert(ctx->absignores, opt_arg, opt_arg, pool);
             break;
         case 'I':
-            tree_insert(ignores, opt_arg, opt_arg, pool);
+            tree_insert(ctx->ignores, opt_arg, opt_arg, pool);
             break;
         case 'A':
             authors_path = opt_arg;
@@ -228,25 +221,25 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     }
 
     if (authors_path != NULL) {
-        SVN_ERR(author_storage_load_path(authors, authors_path, pool));
+        SVN_ERR(author_storage_load_path(ctx->authors, authors_path, pool));
     }
 
     if (checksum_cache_path != NULL) {
-        SVN_ERR(checksum_cache_load_path(cache, checksum_cache_path, pool));
+        SVN_ERR(checksum_cache_load_path(ctx->blobs, checksum_cache_path, pool));
     }
 
-    branch_storage_add_branch(branches, "refs/heads/master", trunk_path, pool);
+    branch_storage_add_branch(ctx->branches, "refs/heads/master", trunk_path, pool);
 
     SVN_ERR(svn_stream_for_stdout(&output, pool));
 
-    err = export_revision_range(output, fs, lower, upper, branches, revisions, authors, cache, ignores, absignores, pool);
+    err = export_revision_range(output, fs, lower, upper, ctx, pool);
 
     if (export_marks_path != NULL) {
-        err = svn_error_compose_create(err, revision_storage_dump_path(revisions, export_marks_path, pool));
+        err = svn_error_compose_create(err, commit_cache_dump_path(ctx->commits, export_marks_path, pool));
     }
 
     if (checksum_cache_path != NULL) {
-        err = svn_error_compose_create(err, checksum_cache_dump_path(cache, checksum_cache_path, pool));
+        err = svn_error_compose_create(err, checksum_cache_dump_path(ctx->blobs, checksum_cache_path, pool));
     }
 
     return err;

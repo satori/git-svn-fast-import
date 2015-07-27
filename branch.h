@@ -23,7 +23,6 @@
 #ifndef GIT_SVN_FAST_IMPORT_BRANCH_H_
 #define GIT_SVN_FAST_IMPORT_BRANCH_H_
 
-#include "commit.h"
 #include "tree.h"
 #include <apr_pools.h>
 #include <apr_tables.h>
@@ -33,7 +32,6 @@ typedef struct
 {
     const char *refname;
     const char *path;
-    const commit_t *head;
 } branch_t;
 
 // Tests if path is branch's root

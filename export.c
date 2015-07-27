@@ -200,7 +200,7 @@ process_change_record(const char *path,
         if (dst_is_root && src_is_root) {
             commit->copyfrom = copyfrom;
             return SVN_NO_ERROR;
-        } else {
+        } else if (strcmp(branch->refname, src_branch->refname) != 0) {
             APR_ARRAY_PUSH(commit->merges, mark_t) = copyfrom;
         }
     }

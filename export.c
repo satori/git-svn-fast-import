@@ -127,6 +127,19 @@ get_copyfrom_commit(svn_revnum_t revnum, export_ctx_t *ctx, branch_t *copyfrom_b
     return 0;
 }
 
+static svn_boolean_t
+commit_is_merged(commit_t *commit, mark_t other)
+{
+    for (int i = 0; i < commit->merges->nelts; i++) {
+        mark_t merged = APR_ARRAY_IDX(commit->merges, i, mark_t);
+        if (merged == other) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
 static svn_error_t *
 process_change_record(const char *path,
                       svn_fs_path_change2_t *change,
@@ -201,7 +214,9 @@ process_change_record(const char *path,
             commit->copyfrom = copyfrom;
             return SVN_NO_ERROR;
         } else if (strcmp(branch->refname, src_branch->refname) != 0) {
-            APR_ARRAY_PUSH(commit->merges, mark_t) = copyfrom;
+            if (commit_is_merged(commit, copyfrom) == FALSE) {
+                APR_ARRAY_PUSH(commit->merges, mark_t) = copyfrom;
+            }
         }
     }
 

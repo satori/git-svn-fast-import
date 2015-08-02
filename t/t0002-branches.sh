@@ -33,7 +33,7 @@ EOF
 
 test_export_import() {
 	test_expect_success 'Import dump into Git' '
-	(cd repo.git && git-svn-fast-import --quiet --stdlayout -B branches-2 -b branches/some-feature/sub-branch --force -c ../cache.txt -I data -A ../authors.txt --export-rev-marks ../rev-marks.txt --export-marks ../marks.txt ../repo)
+	(cd repo.git && git-svn-fast-import --quiet --stdlayout -B branches-2 -b branches/some-feature/sub-branch -t tags/some-feature-before-remove/sub-branch --force -c ../cache.txt -I data -A ../authors.txt --export-rev-marks ../rev-marks.txt --export-marks ../marks.txt ../repo)
 	'
 }
 

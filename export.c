@@ -210,13 +210,13 @@ process_change_record(const char *path,
     if (modify && src_branch != NULL) {
         mark_t copyfrom = get_copyfrom_commit(change->copyfrom_rev, ctx, src_branch);
 
-        if (dst_is_root && src_is_root) {
+        if (dst_is_root && src_is_root && branch->dirty) {
             commit->copyfrom = copyfrom;
             return SVN_NO_ERROR;
-        } else if (strcmp(branch->refname, src_branch->refname) != 0) {
-            if (commit_is_merged(commit, copyfrom) == FALSE) {
-                APR_ARRAY_PUSH(commit->merges, mark_t) = copyfrom;
-            }
+        }
+
+        if (strcmp(branch->refname, src_branch->refname) != 0 && !commit_is_merged(commit, copyfrom)) {
+            APR_ARRAY_PUSH(commit->merges, mark_t) = copyfrom;
         }
     }
 
@@ -365,6 +365,8 @@ write_commit(svn_stream_t *dst,
         }
     }
 
+    branch->dirty = FALSE;
+
     return SVN_NO_ERROR;
 }
 
@@ -373,6 +375,8 @@ remove_branch(svn_stream_t *dst, branch_t *branch, apr_pool_t *pool)
 {
     SVN_ERR(svn_stream_printf(dst, pool, "reset %s\n", branch->refname));
     SVN_ERR(svn_stream_printf(dst, pool, "from %s\n", NULL_SHA1));
+
+    branch->dirty = TRUE;
 
     return SVN_NO_ERROR;
 }

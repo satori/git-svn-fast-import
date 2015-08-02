@@ -32,6 +32,7 @@ typedef struct
 {
     const char *refname;
     const char *path;
+    svn_boolean_t dirty;
 } branch_t;
 
 // Tests if path is branch's root

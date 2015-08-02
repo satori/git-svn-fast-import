@@ -71,6 +71,7 @@ branch_storage_add_branch(branch_storage_t *bs,
     branch_t *b = apr_pcalloc(bs->pool, sizeof(branch_t));
     b->refname = refname;
     b->path = path;
+    b->dirty = TRUE;
 
     tree_insert(bs->tree, b->path, b, pool);
 
@@ -81,7 +82,7 @@ branch_t *
 branch_storage_lookup_path(branch_storage_t *bs, const char *path, apr_pool_t *pool)
 {
     branch_t *branch;
-    const char *prefix, *root, *subpath;
+    const char *branch_path, *prefix, *refname, *root, *subpath;
 
     branch = (branch_t *) tree_match(bs->tree, path, pool);
     if (branch != NULL) {
@@ -106,20 +107,16 @@ branch_storage_lookup_path(branch_storage_t *bs, const char *path, apr_pool_t *p
         return NULL;
     }
 
-    branch = apr_pcalloc(bs->pool, sizeof(branch_t));
-
     root = strchr(subpath, '/');
     if (root == NULL) {
-        branch->path = apr_pstrdup(bs->pool, path);
+        branch_path = apr_pstrdup(bs->pool, path);
     } else {
-        branch->path = apr_pstrndup(bs->pool, path, root - path);
+        branch_path = apr_pstrndup(bs->pool, path, root - path);
     }
 
-    branch->refname = branch_refname_from_path(branch->path, bs->pool);
+    refname = branch_refname_from_path(branch_path, bs->pool);
 
-    tree_insert(bs->tree, branch->path, branch, pool);
-
-    return branch;
+    return branch_storage_add_branch(bs, refname, branch_path, pool);
 }
 
 static void

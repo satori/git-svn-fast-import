@@ -146,7 +146,8 @@ process_change_record(const char *path,
                       svn_stream_t *dst,
                       revision_t *rev,
                       export_ctx_t *ctx,
-                      apr_pool_t *pool)
+                      apr_pool_t *result_pool,
+                      apr_pool_t *scratch_pool)
 {
     const char *src_path = NULL, *node_path, *ignored;
     commit_t *commit;
@@ -158,7 +159,7 @@ process_change_record(const char *path,
     svn_node_kind_t kind = change->node_kind;
     svn_revnum_t src_rev = change->copyfrom_rev;
 
-    ignored = tree_match(ctx->absignores, path, pool);
+    ignored = tree_match(ctx->absignores, path, scratch_pool);
     if (ignored != NULL) {
         return SVN_NO_ERROR;
     }
@@ -169,11 +170,11 @@ process_change_record(const char *path,
 
     if (change->copyfrom_known && SVN_IS_VALID_REVNUM(src_rev)) {
         src_path = change->copyfrom_path;
-        src_branch = branch_storage_lookup_path(ctx->branches, src_path, pool);
+        src_branch = branch_storage_lookup_path(ctx->branches, src_path, scratch_pool);
         src_is_root = (src_branch != NULL && branch_path_is_root(src_branch, src_path));
     }
 
-    branch = branch_storage_lookup_path(ctx->branches, path, pool);
+    branch = branch_storage_lookup_path(ctx->branches, path, scratch_pool);
     if (branch == NULL) {
         return SVN_NO_ERROR;
     }
@@ -196,7 +197,7 @@ process_change_record(const char *path,
         return SVN_NO_ERROR;
     }
 
-    ignored = tree_match(ctx->ignores, node_path, pool);
+    ignored = tree_match(ctx->ignores, node_path, scratch_pool);
     if (ignored != NULL) {
         return SVN_NO_ERROR;
     }
@@ -223,7 +224,7 @@ process_change_record(const char *path,
     apr_array_header_t *changes = get_branch_changes(rev, branch);
     change_t *c = apr_array_push(changes);
 
-    node = apr_pcalloc(pool, sizeof(node_t));
+    node = apr_pcalloc(result_pool, sizeof(node_t));
     node->kind = kind;
     node->path = node_path;
 
@@ -239,11 +240,11 @@ process_change_record(const char *path,
         return SVN_NO_ERROR;
     }
 
-    SVN_ERR(set_node_mode(&node->mode, rev->root, path, pool));
+    SVN_ERR(set_node_mode(&node->mode, rev->root, path, scratch_pool));
 
     if (kind == svn_node_file) {
         SVN_ERR(set_content_checksum(&node->checksum, dst, ctx->blobs,
-                                     rev->root, path, pool));
+                                     rev->root, path, result_pool));
         return SVN_NO_ERROR;
     }
 
@@ -252,13 +253,13 @@ process_change_record(const char *path,
         svn_fs_t *fs = svn_fs_root_fs(rev->root);
         svn_fs_root_t *src_root;
         tree_t *ignores;
-        const tree_t *subbranches = tree_subtree(ctx->branches->tree, src_branch->path, pool);
-        tree_merge(&ignores, ctx->ignores, subbranches, pool);
+        const tree_t *subbranches = tree_subtree(ctx->branches->tree, src_branch->path, scratch_pool);
+        tree_merge(&ignores, ctx->ignores, subbranches, scratch_pool);
 
-        SVN_ERR(svn_fs_revision_root(&src_root, fs, change->copyfrom_rev, pool));
+        SVN_ERR(svn_fs_revision_root(&src_root, fs, change->copyfrom_rev, scratch_pool));
         SVN_ERR(set_tree_checksum(&node->checksum, &dummy, dst, ctx->blobs,
                                   src_root, src_path, src_branch->path, ignores,
-                                  pool));
+                                  result_pool));
     }
 
     return SVN_NO_ERROR;
@@ -423,9 +424,10 @@ prepare_changes(apr_array_header_t **dst,
                 apr_array_header_t *fs_changes,
                 svn_fs_root_t *root,
                 export_ctx_t *ctx,
-                apr_pool_t *pool)
+                apr_pool_t *result_pool,
+                apr_pool_t *scratch_pool)
 {
-    apr_array_header_t *changes = apr_array_make(pool, 0, sizeof(svn_sort__item_t));
+    apr_array_header_t *changes = apr_array_make(result_pool, 0, sizeof(svn_sort__item_t));
 
     for (int i = 0; i < fs_changes->nelts; i++) {
         apr_array_header_t *copies, *removes;
@@ -456,7 +458,7 @@ prepare_changes(apr_array_header_t **dst,
                   action == svn_fs_path_change_modify);
 
         if (remove) {
-            removes = branch_storage_collect_branches(ctx->branches, path, pool);
+            removes = branch_storage_collect_branches(ctx->branches, path, scratch_pool);
 
             for (int i = 0; i < removes->nelts; i++) {
                 branch_t *branch = APR_ARRAY_IDX(removes, i, branch_t *);
@@ -464,7 +466,7 @@ prepare_changes(apr_array_header_t **dst,
                     continue;
                 }
                 svn_sort__item_t *subitem = apr_array_push(changes);
-                svn_fs_path_change2_t *subchange = apr_pcalloc(pool, sizeof(svn_fs_path_change2_t));
+                svn_fs_path_change2_t *subchange = apr_pcalloc(result_pool, sizeof(svn_fs_path_change2_t));
                 subitem->key = branch->path;
                 subitem->value = subchange;
 
@@ -477,8 +479,8 @@ prepare_changes(apr_array_header_t **dst,
             const char *src_path = change->copyfrom_path;
             svn_fs_t *fs = svn_fs_root_fs(root);
             svn_fs_root_t *src_root;
-            SVN_ERR(svn_fs_revision_root(&src_root, fs, change->copyfrom_rev, pool));
-            copies = branch_storage_collect_branches(ctx->branches, src_path, pool);
+            SVN_ERR(svn_fs_revision_root(&src_root, fs, change->copyfrom_rev, scratch_pool));
+            copies = branch_storage_collect_branches(ctx->branches, src_path, scratch_pool);
 
             for (int i = 0; i < copies->nelts; i++) {
                 const char *new_path;
@@ -487,15 +489,15 @@ prepare_changes(apr_array_header_t **dst,
                 if (branch_path_is_root(branch, path)) {
                     continue;
                 }
-                SVN_ERR(svn_fs_check_path(&kind, src_root, branch->path, pool));
+                SVN_ERR(svn_fs_check_path(&kind, src_root, branch->path, scratch_pool));
                 if (kind == svn_node_none) {
                     continue;
                 }
 
-                new_path = svn_relpath_join(path, svn_relpath_skip_ancestor(src_path, branch->path), pool);
+                new_path = svn_relpath_join(path, svn_relpath_skip_ancestor(src_path, branch->path), result_pool);
 
                 svn_sort__item_t *subitem = apr_array_push(changes);
-                svn_fs_path_change2_t *subchange = apr_pcalloc(pool, sizeof(svn_fs_path_change2_t));
+                svn_fs_path_change2_t *subchange = apr_pcalloc(result_pool, sizeof(svn_fs_path_change2_t));
                 subitem->key = new_path;
                 subitem->value = subchange;
 
@@ -522,9 +524,9 @@ export_revision_range(svn_stream_t *dst,
                       svn_cancel_func_t cancel_func,
                       apr_pool_t *pool)
 {
-    apr_pool_t *subpool;
+    apr_pool_t *rev_pool, *scratch_pool;
 
-    subpool = svn_pool_create(pool);
+    rev_pool = svn_pool_create(pool);
 
     for (svn_revnum_t revnum = lower; revnum <= upper; revnum++) {
         SVN_ERR(cancel_func(NULL));
@@ -532,21 +534,24 @@ export_revision_range(svn_stream_t *dst,
         apr_hash_t *fs_changes;
         revision_t *rev;
 
-        svn_pool_clear(subpool);
+        svn_pool_clear(rev_pool);
 
-        SVN_ERR(get_revision(&rev, revnum, fs, ctx, subpool));
+        scratch_pool = svn_pool_create(rev_pool);
+
+        SVN_ERR(get_revision(&rev, revnum, fs, ctx, rev_pool));
 
         // Fetch the paths changed under revision root.
-        SVN_ERR(svn_fs_paths_changed2(&fs_changes, rev->root, subpool));
-        sorted_changes = svn_sort__hash(fs_changes, svn_sort_compare_items_lexically, subpool);
-        SVN_ERR(prepare_changes(&changes, sorted_changes, rev->root, ctx, subpool));
+        SVN_ERR(svn_fs_paths_changed2(&fs_changes, rev->root, rev_pool));
+        sorted_changes = svn_sort__hash(fs_changes, svn_sort_compare_items_lexically, rev_pool);
+        SVN_ERR(prepare_changes(&changes, sorted_changes, rev->root, ctx, rev_pool, scratch_pool));
 
         for (int i = 0; i < changes->nelts; i++) {
+            svn_pool_clear(scratch_pool);
             svn_sort__item_t item = APR_ARRAY_IDX(changes, i, svn_sort__item_t);
-            SVN_ERR(process_change_record(item.key, item.value, dst, rev, ctx, subpool));
+            SVN_ERR(process_change_record(item.key, item.value, dst, rev, ctx, rev_pool, scratch_pool));
         }
 
-        SVN_ERR(write_revision(dst, rev, ctx, subpool));
+        SVN_ERR(write_revision(dst, rev, ctx, rev_pool));
     }
 
     SVN_ERR(svn_stream_printf(dst, pool, "done\n"));

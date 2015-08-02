@@ -60,7 +60,8 @@ set_content_checksum(svn_checksum_t **checksum,
                      checksum_cache_t *cache,
                      svn_fs_root_t *root,
                      const char *path,
-                     apr_pool_t *pool);
+                     apr_pool_t *result_pool,
+                     apr_pool_t *scratch_pool);
 
 svn_error_t *
 set_tree_checksum(svn_checksum_t **checksum,
@@ -71,6 +72,7 @@ set_tree_checksum(svn_checksum_t **checksum,
                   const char *path,
                   const char *root_path,
                   tree_t *ignores,
-                  apr_pool_t *pool);
+                  apr_pool_t *result_pool,
+                  apr_pool_t *scratch_pool);
 
 #endif // GIT_SVN_FAST_IMPORT_CHECKSUM_H_

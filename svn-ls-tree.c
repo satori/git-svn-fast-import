@@ -97,7 +97,7 @@ print_tree(svn_fs_root_t *root,
     svn_checksum_t *checksum;
     svn_stream_t *dummy = svn_stream_empty(pool);
 
-    SVN_ERR(set_tree_checksum(&checksum, &entries, dummy, cache, root, abspath, root_path, ignores, pool));
+    SVN_ERR(set_tree_checksum(&checksum, &entries, dummy, cache, root, abspath, root_path, ignores, pool, pool));
     SVN_ERR(print_entries(entries, root_path, trees_only, recurse, show_trees, pool));
 
     return SVN_NO_ERROR;

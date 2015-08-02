@@ -244,7 +244,7 @@ process_change_record(const char *path,
 
     if (kind == svn_node_file) {
         SVN_ERR(set_content_checksum(&node->checksum, dst, ctx->blobs,
-                                     rev->root, path, result_pool));
+                                     rev->root, path, result_pool, scratch_pool));
         return SVN_NO_ERROR;
     }
 
@@ -259,7 +259,7 @@ process_change_record(const char *path,
         SVN_ERR(svn_fs_revision_root(&src_root, fs, change->copyfrom_rev, scratch_pool));
         SVN_ERR(set_tree_checksum(&node->checksum, &dummy, dst, ctx->blobs,
                                   src_root, src_path, src_branch->path, ignores,
-                                  result_pool));
+                                  result_pool, scratch_pool));
     }
 
     return SVN_NO_ERROR;

@@ -241,7 +241,8 @@ set_content_checksum(svn_checksum_t **checksum,
                      checksum_cache_t *cache,
                      svn_fs_root_t *root,
                      const char *path,
-                     apr_pool_t *pool)
+                     apr_pool_t *result_pool,
+                     apr_pool_t *scratch_pool)
 {
     const char *hdr;
     apr_hash_t *props;
@@ -251,17 +252,17 @@ set_content_checksum(svn_checksum_t **checksum,
     svn_stream_t *content;
 
     SVN_ERR(svn_fs_file_checksum(&svn_checksum, svn_checksum_sha1,
-                                 root, path, FALSE, pool));
+                                 root, path, FALSE, scratch_pool));
 
-    git_checksum = checksum_cache_get(cache, svn_checksum, pool);
+    git_checksum = checksum_cache_get(cache, svn_checksum, scratch_pool);
     if (git_checksum != NULL) {
         *checksum = git_checksum;
         return SVN_NO_ERROR;
     }
 
-    SVN_ERR(svn_fs_node_proplist(&props, root, path, pool));
-    SVN_ERR(svn_fs_file_length(&size, root, path, pool));
-    SVN_ERR(svn_fs_file_contents(&content, root, path, pool));
+    SVN_ERR(svn_fs_node_proplist(&props, root, path, scratch_pool));
+    SVN_ERR(svn_fs_file_length(&size, root, path, scratch_pool));
+    SVN_ERR(svn_fs_file_contents(&content, root, path, scratch_pool));
 
     // We need to strip a symlink marker from the beginning of a content
     // and subtract a symlink marker length from the blob size.
@@ -271,18 +272,18 @@ set_content_checksum(svn_checksum_t **checksum,
         size -= skip;
     }
 
-    hdr = apr_psprintf(pool, "blob %ld", size);
-    ctx = svn_checksum_ctx_create(svn_checksum_sha1, pool);
+    hdr = apr_psprintf(scratch_pool, "blob %ld", size);
+    ctx = svn_checksum_ctx_create(svn_checksum_sha1, scratch_pool);
     SVN_ERR(svn_checksum_update(ctx, hdr, strlen(hdr) + 1));
 
-    SVN_ERR(svn_stream_printf(output, pool, "blob\n"));
-    SVN_ERR(svn_stream_printf(output, pool, "data %ld\n", size));
+    SVN_ERR(svn_stream_printf(output, scratch_pool, "blob\n"));
+    SVN_ERR(svn_stream_printf(output, scratch_pool, "data %ld\n", size));
 
-    output = checksum_stream_create(output, NULL, ctx, pool);
+    output = checksum_stream_create(output, NULL, ctx, scratch_pool);
 
-    SVN_ERR(svn_stream_copy3(content, output, NULL, NULL, pool));
+    SVN_ERR(svn_stream_copy3(content, output, NULL, NULL, scratch_pool));
 
-    SVN_ERR(svn_checksum_final(&git_checksum, ctx, pool));
+    SVN_ERR(svn_checksum_final(&git_checksum, ctx, result_pool));
 
     checksum_cache_set(cache, svn_checksum, git_checksum);
     *checksum = git_checksum;
@@ -335,7 +336,8 @@ set_tree_checksum(svn_checksum_t **checksum,
                   const char *path,
                   const char *root_path,
                   tree_t *ignores,
-                  apr_pool_t *pool)
+                  apr_pool_t *result_pool,
+                  apr_pool_t *scratch_pool)
 {
     apr_array_header_t *sorted_entries, *nodes;
     apr_hash_t *dir_entries;
@@ -343,13 +345,13 @@ set_tree_checksum(svn_checksum_t **checksum,
     svn_checksum_ctx_t *ctx;
     svn_stringbuf_t *buf;
 
-    ctx = svn_checksum_ctx_create(svn_checksum_sha1, pool);
-    buf = svn_stringbuf_create_empty(pool);
-    nodes = apr_array_make(pool, 0, sizeof(node_t));
+    ctx = svn_checksum_ctx_create(svn_checksum_sha1, scratch_pool);
+    buf = svn_stringbuf_create_empty(scratch_pool);
+    nodes = apr_array_make(result_pool, 0, sizeof(node_t));
 
-    SVN_ERR(svn_fs_dir_entries(&dir_entries, root, path, pool));
+    SVN_ERR(svn_fs_dir_entries(&dir_entries, root, path, scratch_pool));
 
-    sorted_entries = svn_sort__hash(dir_entries, compare_items_gitlike, pool);
+    sorted_entries = svn_sort__hash(dir_entries, compare_items_gitlike, scratch_pool);
 
     for (int i = 0; i < sorted_entries->nelts; i++) {
         apr_array_header_t *subentries = NULL;
@@ -360,10 +362,10 @@ set_tree_checksum(svn_checksum_t **checksum,
         svn_fs_dirent_t *entry = item.value;
         svn_checksum_t *node_checksum;
 
-        node_path = svn_relpath_join(path, entry->name, pool);
+        node_path = svn_relpath_join(path, entry->name, result_pool);
         subpath = svn_dirent_skip_ancestor(root_path, node_path);
 
-        ignored = tree_match(ignores, subpath, pool);
+        ignored = tree_match(ignores, subpath, scratch_pool);
         if (ignored != NULL) {
             continue;
         }
@@ -371,14 +373,14 @@ set_tree_checksum(svn_checksum_t **checksum,
         if (entry->kind == svn_node_dir) {
             SVN_ERR(set_tree_checksum(&node_checksum, &subentries, output,
                                       cache, root, node_path, root_path,
-                                      ignores, pool));
+                                      ignores, result_pool, scratch_pool));
             // Skip empty directories.
             if (subentries->nelts == 0) {
                 continue;
             }
         } else {
             SVN_ERR(set_content_checksum(&node_checksum, output, cache, root,
-                                         node_path, pool));
+                                         node_path, result_pool, scratch_pool));
         }
 
         node = apr_array_push(nodes);
@@ -386,9 +388,9 @@ set_tree_checksum(svn_checksum_t **checksum,
         node->path = node_path;
         node->checksum = node_checksum;
         node->entries = subentries;
-        SVN_ERR(set_node_mode(&node->mode, root, node->path, pool));
+        SVN_ERR(set_node_mode(&node->mode, root, node->path, scratch_pool));
 
-        record = apr_psprintf(pool, "%o %s", node->mode, entry->name);
+        record = apr_psprintf(scratch_pool, "%o %s", node->mode, entry->name);
         svn_stringbuf_appendbytes(buf, record, strlen(record) + 1);
         svn_stringbuf_appendbytes(buf, (const char *)node->checksum->digest,
                                   svn_checksum_size(node->checksum));
@@ -396,11 +398,11 @@ set_tree_checksum(svn_checksum_t **checksum,
 
     *entries = nodes;
 
-    hdr = apr_psprintf(pool, "tree %ld", buf->len);
+    hdr = apr_psprintf(scratch_pool, "tree %ld", buf->len);
 
     SVN_ERR(svn_checksum_update(ctx, hdr, strlen(hdr) + 1));
     SVN_ERR(svn_checksum_update(ctx, buf->data, buf->len));
-    SVN_ERR(svn_checksum_final(checksum, ctx, pool));
+    SVN_ERR(svn_checksum_final(checksum, ctx, result_pool));
 
     return SVN_NO_ERROR;
 }

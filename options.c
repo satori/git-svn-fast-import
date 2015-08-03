@@ -29,9 +29,9 @@ format_option(const apr_getopt_option_t *opt,
 {
     char *opts;
 
-    if (opt->optch && opt->name) {
+    if (opt->optch && opt->optch <= 255 && opt->name) {
         opts = apr_psprintf(pool, "-%c [--%s]", opt->optch, opt->name);
-    } else if (opt->optch) {
+    } else if (opt->optch <= 255) {
         opts = apr_psprintf(pool, "-%c", opt->optch);
     } else {
         opts = apr_psprintf(pool, "--%s", opt->name);

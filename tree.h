@@ -43,6 +43,9 @@ void
 tree_merge(tree_t **dst, const tree_t *t1, const tree_t *t2, apr_pool_t *pool);
 
 void
+tree_diff(tree_t **dst, const tree_t *t1, const tree_t *t2, apr_pool_t *pool);
+
+void
 tree_insert(tree_t *t,
             const char *path,
             const void *value,

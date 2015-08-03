@@ -140,6 +140,18 @@ commit_is_merged(commit_t *commit, mark_t other)
     return FALSE;
 }
 
+static tree_t *
+ignore_subbranches(const char *path,
+                   export_ctx_t *ctx,
+                   apr_pool_t *pool)
+{
+    tree_t *ignores;
+    const tree_t *subs = tree_subtree(ctx->branches->tree, path, pool);
+    tree_merge(&ignores, ctx->ignores, subs, pool);
+
+    return ignores;
+}
+
 static svn_error_t *
 process_change_record(const char *path,
                       svn_fs_path_change2_t *change,
@@ -149,7 +161,8 @@ process_change_record(const char *path,
                       apr_pool_t *result_pool,
                       apr_pool_t *scratch_pool)
 {
-    const char *src_path = NULL, *node_path, *ignored;
+    const char *src_path = NULL, *node_path;
+    const char *ignored, *not_ignored;
     commit_t *commit;
     branch_t *branch = NULL, *src_branch = NULL;
     node_t *node;
@@ -171,7 +184,6 @@ process_change_record(const char *path,
     if (change->copyfrom_known && SVN_IS_VALID_REVNUM(src_rev)) {
         src_path = change->copyfrom_path;
         src_branch = branch_storage_lookup_path(ctx->branches, src_path, scratch_pool);
-        src_is_root = (src_branch != NULL && branch_path_is_root(src_branch, src_path));
     }
 
     branch = branch_storage_lookup_path(ctx->branches, path, scratch_pool);
@@ -180,6 +192,7 @@ process_change_record(const char *path,
     }
 
     dst_is_root = branch_path_is_root(branch, path);
+    src_is_root = (src_branch != NULL && branch_path_is_root(src_branch, src_path));
 
     if (kind == svn_node_dir && src_branch == NULL) {
         if (action == svn_fs_path_change_add || action == svn_fs_path_change_modify) {
@@ -198,7 +211,8 @@ process_change_record(const char *path,
     }
 
     ignored = tree_match(ctx->ignores, node_path, scratch_pool);
-    if (ignored != NULL) {
+    not_ignored = tree_match(ctx->no_ignores, path, scratch_pool);
+    if (ignored != NULL && not_ignored == NULL) {
         return SVN_NO_ERROR;
     }
 
@@ -253,8 +267,11 @@ process_change_record(const char *path,
         svn_fs_t *fs = svn_fs_root_fs(rev->root);
         svn_fs_root_t *src_root;
         tree_t *ignores;
-        const tree_t *subbranches = tree_subtree(ctx->branches->tree, src_branch->path, scratch_pool);
-        tree_merge(&ignores, ctx->ignores, subbranches, scratch_pool);
+
+        tree_diff(&ignores,
+                  ignore_subbranches(src_branch->path, ctx, scratch_pool),
+                  tree_subtree(ctx->no_ignores, src_branch->path, scratch_pool),
+                  scratch_pool);
 
         SVN_ERR(svn_fs_revision_root(&src_root, fs, change->copyfrom_rev, scratch_pool));
         SVN_ERR(set_tree_checksum(&node->checksum, &dummy, dst, ctx->blobs,

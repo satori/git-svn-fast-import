@@ -24,22 +24,23 @@
 OPTIONS_SPEC="\
 git-svn-fast-import [options] <repo>
 --
-h,help                  show the help
-r,revision=             set revision range
-s,stdlayout             set trunk,tags,branches as the relative paths, which is SVN default
-b,branch=path           set repository <path> as a branch
-B,branches=path         set repository <path> as a root for branches
-t,tag=path              set repository <path> as a tag
-T,tags=path             set repository <path> as a root for tags
-I,ignore-path=path      ignore a relative repository <path>, can be specified multiple times
-i,ignore-abspath=path   ignore repository <path>
-A,authors-file=file     load from <file> the mapping of SVN committer names to Git commit authors
-export-rev-marks=file   dump the SVN revision marks to <file>
-export-marks=file       load Git marks from <file>
-import-marks=file       dump Git marks into <file>
-c,checksum-cache=file   use <file> as a checksum cache
-force                   force updating modified existing branches, even if doing so would cause commits to be lost
-quiet                   disable all non-fatal output"
+h,help                    show the help
+r,revision=               set revision range
+s,stdlayout               set trunk,tags,branches as the relative paths, which is SVN default
+b,branch=path             set repository <path> as a branch
+B,branches=path           set repository <path> as a root for branches
+t,tag=path                set repository <path> as a tag
+T,tags=path               set repository <path> as a root for tags
+I,ignore-path=path        ignore a relative repository <path>
+i,ignore-abspath!=path    ignore repository <path>
+no-ignore-abspath=path    do not ignore repository <path>
+A,authors-file=file       load from <file> the mapping of SVN committer names to Git commit authors
+export-rev-marks=file     dump the SVN revision marks to <file>
+export-marks=file         load Git marks from <file>
+import-marks=file         dump Git marks into <file>
+c,checksum-cache=file     use <file> as a checksum cache
+force                     force updating modified existing branches, even if doing so would cause commits to be lost
+quiet                     disable all non-fatal output"
 
 eval "$(echo "$OPTIONS_SPEC" | git rev-parse --parseopt -- $@ || echo exit $?)"
 
@@ -52,7 +53,7 @@ case $1 in
         SVN_FAST_EXPORT_ARGS="$SVN_FAST_EXPORT_ARGS $1"
         shift
         ;;
-    -r|-t|-T|-b|-B|-i|-I|-A|--export-rev-marks)
+    -r|-t|-T|-b|-B|-i|-I|-A|--export-rev-marks|--no-ignore-abspath)
         SVN_FAST_EXPORT_ARGS="$SVN_FAST_EXPORT_ARGS $1 $2"
         shift 2
         ;;

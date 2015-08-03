@@ -36,6 +36,7 @@ typedef struct
     checksum_cache_t *blobs;
     tree_t *ignores;
     tree_t *absignores;
+    tree_t *no_ignores;
 } export_ctx_t;
 
 svn_error_t *

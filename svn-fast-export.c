@@ -62,6 +62,12 @@ check_cancel(void *ctx)
     return SVN_NO_ERROR;
 }
 
+enum
+{
+    option_no_ignore_abspath = SVN_OPT_FIRST_LONGOPT_ID,
+    option_export_rev_marks
+};
+
 static struct apr_getopt_option_t cmdline_options[] = {
     {"help", 'h', 0, "Print this message and exit"},
     {"revision", 'r', 1, "Set revision range."},
@@ -70,10 +76,11 @@ static struct apr_getopt_option_t cmdline_options[] = {
     {"branches", 'B', 1, "Set repository path as a root for branches."},
     {"tag", 't', 1, "Set repository path as a tag."},
     {"tags", 'T', 1, "Set repository path as a root for tags."},
-    {"ignore-path", 'I', 1, ""},
-    {"ignore-abspath", 'i', 1, ""},
+    {"ignore-path", 'I', 1, "Ignore a path relative to branch root."},
+    {"ignore-abspath", 'i', 1, "Ignore repository path."},
+    {"no-ignore-abspath", option_no_ignore_abspath, 1, "Do not ignore repository path."},
     {"authors-file", 'A', 1, ""},
-    {"export-rev-marks", 'e', 1, ""},
+    {"export-rev-marks", option_export_rev_marks, 1, ""},
     {"checksum-cache", 'c', 1, "Use checksum cache."},
     {0, 0, 0, 0}
 };
@@ -146,6 +153,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     ctx->blobs = checksum_cache_create(pool);
     ctx->ignores = tree_create(pool);
     ctx->absignores = tree_create(pool);
+    ctx->no_ignores = tree_create(pool);
 
     // Initialize the FS library.
     SVN_ERR(svn_fs_initialize(pool));
@@ -203,10 +211,13 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
         case 'I':
             tree_insert(ctx->ignores, opt_arg, opt_arg, pool);
             break;
+        case option_no_ignore_abspath:
+            tree_insert(ctx->no_ignores, opt_arg, opt_arg, pool);
+            break;
         case 'A':
             authors_path = opt_arg;
             break;
-        case 'e':
+        case option_export_rev_marks:
             export_marks_path = opt_arg;
             break;
         case 'c':

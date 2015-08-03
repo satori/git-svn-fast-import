@@ -60,11 +60,13 @@ tree_merge(tree_t **dst, const tree_t *t1, const tree_t *t2, apr_pool_t *pool)
     apr_hash_index_t *idx;
 
     if (t1 == NULL) {
-        return tree_copy(dst, t2, pool);
+        tree_copy(dst, t2, pool);
+        return;
     }
 
     if (t2 == NULL) {
-        return tree_copy(dst, t1, pool);
+        tree_copy(dst, t1, pool);
+        return;
     }
 
     tree_t *t = tree_create(pool);
@@ -90,6 +92,40 @@ tree_merge(tree_t **dst, const tree_t *t1, const tree_t *t2, apr_pool_t *pool)
 
             svn_hash_sets(t->nodes, apr_pstrdup(t->pool, key2), subtree);
         }
+    }
+
+    *dst = t;
+}
+
+void
+tree_diff(tree_t **dst, const tree_t *t1, const tree_t *t2, apr_pool_t *pool)
+{
+    apr_hash_index_t *idx;
+    tree_t *t = tree_create(pool);
+
+    if (t1 == NULL) {
+        *dst = t;
+        return;
+    }
+
+    if (t2 == NULL) {
+        tree_copy(dst, t1, pool);
+        return;
+    }
+
+    for (idx = apr_hash_first(pool, t1->nodes); idx; idx = apr_hash_next(idx)) {
+        const char *key1 = apr_hash_this_key(idx);
+        const tree_t *val1 = apr_hash_this_val(idx);
+        const tree_t *val2 = svn_hash_gets(t2->nodes, key1);
+
+        tree_t *subtree;
+        tree_diff(&subtree, val1, val2, pool);
+
+        if (val2->value == NULL) {
+            subtree->value = val1->value;
+        }
+
+        svn_hash_sets(t->nodes, apr_pstrdup(t->pool, key1), subtree);
     }
 
     *dst = t;

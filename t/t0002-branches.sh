@@ -33,7 +33,7 @@ EOF
 
 test_export_import() {
 	test_expect_success 'Import dump into Git' '
-	(cd repo.git && git-svn-fast-import --quiet --stdlayout -B branches-2 -b branches/some-feature/sub-branch -t tags/some-feature-before-remove/sub-branch --force -c ../cache.txt -I data -A ../authors.txt --export-rev-marks ../rev-marks.txt --export-marks ../marks.txt ../repo)
+	(cd repo.git && git-svn-fast-import --quiet --stdlayout -B branches-2 -b branches/some-feature/sub-branch -b branches/old-feature/sub-branch -t tags/some-feature-before-remove/sub-branch --force -c ../cache.txt -I data --no-ignore-abspath branches/old-feature/data -A ../authors.txt --export-rev-marks ../rev-marks.txt --export-marks ../marks.txt ../repo)
 	'
 }
 
@@ -629,6 +629,14 @@ test_expect_success 'Validate file merge inside new dir into master' '
 
 test_tick
 
+test_expect_success 'Remove data directory' '
+(cd repo.svn &&
+	svn rm branches/some-feature/data &&
+	svn_commit "Remove data directory from branch")
+'
+
+test_tick
+
 test_expect_success 'Validate tag create from branch' '
 (cd repo.svn &&
 	svn cp branches/some-feature tags/some-feature-before-remove &&
@@ -639,6 +647,10 @@ test_export_import
 
 test_expect_success 'Validate tag create' '
 test_branch_exists "tags--some-feature-before-remove"
+'
+
+test_expect_success 'Validate sub-tag create' '
+test_branch_exists "tags--some-feature-before-remove--sub-branch"
 '
 
 test_tick
@@ -658,6 +670,79 @@ test_branch_not_exists "branches--some-feature"
 
 test_expect_success 'Validate sub-branch remove' '
 test_branch_not_exists "branches--some-feature--sub-branch"
+'
+
+test_tick
+
+test_expect_success 'Create branch from tag' '
+(cd repo.svn &&
+	svn cp tags/some-feature-before-remove branches/old-feature &&
+	svn_commit "Create branch from tag")
+'
+
+test_export_import
+
+test_expect_success 'Validate branch create' '
+test_branch_exists "branches--old-feature"
+'
+
+test_expect_success 'Validate sub-branch exists' '
+test_branch_exists "branches--old-feature--sub-branch"
+'
+
+test_tick
+
+test_expect_success 'Remove sub-branch' '
+(cd repo.svn &&
+	svn update &&
+	svn rm branches/old-feature/sub-branch &&
+	svn_commit "Remove sub-branch")
+'
+
+test_export_import
+
+test_expect_success 'Validate sub-branch removed' '
+test_branch_not_exists "branches--old-feature--sub-branch"
+'
+
+test_tick
+
+mkdir -p repo.svn/branches/old-feature/data
+cat >repo.svn/branches/old-feature/data/run.py <<EOF
+import this
+EOF
+
+test_expect_success 'Commit ignore exception path' '
+(cd repo.svn &&
+	svn add branches/old-feature/data &&
+	svn_commit "Commit ignore exception path")
+'
+
+test_export_import
+
+cat >expect <<EOF
+:000000 040000 0000000000000000000000000000000000000000 60b31d92b221bf441f4d7ee50cf852eabddbb8dc A	data
+EOF
+
+test_expect_success 'Validate ignore exception path added' '
+(cd repo.git &&
+	git diff-tree branches--old-feature^ branches--old-feature >actual &&
+	test_cmp ../expect actual)
+'
+
+test_tick
+
+test_expect_success 'Create branch with ignore exception path' '
+(cd repo.svn &&
+	svn update &&
+	svn cp branches/old-feature branches/old-feature-2 &&
+	svn_commit "New branch with ignore exception path")
+'
+
+test_export_import
+
+test_expect_success 'Validate branch created' '
+test_branch_exists "branches--old-feature-2"
 '
 
 test_tick
@@ -1023,27 +1108,27 @@ test_tick
 
 test_expect_success 'Copy branches recursively' '
 (cd repo.svn &&
-    svn cp branches branches-2 &&
-    svn_commit "Copied branches recursively")
+	svn cp branches branches-2 &&
+	svn_commit "Copied branches recursively")
 '
 
 test_export_import
 
 test_expect_success 'Validate branches copied recursively' '
 (cd repo.git &&
-    git branch --list branches--* | sed s/branches/branches-2/ >expect &&
-    git branch --list branches-2* >actual &&
-    test_cmp expect actual)
+	git branch --list branches--* | sed s/branches/branches-2/ >expect &&
+	git branch --list branches-2* >actual &&
+	test_cmp expect actual)
 '
 
 test_tick
 
 test_expect_success 'Remove all branches and tags' '
 (cd repo.svn &&
-    svn rm branches &&
-    svn rm branches-2 &&
-    svn rm tags &&
-    svn_commit "Removed all branches and tags")
+	svn rm branches &&
+	svn rm branches-2 &&
+	svn rm tags &&
+	svn_commit "Removed all branches and tags")
 '
 
 test_export_import
@@ -1054,8 +1139,8 @@ EOF
 
 test_expect_success 'Validate branches and tags removed' '
 (cd repo.git &&
-    git branch --list >actual &&
-    test_cmp ../expect actual)
+	git branch --list >actual &&
+	test_cmp ../expect actual)
 '
 
 test_done

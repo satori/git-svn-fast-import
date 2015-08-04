@@ -121,7 +121,7 @@ tree_diff(tree_t **dst, const tree_t *t1, const tree_t *t2, apr_pool_t *pool)
         tree_t *subtree;
         tree_diff(&subtree, val1, val2, pool);
 
-        if (val2->value == NULL) {
+        if (val2 == NULL || val2->value == NULL) {
             subtree->value = val1->value;
         }
 

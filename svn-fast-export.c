@@ -136,9 +136,6 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 
     // Trunk path prefix;
     const char *trunk_path = "";
-    // Branches and tags prefixes.
-    tree_t *branches_pfx = tree_create(pool);
-    tree_t *tags_pfx = tree_create(pool);
     // Path to a file containing mapping of
     // Subversion committers to Git authors.
     const char *authors_path = NULL;
@@ -148,7 +145,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 
     export_ctx_t *ctx = apr_pcalloc(pool, sizeof(export_ctx_t));
     ctx->authors = author_storage_create(pool);
-    ctx->branches = branch_storage_create(pool, branches_pfx, tags_pfx);
+    ctx->branches = branch_storage_create(pool);
     ctx->commits = commit_cache_create(pool);
     ctx->blobs = checksum_cache_create(pool);
     ctx->ignores = tree_create(pool);
@@ -192,18 +189,16 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
             break;
         case 's':
             trunk_path = "trunk";
-            tree_insert(branches_pfx, "branches", "branches", pool);
-            tree_insert(tags_pfx, "tags", "tags", pool);
+            branch_storage_add_prefix(ctx->branches, "branches", FALSE, pool);
+            branch_storage_add_prefix(ctx->branches, "tags", FALSE, pool);
             break;
         case 'b':
         case 't':
             branch_storage_add_branch(ctx->branches, branch_refname_from_path(opt_arg, pool), opt_arg, pool);
             break;
         case 'B':
-            tree_insert(branches_pfx, opt_arg, opt_arg, pool);
-            break;
         case 'T':
-            tree_insert(tags_pfx, opt_arg, opt_arg, pool);
+            branch_storage_add_prefix(ctx->branches, opt_arg, FALSE, pool);
             break;
         case 'i':
             tree_insert(ctx->absignores, opt_arg, opt_arg, pool);

@@ -50,16 +50,24 @@ branch_refname_from_path(const char *path, apr_pool_t *pool)
 }
 
 branch_storage_t *
-branch_storage_create(apr_pool_t *pool, tree_t *bpfx, tree_t *tpfx)
+branch_storage_create(apr_pool_t *pool)
 {
     branch_storage_t *bs = apr_pcalloc(pool, sizeof(branch_storage_t));
 
     bs->pool = pool;
     bs->tree = tree_create(pool);
-    bs->bpfx = bpfx;
-    bs->tpfx = tpfx;
+    bs->pfx = tree_create(pool);
 
     return bs;
+}
+
+void
+branch_storage_add_prefix(branch_storage_t *bs,
+                          const char *pfx,
+                          svn_boolean_t is_tag,
+                          apr_pool_t *pool)
+{
+    tree_insert(bs->pfx, pfx, pfx, pool);
 }
 
 branch_t *
@@ -89,11 +97,7 @@ branch_storage_lookup_path(branch_storage_t *bs, const char *path, apr_pool_t *p
         return branch;
     }
 
-    prefix = tree_match(bs->bpfx, path, pool);
-    if (prefix == NULL) {
-        prefix = tree_match(bs->tpfx, path, pool);
-    }
-
+    prefix = tree_match(bs->pfx, path, pool);
     if (prefix == NULL) {
         return NULL;
     }

@@ -46,17 +46,16 @@ typedef struct
 {
     apr_pool_t *pool;
     tree_t *tree;
-    // Branch path prefixes.
-    tree_t *bpfx;
-    // Tag path prefixes.
-    tree_t *tpfx;
+    // Branch and tag path prefixes.
+    tree_t *pfx;
 } branch_storage_t;
 
 // Create new branch storage.
-// Use bpfx as branch path prefixes.
-// Use tpfx as tag path prefixes. 
 branch_storage_t *
-branch_storage_create(apr_pool_t *pool, tree_t *bpfx, tree_t *tpfx);
+branch_storage_create(apr_pool_t *pool);
+
+void
+branch_storage_add_prefix(branch_storage_t *bs, const char *pfx, svn_boolean_t is_tag, apr_pool_t *pool);
 
 // Add new branch reference name and path.
 branch_t *

@@ -22,10 +22,10 @@
 
 #include "checksum.h"
 #include "node.h"
+#include "sorts.h"
 #include <svn_dirent_uri.h>
 #include <svn_hash.h>
 #include <svn_props.h>
-#include <svn_sorts.h>
 
 #define SYMLINK_CONTENT_PREFIX "link"
 
@@ -292,8 +292,8 @@ set_content_checksum(svn_checksum_t **checksum,
 }
 
 static int
-compare_items_gitlike(const svn_sort__item_t *a,
-                      const svn_sort__item_t *b)
+compare_items_gitlike(const sort_item_t *a,
+                      const sort_item_t *b)
 {
     int val;
     apr_size_t len;
@@ -351,14 +351,13 @@ set_tree_checksum(svn_checksum_t **checksum,
 
     SVN_ERR(svn_fs_dir_entries(&dir_entries, root, path, scratch_pool));
 
-    sorted_entries = svn_sort__hash(dir_entries, compare_items_gitlike, scratch_pool);
+    sorted_entries = sort_hash(dir_entries, compare_items_gitlike, scratch_pool);
 
     for (int i = 0; i < sorted_entries->nelts; i++) {
         apr_array_header_t *subentries = NULL;
         const char *node_path, *record, *subpath;
         node_t *node;
-        svn_sort__item_t item = APR_ARRAY_IDX(sorted_entries, i,
-                                              svn_sort__item_t);
+        sort_item_t item = APR_ARRAY_IDX(sorted_entries, i, sort_item_t);
         svn_fs_dirent_t *entry = item.value;
         svn_checksum_t *node_checksum;
 

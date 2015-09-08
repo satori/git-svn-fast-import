@@ -22,6 +22,7 @@
 
 #include "export.h"
 #include "node.h"
+#include "sorts.h"
 #include "tree.h"
 #include "utils.h"
 #include <apr_portable.h>
@@ -444,12 +445,12 @@ prepare_changes(apr_array_header_t **dst,
                 apr_pool_t *result_pool,
                 apr_pool_t *scratch_pool)
 {
-    apr_array_header_t *changes = apr_array_make(result_pool, 0, sizeof(svn_sort__item_t));
+    apr_array_header_t *changes = apr_array_make(result_pool, 0, sizeof(sort_item_t));
 
     for (int i = 0; i < fs_changes->nelts; i++) {
         apr_array_header_t *copies, *removes;
         svn_boolean_t remove, modify;
-        svn_sort__item_t item = APR_ARRAY_IDX(fs_changes, i, svn_sort__item_t);
+        sort_item_t item = APR_ARRAY_IDX(fs_changes, i, sort_item_t);
         svn_fs_path_change2_t *change = item.value;
         svn_fs_path_change_kind_t action = change->change_kind;
 
@@ -459,7 +460,7 @@ prepare_changes(apr_array_header_t **dst,
             change->copyfrom_path = svn_dirent_skip_ancestor("/", change->copyfrom_path);
         }
 
-        svn_sort__item_t *new_item = apr_array_push(changes);
+        sort_item_t *new_item = apr_array_push(changes);
         new_item->key = path;
         new_item->value = change;
 
@@ -482,7 +483,7 @@ prepare_changes(apr_array_header_t **dst,
                 if (branch_path_is_root(branch, path)) {
                     continue;
                 }
-                svn_sort__item_t *subitem = apr_array_push(changes);
+                sort_item_t *subitem = apr_array_push(changes);
                 svn_fs_path_change2_t *subchange = apr_pcalloc(result_pool, sizeof(svn_fs_path_change2_t));
                 subitem->key = branch->path;
                 subitem->value = subchange;
@@ -513,7 +514,7 @@ prepare_changes(apr_array_header_t **dst,
 
                 new_path = svn_relpath_join(path, svn_relpath_skip_ancestor(src_path, branch->path), result_pool);
 
-                svn_sort__item_t *subitem = apr_array_push(changes);
+                sort_item_t *subitem = apr_array_push(changes);
                 svn_fs_path_change2_t *subchange = apr_pcalloc(result_pool, sizeof(svn_fs_path_change2_t));
                 subitem->key = new_path;
                 subitem->value = subchange;
@@ -559,12 +560,12 @@ export_revision_range(svn_stream_t *dst,
 
         // Fetch the paths changed under revision root.
         SVN_ERR(svn_fs_paths_changed2(&fs_changes, rev->root, rev_pool));
-        sorted_changes = svn_sort__hash(fs_changes, svn_sort_compare_items_lexically, rev_pool);
+        sorted_changes = sort_hash(fs_changes, &svn_sort_compare_items_lexically, rev_pool);
         SVN_ERR(prepare_changes(&changes, sorted_changes, rev->root, ctx, rev_pool, scratch_pool));
 
         for (int i = 0; i < changes->nelts; i++) {
             svn_pool_clear(scratch_pool);
-            svn_sort__item_t item = APR_ARRAY_IDX(changes, i, svn_sort__item_t);
+            sort_item_t item = APR_ARRAY_IDX(changes, i, sort_item_t);
             SVN_ERR(process_change_record(item.key, item.value, dst, rev, ctx, rev_pool, scratch_pool));
         }
 

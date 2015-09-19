@@ -35,7 +35,7 @@ branch_path_is_root(const branch_t *b, const char *path)
 const char *
 branch_refname_from_path(const char *path, apr_pool_t *pool)
 {
-    apr_array_header_t *strings = svn_cstring_split(path, "/", FALSE, pool);
+    apr_array_header_t *strings = svn_cstring_split(path, "/ ", FALSE, pool);
     svn_stringbuf_t *buf = svn_stringbuf_create_empty(pool);
 
     for (int i = 0; i < strings->nelts; i++) {

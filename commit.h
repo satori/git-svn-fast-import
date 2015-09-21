@@ -43,8 +43,7 @@ typedef struct
     apr_pool_t *pool;
     apr_array_header_t *commits;
     apr_hash_t *idx;
-    apr_hash_t *marks;
-    mark_t last_mark;
+    apr_array_header_t *marks;
 } commit_cache_t;
 
 commit_cache_t *

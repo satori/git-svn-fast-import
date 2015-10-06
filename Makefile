@@ -75,6 +75,7 @@ $(SVN_LS_TREE): $(LS_OBJECTS)
 
 install: $(SVN_LS_TREE)
 	$(INSTALL) -d $(PREFIX)/bin
+	$(INSTALL) -m 0755 $(SVN_FAST_EXPORT) $(PREFIX)/bin/$(SVN_FAST_EXPORT)
 	$(INSTALL) -m 0755 $(SVN_LS_TREE) $(PREFIX)/bin/$(SVN_LS_TREE)
 
 %.o: %.c

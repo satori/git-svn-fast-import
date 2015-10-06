@@ -1,3 +1,4 @@
+sudo: false
 language: c
 compiler:
     - clang
@@ -5,12 +6,12 @@ compiler:
 notifications:
     email: false
 install:
-    - sudo add-apt-repository ppa:gandalf-der-grosse/subversion -y
-    - sudo add-apt-repository ppa:git-core/ppa -y
-    - sudo apt-get update -qq
-    - sudo apt-get install -y libapr1-dev
-    - sudo apt-get install -y libsvn-dev
-    - sudo apt-get install -y git
-env: GIT_SVN_TEST_OPTS=--verbose
+    - bash install-deps.sh
+before_script:
+    - export GIT_SVN_TEST_OPTS=--verbose
+    - export CPPFLAGS=-I$HOME/workspace/opt/include/subversion-1
+    - export LDFLAGS=-L$HOME/workspace/opt/lib
+    - export PATH=$HOME/workspace/opt/bin:$PATH
+    - export LD_LIBRARY_PATH=$HOME/workspace/opt/lib:$LD_LIBRARY_PATH
 script:
     - make && make test

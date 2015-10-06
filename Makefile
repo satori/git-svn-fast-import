@@ -24,8 +24,8 @@ INSTALL = install
 RM = rm -f
 PREFIX ?= $(HOME)
 CFLAGS = -g -O2 -Wall -std=c99
-CPPFLAGS =
-LDFLAGS =
+CPPFLAGS ?=
+LDFLAGS ?=
 EXTLIBS = -lapr-1 -lsvn_fs-1 -lsvn_repos-1 -lsvn_subr-1
 
 -include config.mak

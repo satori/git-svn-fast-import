@@ -181,7 +181,7 @@ read_handler(void *stream_ctx, char *buf, apr_size_t *len)
 {
     stream_ctx_t *ctx = stream_ctx;
 
-    SVN_ERR(svn_stream_read(ctx->stream, buf, len));
+    SVN_ERR(svn_stream_read2(ctx->stream, buf, len));
 
     if (ctx->read_ctx != NULL) {
         SVN_ERR(svn_checksum_update(ctx->read_ctx, buf, *len));
@@ -228,7 +228,7 @@ checksum_stream_create(svn_stream_t *s,
     ctx->write_ctx = write_ctx;
 
     svn_stream_t *stream = svn_stream_create(ctx, pool);
-    svn_stream_set_read(stream, read_handler);
+    svn_stream_set_read2(stream, read_handler, NULL);
     svn_stream_set_write(stream, write_handler);
     svn_stream_set_close(stream, close_handler);
 

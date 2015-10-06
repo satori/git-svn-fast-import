@@ -30,7 +30,7 @@ Use the `make` command:
 ## Requirements
 
 * [Apache Portable Runtime](https://apr.apache.org/) >= 1.5
-* [Subversion](https://subversion.apache.org/) >= 1.8
+* [Subversion](https://subversion.apache.org/) >= 1.9
 * [Git](http://git-scm.com/) >= 2.1.2
 
 ## Example

@@ -237,7 +237,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
         return SVN_NO_ERROR;
     }
 
-    SVN_ERR(svn_repos_open2(&repo, repo_path, NULL, pool));
+    SVN_ERR(svn_repos_open3(&repo, repo_path, NULL, pool, pool));
     fs = svn_repos_fs(repo);
 
     SVN_ERR(svn_fs_youngest_rev(&youngest, fs, pool));

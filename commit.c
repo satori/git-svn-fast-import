@@ -51,7 +51,7 @@ commit_cache_get(commit_cache_t *c, svn_revnum_t revnum, branch_t *branch)
 commit_t *
 commit_cache_get_by_mark(commit_cache_t *c, mark_t mark)
 {
-    return APR_ARRAY_IDX(c->marks, mark, commit_t *);
+    return APR_ARRAY_IDX(c->marks, mark - 1, commit_t *);
 }
 
 commit_t *
@@ -70,8 +70,8 @@ commit_cache_add(commit_cache_t *c, svn_revnum_t revnum, branch_t *branch)
 void
 commit_cache_set_mark(commit_cache_t *c, commit_t *commit)
 {
-    commit->mark = c->marks->nelts;
     APR_ARRAY_PUSH(c->marks, commit_t *) = commit;
+    commit->mark = c->marks->nelts;
 }
 
 svn_error_t *

@@ -52,7 +52,7 @@ cd $HOME/workspace/deps/sqlite-autoconf-3081101 &&
 	make install
 
 # Installing Subersion 1.9
-git clone --depth=50 --branch=1.9.x https://github.com/apache/subversion.git $HOME/workspace/deps/subversion
+git clone --depth=50 --branch=1.9.x-fix-fd-leaks https://github.com/satori/subversion.git $HOME/workspace/deps/subversion
 cd $HOME/workspace/deps/subversion &&
 	./autogen.sh &&
 	./configure --prefix=$HOME/workspace/opt --with-sqlite=$HOME/workspace/opt &&

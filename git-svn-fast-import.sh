@@ -42,7 +42,7 @@ c,checksum-cache=file     use <file> as a checksum cache
 force                     force updating modified existing branches, even if doing so would cause commits to be lost
 quiet                     disable all non-fatal output"
 
-eval "$(echo "$OPTIONS_SPEC" | git rev-parse --parseopt -- $@ || echo exit $?)"
+eval "$(echo "$OPTIONS_SPEC" | git rev-parse --parseopt -- "$@" || echo exit $?)"
 
 SVN_FAST_EXPORT_ARGS=
 GIT_FAST_IMPORT_ARGS=
@@ -91,7 +91,7 @@ mkfifo $CHAN
 git fast-import $GIT_FAST_IMPORT_ARGS --done <$CHAN &
 FAST_IMPORT_PID=$!
 
-svn-fast-export $SVN_FAST_EXPORT_ARGS >$CHAN
+eval "svn-fast-export $SVN_FAST_EXPORT_ARGS" >$CHAN
 RET_CODE=$?
 
 wait $FAST_IMPORT_PID

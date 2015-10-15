@@ -24,6 +24,8 @@
 #include "utils.h"
 #include <svn_hash.h>
 
+#define UNKNOWN "unknown"
+
 // author_t implementation.
 struct author_t
 {
@@ -36,7 +38,7 @@ struct author_t
 };
 
 static struct author_t unknown_author = {
-    "unknown", "Unknown", "unknown@local"
+    UNKNOWN, UNKNOWN, UNKNOWN"@"UNKNOWN
 };
 
 const char *
@@ -71,8 +73,8 @@ author_storage_lookup(const author_storage_t *as, const char *name)
     if (author == NULL) {
         author = apr_pcalloc(as->pool, sizeof(author_t));
         author->svn_name = apr_pstrdup(as->pool, name);
-        author->name = "unknown";
-        author->email = apr_psprintf(as->pool, "%s@local", name);
+        author->name = UNKNOWN;
+        author->email = apr_psprintf(as->pool, "%s@"UNKNOWN, name);
         svn_hash_sets(as->authors, author->svn_name, author);
     }
 

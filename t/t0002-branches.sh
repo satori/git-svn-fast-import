@@ -1104,6 +1104,18 @@ test_expect_success 'Restore revision author property' '
 	svn propset svn:author --revprop -r HEAD author1)
 '
 
+test_expect_success 'Remove revision log property' '
+(cd repo.svn &&
+	svn propdel svn:log --revprop -r HEAD)
+'
+
+test_export_import
+
+test_expect_success 'Restore revision log property' '
+(cd repo.svn &&
+	svn propset svn:log --revprop -r HEAD "Added another symlink")
+'
+
 test_tick
 
 test_expect_success 'Copy branches recursively' '

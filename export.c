@@ -71,6 +71,7 @@ get_revision(revision_t **rev,
     r = apr_pcalloc(pool, sizeof(revision_t));
     r->root = root;
     r->revnum = revnum;
+    r->message = svn_string_create_empty(pool);
     r->commits = apr_hash_make(pool);
     r->removes = apr_hash_make(pool);
     r->changes = apr_hash_make(pool);

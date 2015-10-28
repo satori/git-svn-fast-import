@@ -113,35 +113,6 @@ get_branch_changes(revision_t *rev, branch_t *branch)
     return changes;
 }
 
-static mark_t
-get_copyfrom_commit(svn_revnum_t revnum, export_ctx_t *ctx, branch_t *copyfrom_branch)
-{
-    while (revnum > 0) {
-        commit_t *commit = NULL;
-        commit = commit_cache_get(ctx->commits, revnum, copyfrom_branch);
-        if (commit != NULL) {
-            return commit->mark;
-        }
-
-        --revnum;
-    }
-
-    return 0;
-}
-
-static svn_boolean_t
-commit_is_merged(commit_t *commit, mark_t other)
-{
-    for (int i = 0; i < commit->merges->nelts; i++) {
-        mark_t merged = APR_ARRAY_IDX(commit->merges, i, mark_t);
-        if (merged == other) {
-            return TRUE;
-        }
-    }
-
-    return FALSE;
-}
-
 static tree_t *
 ignore_subbranches(const char *path,
                    export_ctx_t *ctx,
@@ -155,6 +126,28 @@ ignore_subbranches(const char *path,
 }
 
 static svn_error_t *
+get_mergeinfo_for_path(svn_mergeinfo_t *mergeinfo,
+                       svn_fs_root_t *root,
+                       const char *path,
+                       apr_pool_t *result_pool,
+                       apr_pool_t *scratch_pool)
+{
+    apr_array_header_t *paths;
+    svn_mergeinfo_catalog_t catalog;
+
+    paths = apr_array_make(scratch_pool, 1, sizeof(const char *));
+    APR_ARRAY_PUSH(paths, const char *) = path;
+
+    SVN_ERR(svn_fs_get_mergeinfo2(&catalog, root, paths,
+                                  svn_mergeinfo_inherited, FALSE, TRUE,
+                                  result_pool, scratch_pool));
+
+    *mergeinfo = svn_hash_gets(catalog, path);
+
+    return SVN_NO_ERROR;
+}
+
+static svn_error_t *
 process_change_record(const char *path,
                       svn_fs_path_change2_t *change,
                       svn_stream_t *dst,
@@ -165,12 +158,13 @@ process_change_record(const char *path,
 {
     const char *src_path = NULL, *node_path;
     const char *ignored, *not_ignored;
-    commit_t *commit;
-    branch_t *branch = NULL, *src_branch = NULL;
+    commit_t *commit, *parent;
+    branch_t *branch = NULL, *src_branch = NULL, *merge_branch;
     node_t *node;
     svn_boolean_t dst_is_root = FALSE, src_is_root = FALSE;
     svn_boolean_t modify;
     svn_fs_path_change_kind_t action = change->change_kind;
+    svn_mergeinfo_t mergeinfo;
     svn_node_kind_t kind = change->node_kind;
     svn_revnum_t src_rev = change->copyfrom_rev;
 
@@ -220,21 +214,19 @@ process_change_record(const char *path,
 
     commit = apr_hash_get(rev->commits, branch, sizeof(branch_t *));
     if (commit == NULL) {
+        parent = commit_cache_get(ctx->commits, rev->revnum - 1, branch);
         commit = commit_cache_add(ctx->commits, rev->revnum, branch);
+        if (parent != NULL) {
+            commit->parent = parent->mark;
+        }
+
         apr_hash_set(rev->commits, branch, sizeof(branch_t *), commit);
     }
 
-    if (modify && src_branch != NULL) {
-        mark_t copyfrom = get_copyfrom_commit(change->copyfrom_rev, ctx, src_branch);
-
-        if (dst_is_root && src_is_root && branch->dirty) {
-            commit->copyfrom = copyfrom;
-            return SVN_NO_ERROR;
-        }
-
-        if (strcmp(branch->refname, src_branch->refname) != 0 && !commit_is_merged(commit, copyfrom)) {
-            APR_ARRAY_PUSH(commit->merges, mark_t) = copyfrom;
-        }
+    if (modify && src_branch != NULL && dst_is_root && src_is_root && branch->dirty) {
+        parent = commit_cache_get(ctx->commits, change->copyfrom_rev, src_branch);
+        commit->parent = parent->mark;
+        return SVN_NO_ERROR;
     }
 
     apr_array_header_t *changes = get_branch_changes(rev, branch);
@@ -257,6 +249,50 @@ process_change_record(const char *path,
     }
 
     SVN_ERR(set_node_mode(&node->mode, rev->root, path, scratch_pool));
+    SVN_ERR(get_mergeinfo_for_path(&mergeinfo, rev->root, path, scratch_pool, scratch_pool));
+
+    if (mergeinfo != NULL) {
+        apr_hash_index_t *idx;
+        for (idx = apr_hash_first(scratch_pool, mergeinfo); idx; idx = apr_hash_next(idx)) {
+            const char *merge_src_path = apr_hash_this_key(idx);
+            merge_src_path = svn_dirent_skip_ancestor("/", merge_src_path);
+            svn_rangelist_t *merge_ranges = apr_hash_this_val(idx);
+
+            merge_branch = branch_storage_lookup_path(ctx->branches, merge_src_path, scratch_pool);
+            if (merge_branch == NULL) {
+                continue;
+            }
+
+            for (int i = 0; i < merge_ranges->nelts; i++) {
+                svn_merge_range_t *range = &APR_ARRAY_IDX(merge_ranges, i, svn_merge_range_t);
+                svn_revnum_t merge_start;
+                svn_revnum_t merge_end;
+
+                if (range->start < range->end) {
+                    merge_start = range->start + 1;
+                    merge_end = range->end;
+                } else {
+                    merge_start = range->end + 1;
+                    merge_end = range->start;
+                }
+
+                if (merge_end > rev->revnum) {
+                    merge_end = rev->revnum - 1;
+                }
+
+                while (merge_start <= merge_end) {
+                    parent = commit_cache_get(ctx->commits, merge_start, merge_branch);
+                    commit_cache_add_merge(ctx->commits, commit, parent, scratch_pool);
+                    ++merge_start;
+                }
+            }
+        }
+    }
+
+    if (src_branch != NULL) {
+        parent = commit_cache_get(ctx->commits, change->copyfrom_rev, src_branch);
+        commit_cache_add_merge(ctx->commits, commit, parent, scratch_pool);
+    }
 
     if (kind == svn_node_file) {
         SVN_ERR(set_content_checksum(&node->checksum, dst, ctx->blobs,
@@ -327,16 +363,13 @@ write_commit(svn_stream_t *dst,
     apr_array_header_t *changes;
     changes = get_branch_changes(rev, branch);
 
-    if (changes->nelts == 0 && commit->copyfrom) {
+    if (changes->nelts == 0 && commit->parent) {
         // In case there is only one node in a commit and this node is
         // a root directory copied from another branch, mark this commit
         // as dummy, set copyfrom commit as its parent and reset branch to it.
-        commit->mark = commit->copyfrom;
+        commit->mark = commit->parent;
         SVN_ERR(reset_branch(dst, branch, commit, pool));
     } else {
-        apr_hash_t *merges = apr_hash_make(pool);
-        apr_hash_index_t *idx;
-
         commit_cache_set_mark(ctx->commits, commit);
 
         SVN_ERR(svn_stream_printf(dst, pool, "commit %s\n", branch->refname));
@@ -347,22 +380,13 @@ write_commit(svn_stream_t *dst,
         SVN_ERR(svn_stream_printf(dst, pool, "data %ld\n", rev->message->len));
         SVN_ERR(svn_stream_printf(dst, pool, "%s\n", rev->message->data));
 
-        if (commit->copyfrom) {
-            SVN_ERR(svn_stream_printf(dst, pool, "from :%d\n", commit->copyfrom));
+        if (commit->parent) {
+            SVN_ERR(svn_stream_printf(dst, pool, "from :%d\n", commit->parent));
         }
 
         for (int i = 0; i < commit->merges->nelts; i++) {
             mark_t merge = APR_ARRAY_IDX(commit->merges, i, mark_t);
-            commit_t *other = commit_cache_get_by_mark(ctx->commits, merge);
-            commit_t *merged = apr_hash_get(merges, other->branch, sizeof(branch_t *));
-            if (merged == NULL || merged->revnum < other->revnum) {
-                apr_hash_set(merges, other->branch, sizeof(branch_t *), other);
-            }
-        }
-
-        for (idx = apr_hash_first(pool, merges); idx; idx = apr_hash_next(idx)) {
-            commit_t *other = apr_hash_this_val(idx);
-            SVN_ERR(svn_stream_printf(dst, pool, "merge :%d\n", other->mark));
+            SVN_ERR(svn_stream_printf(dst, pool, "merge :%d\n", merge));
         }
     }
 

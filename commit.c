@@ -43,9 +43,17 @@ commit_cache_create(apr_pool_t *pool)
 commit_t *
 commit_cache_get(commit_cache_t *c, svn_revnum_t revnum, branch_t *branch)
 {
-    cache_key_t key = {revnum, branch};
+    while (revnum > 0) {
+        cache_key_t key = {revnum, branch};
+        commit_t *commit = apr_hash_get(c->idx, &key, sizeof(cache_key_t));
+        if (commit != NULL) {
+            return commit;
+        }
 
-    return apr_hash_get(c->idx, &key, sizeof(cache_key_t));
+        --revnum;
+    }
+
+    return NULL;
 }
 
 commit_t *
@@ -72,6 +80,75 @@ commit_cache_set_mark(commit_cache_t *c, commit_t *commit)
 {
     APR_ARRAY_PUSH(c->marks, commit_t *) = commit;
     commit->mark = c->marks->nelts;
+}
+
+// This function implements simple depth-first search for determining
+// if other commit has already been merged into first commit.
+// It uses apr_array_header_t as a LIFO queue for marks.
+// XXX: It is possible that breadth-first search is better-suited for
+// that problem, in that case should use FIFO queue.
+static svn_boolean_t
+commit_is_merged(commit_cache_t *c, commit_t *commit, mark_t other,
+                 apr_pool_t *scratch_pool)
+{
+    apr_array_header_t *queue;
+
+    // Copy merge commits into queue.
+    queue = apr_array_copy(scratch_pool, commit->merges);
+    // Add parent commit into queue.
+    if (commit->parent) {
+        APR_ARRAY_PUSH(queue, mark_t) = commit->parent;
+    }
+
+    // It is a simple depth-first search.
+    while (queue->nelts) {
+        commit_t *merged_commit;
+        mark_t *merged = apr_array_pop(queue);
+        if (*merged == other) {
+            return TRUE;
+        }
+
+        merged_commit = commit_cache_get_by_mark(c, *merged);
+
+        // Copy merge commits into queue.
+        apr_array_cat(queue, merged_commit->merges);
+        // Add parent commit into queue.
+        if (merged_commit->parent) {
+            APR_ARRAY_PUSH(queue, mark_t) = merged_commit->parent;
+        }
+    }
+
+    return FALSE;
+}
+
+void
+commit_cache_add_merge(commit_cache_t *c,
+                       commit_t *commit,
+                       commit_t *other,
+                       apr_pool_t *scratch_pool)
+{
+    apr_array_header_t *new_merges;
+
+    if (commit_is_merged(c, commit, other->mark, scratch_pool)) {
+        // Commit is already merged, nothing to do.
+        return;
+    }
+
+    new_merges = apr_array_make(scratch_pool, 1, sizeof(mark_t));
+    APR_ARRAY_PUSH(new_merges, mark_t) = other->mark;
+
+    // Filter old merges by removing merged one into just added merge commit.
+    for (int i = 0; i < commit->merges->nelts; i++) {
+        mark_t merged = APR_ARRAY_IDX(commit->merges, i, mark_t);
+
+        if (!commit_is_merged(c, other, merged, scratch_pool)) {
+            APR_ARRAY_PUSH(new_merges, mark_t) = merged;
+        }
+    }
+
+    // Set new merges for commit.
+    apr_array_clear(commit->merges);
+    apr_array_cat(commit->merges, new_merges);
 }
 
 svn_error_t *

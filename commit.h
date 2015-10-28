@@ -34,7 +34,7 @@ typedef struct
     svn_revnum_t revnum;
     branch_t *branch;
     mark_t mark;
-    mark_t copyfrom;
+    mark_t parent;
     apr_array_header_t *merges;
 } commit_t;
 
@@ -60,6 +60,10 @@ commit_cache_set_mark(commit_cache_t *c, commit_t *commit);
 
 commit_t *
 commit_cache_add(commit_cache_t *c, svn_revnum_t revnum, branch_t *branch);
+
+void
+commit_cache_add_merge(commit_cache_t *c, commit_t *commit, commit_t *other,
+                       apr_pool_t *scratch_pool);
 
 svn_error_t *
 commit_cache_dump(commit_cache_t *c, svn_stream_t *dst, apr_pool_t *pool);

@@ -22,6 +22,13 @@
 
 #include "sorts.h"
 #include <stdlib.h>
+#include <svn_path.h>
+
+int
+compare_items_as_paths(const sort_item_t *a, const sort_item_t *b)
+{
+    return svn_path_compare_paths(a->key, b->key);
+}
 
 apr_array_header_t *
 sort_hash(apr_hash_t *ht,

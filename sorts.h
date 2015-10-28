@@ -34,6 +34,9 @@ typedef struct
     void *value;
 } sort_item_t;
 
+int
+compare_items_as_paths(const sort_item_t *a, const sort_item_t *b);
+
 apr_array_header_t *
 sort_hash(apr_hash_t *ht,
           int (*comparison_func)(const sort_item_t *,

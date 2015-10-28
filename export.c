@@ -585,7 +585,7 @@ export_revision_range(svn_stream_t *dst,
 
         // Fetch the paths changed under revision root.
         SVN_ERR(svn_fs_paths_changed2(&fs_changes, rev->root, rev_pool));
-        sorted_changes = sort_hash(fs_changes, &svn_sort_compare_items_lexically, rev_pool);
+        sorted_changes = sort_hash(fs_changes, compare_items_as_paths, rev_pool);
         SVN_ERR(prepare_changes(&changes, sorted_changes, rev->root, ctx, rev_pool, scratch_pool));
 
         for (int i = 0; i < changes->nelts; i++) {

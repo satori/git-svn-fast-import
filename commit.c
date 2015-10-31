@@ -156,6 +156,10 @@ commit_cache_dump(commit_cache_t *c, svn_stream_t *dst, apr_pool_t *pool)
 {
     for (int i = 0; i < c->commits->nelts; i++) {
         commit_t *commit = &APR_ARRAY_IDX(c->commits, i, commit_t);
+        if (!commit->mark) {
+            // Skip commit if mark was not assigned.
+            continue;
+        }
         SVN_ERR(svn_stream_printf(dst, pool, "%ld %s %s :%d\n",
                                   commit->revnum,
                                   commit->branch->refname,

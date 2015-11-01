@@ -295,13 +295,13 @@ process_change_record(const char *path,
     }
 
     if (kind == svn_node_file) {
-        SVN_ERR(set_content_checksum(&node->checksum, dst, ctx->blobs,
-                                     rev->root, path, result_pool, scratch_pool));
+        SVN_ERR(set_content_checksum(&node->checksum, &node->cached,
+                                     dst, ctx->blobs, rev->root, path,
+                                     result_pool, scratch_pool));
         return SVN_NO_ERROR;
     }
 
     if (kind == svn_node_dir && src_branch != NULL) {
-        apr_array_header_t *dummy;
         svn_fs_t *fs = svn_fs_root_fs(rev->root);
         svn_fs_root_t *src_root;
         tree_t *ignores;
@@ -312,8 +312,9 @@ process_change_record(const char *path,
                   scratch_pool);
 
         SVN_ERR(svn_fs_revision_root(&src_root, fs, change->copyfrom_rev, scratch_pool));
-        SVN_ERR(set_tree_checksum(&node->checksum, &dummy, dst, ctx->blobs,
-                                  src_root, src_path, src_branch->path, ignores,
+        SVN_ERR(set_tree_checksum(&node->checksum, &node->cached, &node->entries,
+                                  dst, ctx->blobs, src_root, src_path,
+                                  src_branch->path, ignores,
                                   result_pool, scratch_pool));
     }
 
@@ -337,6 +338,16 @@ node_modify(svn_stream_t *dst, const node_t *node, apr_pool_t *pool)
 {
     const char *checksum;
     checksum = svn_checksum_to_cstring_display(node->checksum, pool);
+
+    if (node->kind == svn_node_dir && node->cached == FALSE) {
+        for (int i = 0; i < node->entries->nelts; i++) {
+            const node_t *subnode = &APR_ARRAY_IDX(node->entries, i, node_t);
+            SVN_ERR(node_modify(dst, subnode, pool));
+        }
+    } else {
+        SVN_ERR(svn_stream_printf(dst, pool, "M %o %s \"%s\"\n",
+                                  node->mode, checksum, node->path));
+    }
 
     SVN_ERR(svn_stream_printf(dst, pool, "M %o %s \"%s\"\n",
                               node->mode, checksum, node->path));

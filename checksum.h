@@ -56,6 +56,7 @@ checksum_cache_load_path(checksum_cache_t *c,
 
 svn_error_t *
 set_content_checksum(svn_checksum_t **checksum,
+                     svn_boolean_t *cached,
                      svn_stream_t *output,
                      checksum_cache_t *cache,
                      svn_fs_root_t *root,
@@ -65,6 +66,7 @@ set_content_checksum(svn_checksum_t **checksum,
 
 svn_error_t *
 set_tree_checksum(svn_checksum_t **checksum,
+                  svn_boolean_t *cached,
                   apr_array_header_t **entries,
                   svn_stream_t *output,
                   checksum_cache_t *cache,

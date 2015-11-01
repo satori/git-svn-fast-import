@@ -94,10 +94,14 @@ print_tree(svn_fs_root_t *root,
 {
     apr_array_header_t *entries;
     const char *abspath = svn_relpath_join(root_path, path, pool);
+    svn_boolean_t from_cache;
     svn_checksum_t *checksum;
     svn_stream_t *dummy = svn_stream_empty(pool);
 
-    SVN_ERR(set_tree_checksum(&checksum, &entries, dummy, cache, root, abspath, root_path, ignores, pool, pool));
+    SVN_ERR(set_tree_checksum(&checksum, &from_cache, &entries,
+                              dummy, cache, root, abspath,
+                              root_path, ignores,
+                              pool, pool));
     SVN_ERR(print_entries(entries, root_path, trees_only, recurse, show_trees, pool));
 
     return SVN_NO_ERROR;

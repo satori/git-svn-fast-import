@@ -46,6 +46,7 @@ typedef struct
     node_mode_t mode;
     const char *path;
     svn_checksum_t *checksum;
+    svn_boolean_t cached;
     apr_array_header_t *entries;
 } node_t;
 

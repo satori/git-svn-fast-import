@@ -106,30 +106,50 @@ commit_is_merged(commit_cache_t *c, commit_t *commit, mark_t other,
                  apr_pool_t *scratch_pool)
 {
     apr_array_header_t *queue;
+    apr_hash_t *visited;
+
+    queue = apr_array_make(scratch_pool, 0, sizeof(mark_t));
+    visited = apr_hash_make(scratch_pool);
 
     // Copy merge commits into queue.
-    queue = apr_array_copy(scratch_pool, commit->merges);
+    for (int i = 0; i < commit->merges->nelts; i++) {
+        mark_t merge = APR_ARRAY_IDX(commit->merges, i, mark_t);
+        if (merge < other) {
+            continue;
+        }
+        APR_ARRAY_PUSH(queue, mark_t) = merge;
+        apr_hash_set(visited, &merge, sizeof(mark_t), &merge);
+    }
     // Add parent commit into queue.
-    if (commit->parent) {
-        APR_ARRAY_PUSH(queue, mark_t) = commit->parent;
+    if (commit->parent >= other) {
+        mark_t merge = commit->parent;
+        APR_ARRAY_PUSH(queue, mark_t) = merge;
+        apr_hash_set(visited, &merge, sizeof(mark_t), &merge);
     }
 
     while (queue->nelts) {
-        commit_t *merged_commit;
-        mark_t *merged = apr_array_pop(queue);
-        if (*merged == other) {
+        commit_t *merged;
+        mark_t *merge = apr_array_pop(queue);
+        if (*merge == other) {
             return TRUE;
         }
 
-        merged_commit = commit_cache_get_by_mark(c, *merged);
+        merged = commit_cache_get_by_mark(c, *merge);
 
         // Add parent commit into queue.
-        if (merged_commit->parent) {
-            ARRAY_PREPEND(queue, mark_t) = merged_commit->parent;
+        if (merged->parent >= other && apr_hash_get(visited, &merged->parent, sizeof(mark_t)) == NULL) {
+            mark_t merge = merged->parent;
+            ARRAY_PREPEND(queue, mark_t) = merge;
+            apr_hash_set(visited, &merge, sizeof(mark_t), &merge);
         }
         // Copy merge commits into queue.
-        for (int i = 0; i < merged_commit->merges->nelts; i++) {
-            ARRAY_PREPEND(queue, mark_t) = APR_ARRAY_IDX(merged_commit->merges, i, mark_t);
+        for (int i = 0; i < merged->merges->nelts; i++) {
+            mark_t merge = APR_ARRAY_IDX(merged->merges, i, mark_t);
+            if (merge < other || apr_hash_get(visited, &merge, sizeof(mark_t)) != NULL) {
+                continue;
+            }
+            ARRAY_PREPEND(queue, mark_t) = merge;
+            apr_hash_set(visited, &merge, sizeof(mark_t), &merge);
         }
     }
 

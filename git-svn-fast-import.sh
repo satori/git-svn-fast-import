@@ -24,23 +24,24 @@
 OPTIONS_SPEC="\
 git-svn-fast-import [options] <repo>
 --
-h,help                    show the help
-r,revision=               set revision range
-s,stdlayout               set trunk,tags,branches as the relative paths, which is SVN default
-b,branch=path             set repository <path> as a branch
-B,branches=path           set repository <path> as a root for branches
-t,tag=path                set repository <path> as a tag
-T,tags=path               set repository <path> as a root for tags
-I,ignore-path=path        ignore a relative repository <path>
-i,ignore-abspath!=path    ignore repository <path>
-no-ignore-abspath=path    do not ignore repository <path>
-A,authors-file=file       load from <file> the mapping of SVN committer names to Git commit authors
-export-rev-marks=file     dump the SVN revision marks to <file>
-export-marks=file         load Git marks from <file>
-import-marks=file         dump Git marks into <file>
-c,checksum-cache=file     use <file> as a checksum cache
-force                     force updating modified existing branches, even if doing so would cause commits to be lost
-quiet                     disable all non-fatal output"
+h,help                      show the help
+r,revision=                 set revision range
+s,stdlayout                 set trunk,tags,branches as the relative paths, which is SVN default
+b,branch=path               set repository <path> as a branch
+B,branches=path             set repository <path> as a root for branches
+t,tag=path                  set repository <path> as a tag
+T,tags=path                 set repository <path> as a root for tags
+I,ignore-path=path          ignore a relative repository <path>
+i,ignore-abspath!=path      ignore repository <path>
+no-ignore-abspath=path      do not ignore repository <path>
+A,authors-file=file         load from <file> the mapping of SVN committer names to Git commit authors
+export-rev-marks=file       dump the SVN revision marks to <file>
+export-marks=file           dump Git marks into <file>
+import-marks=file           load Git marks from <file>
+import-marks-if-exists=file load Git marks from <file>, if exists
+c,checksum-cache=file       use <file> as a checksum cache
+force                       force updating modified existing branches, even if doing so would cause commits to be lost
+quiet                       disable all non-fatal output"
 
 eval "$(echo "$OPTIONS_SPEC" | git rev-parse --parseopt -- "$@" || echo exit $?)"
 
@@ -61,7 +62,7 @@ case $1 in
 		GIT_FAST_IMPORT_ARGS="$GIT_FAST_IMPORT_ARGS $1"
 		shift
 		;;
-    --export-marks|--import-marks)
+    --export-marks|--import-marks|--import-marks-if-exists)
         GIT_FAST_IMPORT_ARGS="$GIT_FAST_IMPORT_ARGS $1=$2"
         shift 2
         ;;

@@ -164,7 +164,7 @@ process_change_record(const char *path,
     svn_boolean_t dst_is_root = FALSE, src_is_root = FALSE;
     svn_boolean_t modify;
     svn_fs_path_change_kind_t action = change->change_kind;
-    svn_mergeinfo_t mergeinfo;
+    svn_mergeinfo_t mergeinfo = NULL;
     svn_node_kind_t kind = change->node_kind;
     svn_revnum_t src_rev = change->copyfrom_rev;
 
@@ -251,7 +251,10 @@ process_change_record(const char *path,
     }
 
     SVN_ERR(set_node_mode(&node->mode, rev->root, path, scratch_pool));
-    SVN_ERR(get_mergeinfo_for_path(&mergeinfo, rev->root, path, scratch_pool, scratch_pool));
+
+    if (change->mergeinfo_mod == svn_tristate_true) {
+        SVN_ERR(get_mergeinfo_for_path(&mergeinfo, rev->root, path, scratch_pool, scratch_pool));
+    }
 
     if (mergeinfo != NULL) {
         apr_hash_index_t *idx;

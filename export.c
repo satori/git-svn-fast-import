@@ -265,27 +265,21 @@ process_change_record(const char *path,
 
             for (int i = 0; i < merge_ranges->nelts; i++) {
                 svn_merge_range_t *range = &APR_ARRAY_IDX(merge_ranges, i, svn_merge_range_t);
-                svn_revnum_t merge_start;
-                svn_revnum_t merge_end;
+                svn_revnum_t last_merged;
 
                 if (range->start < range->end) {
-                    merge_start = range->start + 1;
-                    merge_end = range->end;
+                    last_merged = range->end;
                 } else {
-                    merge_start = range->end + 1;
-                    merge_end = range->start;
+                    last_merged = range->start;
                 }
 
-                if (merge_end > rev->revnum) {
-                    merge_end = rev->revnum - 1;
+                if (last_merged > rev->revnum) {
+                    last_merged = rev->revnum - 1;
                 }
 
-                while (merge_start <= merge_end) {
-                    parent = commit_cache_get(ctx->commits, merge_start, merge_branch);
-                    if (parent != NULL) {
-                        commit_cache_add_merge(ctx->commits, commit, parent, scratch_pool);
-                    }
-                    ++merge_start;
+                parent = commit_cache_get(ctx->commits, last_merged, merge_branch);
+                if (parent != NULL) {
+                    commit_cache_add_merge(ctx->commits, commit, parent, scratch_pool);
                 }
             }
         }

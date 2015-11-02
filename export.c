@@ -85,7 +85,7 @@ get_revision(revision_t **rev,
 
     value = svn_hash_gets(revprops, SVN_PROP_REVISION_DATE);
     if (value != NULL) {
-        svn_time_from_cstring(&r->timestamp, value->data, pool);
+        SVN_ERR(svn_time_from_cstring(&r->timestamp, value->data, pool));
     }
 
     value = svn_hash_gets(revprops, SVN_PROP_REVISION_LOG);

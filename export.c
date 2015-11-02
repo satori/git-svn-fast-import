@@ -282,7 +282,9 @@ process_change_record(const char *path,
 
                 while (merge_start <= merge_end) {
                     parent = commit_cache_get(ctx->commits, merge_start, merge_branch);
-                    commit_cache_add_merge(ctx->commits, commit, parent, scratch_pool);
+                    if (parent != NULL) {
+                        commit_cache_add_merge(ctx->commits, commit, parent, scratch_pool);
+                    }
                     ++merge_start;
                 }
             }

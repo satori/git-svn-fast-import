@@ -339,6 +339,7 @@ set_tree_checksum(svn_checksum_t **checksum,
                   svn_fs_root_t *root,
                   const char *path,
                   const char *root_path,
+                  const char *rewrite_root_path,
                   tree_t *ignores,
                   apr_pool_t *result_pool,
                   apr_pool_t *scratch_pool)
@@ -367,7 +368,7 @@ set_tree_checksum(svn_checksum_t **checksum,
         svn_boolean_t from_cache;
         svn_checksum_t *node_checksum;
 
-        node_path = svn_relpath_join(path, entry->name, result_pool);
+        node_path = svn_relpath_join(path, entry->name, scratch_pool);
         subpath = svn_dirent_skip_ancestor(root_path, node_path);
 
         ignored = tree_match(ignores, subpath, scratch_pool);
@@ -378,7 +379,7 @@ set_tree_checksum(svn_checksum_t **checksum,
         if (entry->kind == svn_node_dir) {
             SVN_ERR(set_tree_checksum(&node_checksum, &from_cache, &subentries,
                                       output, cache, root, node_path,
-                                      root_path, ignores,
+                                      root_path, rewrite_root_path, ignores,
                                       result_pool, scratch_pool));
             // Skip empty directories.
             if (subentries->nelts == 0) {
@@ -390,13 +391,17 @@ set_tree_checksum(svn_checksum_t **checksum,
                                          result_pool, scratch_pool));
         }
 
+        if (rewrite_root_path != NULL) {
+            subpath = svn_relpath_join(rewrite_root_path, subpath, result_pool);
+        }
+
         node = apr_array_push(nodes);
         node->kind = entry->kind;
-        node->path = node_path;
+        node->path = subpath;
         node->checksum = node_checksum;
         node->cached = from_cache;
         node->entries = subentries;
-        SVN_ERR(set_node_mode(&node->mode, root, node->path, scratch_pool));
+        SVN_ERR(set_node_mode(&node->mode, root, node_path, scratch_pool));
 
         record = apr_psprintf(scratch_pool, "%o %s", node->mode, entry->name);
         svn_stringbuf_appendbytes(buf, record, strlen(record) + 1);

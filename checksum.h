@@ -73,6 +73,7 @@ set_tree_checksum(svn_checksum_t **checksum,
                   svn_fs_root_t *root,
                   const char *path,
                   const char *root_path,
+                  const char *rewrite_root_path,
                   tree_t *ignores,
                   apr_pool_t *result_pool,
                   apr_pool_t *scratch_pool);

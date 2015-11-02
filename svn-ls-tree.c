@@ -53,7 +53,6 @@ print_entries(apr_array_header_t *entries,
 {
     for (int i = 0; i < entries->nelts; i++) {
         node_t *node = &APR_ARRAY_IDX(entries, i, node_t);
-        const char *path = svn_dirent_skip_ancestor(root_path, node->path);
 
         if (node->kind == svn_node_dir) {
             // Skip empty directories.
@@ -64,7 +63,7 @@ print_entries(apr_array_header_t *entries,
                 SVN_ERR(svn_cmdline_printf(pool, "%06o tree %s\t%s\n",
                                            node->mode,
                                            svn_checksum_to_cstring_display(node->checksum, pool),
-                                           path));
+                                           node->path));
             }
             if (recurse) {
                 SVN_ERR(print_entries(node->entries, root_path, trees_only,
@@ -74,7 +73,7 @@ print_entries(apr_array_header_t *entries,
             SVN_ERR(svn_cmdline_printf(pool, "%06o blob %s\t%s\n",
                                        node->mode,
                                        svn_checksum_to_cstring_display(node->checksum, pool),
-                                       path));
+                                       node->path));
         }
     }
 
@@ -100,7 +99,7 @@ print_tree(svn_fs_root_t *root,
 
     SVN_ERR(set_tree_checksum(&checksum, &from_cache, &entries,
                               dummy, cache, root, abspath,
-                              root_path, ignores,
+                              root_path, NULL, ignores,
                               pool, pool));
     SVN_ERR(print_entries(entries, root_path, trees_only, recurse, show_trees, pool));
 

@@ -59,6 +59,10 @@ tree_merge(tree_t **dst, const tree_t *t1, const tree_t *t2, apr_pool_t *pool)
 {
     apr_hash_index_t *idx;
 
+    if (t1 == NULL && t2 == NULL) {
+        return;
+    }
+
     if (t1 == NULL) {
         tree_copy(dst, t2, pool);
         return;

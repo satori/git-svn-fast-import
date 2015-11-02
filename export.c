@@ -113,18 +113,6 @@ get_branch_changes(revision_t *rev, branch_t *branch)
     return changes;
 }
 
-static tree_t *
-ignore_subbranches(const char *path,
-                   export_ctx_t *ctx,
-                   apr_pool_t *pool)
-{
-    tree_t *ignores;
-    const tree_t *subs = tree_subtree(ctx->branches->tree, path, pool);
-    tree_merge(&ignores, ctx->ignores, subs, pool);
-
-    return ignores;
-}
-
 static svn_error_t *
 get_mergeinfo_for_path(svn_mergeinfo_t *mergeinfo,
                        svn_fs_root_t *root,
@@ -304,19 +292,28 @@ process_change_record(const char *path,
     }
 
     if (kind == svn_node_dir && src_branch != NULL) {
+        const char *src_node_path = svn_relpath_skip_ancestor(src_branch->path, src_path);
         svn_fs_t *fs = svn_fs_root_fs(rev->root);
         svn_fs_root_t *src_root;
-        tree_t *ignores;
+        tree_t *ignores = NULL;
 
-        tree_diff(&ignores,
-                  ignore_subbranches(src_branch->path, ctx, scratch_pool),
-                  tree_subtree(ctx->no_ignores, src_branch->path, scratch_pool),
-                  scratch_pool);
+        // Ignore paths of sub-branches
+        const tree_t *sub_branches = tree_subtree(ctx->branches->tree, src_path, scratch_pool);
+        // Ignore by absolute path
+        const tree_t *abs_ignores = tree_subtree(ctx->absignores, src_path, scratch_pool);
+        // Ignore by relative path
+        const tree_t *rel_ignores = tree_subtree(ctx->ignores, src_node_path, scratch_pool);
+        // Do not ignore by absolute path
+        const tree_t *no_ignores = tree_subtree(ctx->no_ignores, src_path, scratch_pool);
+
+        tree_merge(&ignores, sub_branches, abs_ignores, scratch_pool);
+        tree_merge(&ignores, ignores, rel_ignores, scratch_pool);
+        tree_diff(&ignores, ignores, no_ignores, scratch_pool);
 
         SVN_ERR(svn_fs_revision_root(&src_root, fs, change->copyfrom_rev, scratch_pool));
         SVN_ERR(set_tree_checksum(&node->checksum, &node->cached, &node->entries,
                                   dst, ctx->blobs, src_root, src_path,
-                                  src_branch->path, ignores,
+                                  src_path, node->path, ignores,
                                   result_pool, scratch_pool));
     }
 

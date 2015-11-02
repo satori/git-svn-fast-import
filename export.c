@@ -349,9 +349,6 @@ node_modify(svn_stream_t *dst, const node_t *node, apr_pool_t *pool)
                                   node->mode, checksum, node->path));
     }
 
-    SVN_ERR(svn_stream_printf(dst, pool, "M %o %s \"%s\"\n",
-                              node->mode, checksum, node->path));
-
     return SVN_NO_ERROR;
 }
 

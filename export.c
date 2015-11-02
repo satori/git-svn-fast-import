@@ -291,7 +291,9 @@ process_change_record(const char *path,
 
     if (src_branch != NULL) {
         parent = commit_cache_get(ctx->commits, change->copyfrom_rev, src_branch);
-        commit_cache_add_merge(ctx->commits, commit, parent, scratch_pool);
+        if (parent != NULL) {
+            commit_cache_add_merge(ctx->commits, commit, parent, scratch_pool);
+        }
     }
 
     if (kind == svn_node_file) {

@@ -39,6 +39,9 @@ typedef struct
     tree_t *no_ignores;
 } export_ctx_t;
 
+export_ctx_t *
+export_ctx_create(apr_pool_t *pool);
+
 svn_error_t *
 export_revision_range(svn_stream_t *dst,
                       svn_fs_t *fs,

@@ -143,14 +143,7 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     const char *export_marks_path = NULL;
     const char *checksum_cache_path = NULL;
 
-    export_ctx_t *ctx = apr_pcalloc(pool, sizeof(export_ctx_t));
-    ctx->authors = author_storage_create(pool);
-    ctx->branches = branch_storage_create(pool);
-    ctx->commits = commit_cache_create(pool);
-    ctx->blobs = checksum_cache_create(pool);
-    ctx->ignores = tree_create(pool);
-    ctx->absignores = tree_create(pool);
-    ctx->no_ignores = tree_create(pool);
+    export_ctx_t *ctx = export_ctx_create(pool);
 
     // Initialize the FS library.
     SVN_ERR(svn_fs_initialize(pool));

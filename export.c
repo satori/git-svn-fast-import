@@ -572,6 +572,21 @@ prepare_changes(apr_array_header_t **dst,
     return SVN_NO_ERROR;
 }
 
+export_ctx_t *
+export_ctx_create(apr_pool_t *pool)
+{
+    export_ctx_t *ctx = apr_pcalloc(pool, sizeof(export_ctx_t));
+    ctx->authors = author_storage_create(pool);
+    ctx->branches = branch_storage_create(pool);
+    ctx->commits = commit_cache_create(pool);
+    ctx->blobs = checksum_cache_create(pool);
+    ctx->ignores = tree_create(pool);
+    ctx->absignores = tree_create(pool);
+    ctx->no_ignores = tree_create(pool);
+
+    return ctx;
+}
+
 svn_error_t *
 export_revision_range(svn_stream_t *dst,
                       svn_fs_t *fs,

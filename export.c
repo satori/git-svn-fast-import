@@ -378,13 +378,17 @@ write_commit(svn_stream_t *dst,
         commit->mark = commit->parent;
         SVN_ERR(reset_branch(dst, branch, commit, pool));
     } else {
+        apr_time_exp_t time_exp;
         commit_cache_set_mark(ctx->commits, commit);
+        apr_time_exp_lt(&time_exp, rev->timestamp);
 
         SVN_ERR(svn_stream_printf(dst, pool, "commit %s\n", branch->refname));
         SVN_ERR(svn_stream_printf(dst, pool, "mark :%d\n", commit->mark));
-        SVN_ERR(svn_stream_printf(dst, pool, "committer %s %ld +0000\n",
+        SVN_ERR(svn_stream_printf(dst, pool, "committer %s %ld %+.2d%.2d\n",
                                   author_to_cstring(rev->author, pool),
-                                  apr_time_sec(rev->timestamp)));
+                                  apr_time_sec(rev->timestamp),
+                                  time_exp.tm_gmtoff / 3600,
+                                  (abs(time_exp.tm_gmtoff) / 60) % 60));
         SVN_ERR(svn_stream_printf(dst, pool, "data %ld\n", rev->message->len));
         SVN_ERR(svn_stream_printf(dst, pool, "%s\n", rev->message->data));
 

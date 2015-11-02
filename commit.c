@@ -82,11 +82,25 @@ commit_cache_set_mark(commit_cache_t *c, commit_t *commit)
     commit->mark = c->marks->nelts;
 }
 
-// This function implements simple depth-first search for determining
+static void *
+array_prepend(apr_array_header_t *arr)
+{
+    // Call apr_array_push() to ensure that enough space
+    // has been allocated.
+    apr_array_push(arr);
+    // Now shift all elements down one spot.
+    memmove(arr->elts + arr->elt_size,
+            arr->elts,
+            ((arr->nelts - 1) * arr->elt_size));
+    // Finally, return the pointer to the first array element.
+    return arr->elts;
+}
+
+#define ARRAY_PREPEND(ary, type) (*((type *)array_prepend(ary)))
+
+// This function implements simple breadth-first search for determining
 // if other commit has already been merged into first commit.
-// It uses apr_array_header_t as a LIFO queue for marks.
-// XXX: It is possible that breadth-first search is better-suited for
-// that problem, in that case should use FIFO queue.
+// It uses apr_array_header_t as a FIFO queue for marks.
 static svn_boolean_t
 commit_is_merged(commit_cache_t *c, commit_t *commit, mark_t other,
                  apr_pool_t *scratch_pool)
@@ -100,7 +114,6 @@ commit_is_merged(commit_cache_t *c, commit_t *commit, mark_t other,
         APR_ARRAY_PUSH(queue, mark_t) = commit->parent;
     }
 
-    // It is a simple depth-first search.
     while (queue->nelts) {
         commit_t *merged_commit;
         mark_t *merged = apr_array_pop(queue);
@@ -110,11 +123,13 @@ commit_is_merged(commit_cache_t *c, commit_t *commit, mark_t other,
 
         merged_commit = commit_cache_get_by_mark(c, *merged);
 
-        // Copy merge commits into queue.
-        apr_array_cat(queue, merged_commit->merges);
         // Add parent commit into queue.
         if (merged_commit->parent) {
-            APR_ARRAY_PUSH(queue, mark_t) = merged_commit->parent;
+            ARRAY_PREPEND(queue, mark_t) = merged_commit->parent;
+        }
+        // Copy merge commits into queue.
+        for (int i = 0; i < merged_commit->merges->nelts; i++) {
+            ARRAY_PREPEND(queue, mark_t) = APR_ARRAY_IDX(merged_commit->merges, i, mark_t);
         }
     }
 

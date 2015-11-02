@@ -225,8 +225,10 @@ process_change_record(const char *path,
 
     if (modify && src_branch != NULL && dst_is_root && src_is_root && branch->dirty) {
         parent = commit_cache_get(ctx->commits, change->copyfrom_rev, src_branch);
-        commit->parent = parent->mark;
-        return SVN_NO_ERROR;
+        if (parent != NULL) {
+            commit->parent = parent->mark;
+            return SVN_NO_ERROR;
+        }
     }
 
     apr_array_header_t *changes = get_branch_changes(rev, branch);

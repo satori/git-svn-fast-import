@@ -259,30 +259,29 @@ process_change_record(const char *path,
             const char *merge_src_path = apr_hash_this_key(idx);
             merge_src_path = svn_dirent_skip_ancestor("/", merge_src_path);
             svn_rangelist_t *merge_ranges = apr_hash_this_val(idx);
+            svn_merge_range_t *last_range;
+            svn_revnum_t last_merged;
 
             merge_branch = branch_storage_lookup_path(ctx->branches, merge_src_path, scratch_pool);
             if (merge_branch == NULL) {
                 continue;
             }
 
-            for (int i = 0; i < merge_ranges->nelts; i++) {
-                svn_merge_range_t *range = &APR_ARRAY_IDX(merge_ranges, i, svn_merge_range_t);
-                svn_revnum_t last_merged;
+            last_range = &APR_ARRAY_IDX(merge_ranges, merge_ranges->nelts - 1, svn_merge_range_t);
 
-                if (range->start < range->end) {
-                    last_merged = range->end;
-                } else {
-                    last_merged = range->start;
-                }
+            if (last_range->start < last_range->end) {
+                last_merged = last_range->end;
+            } else {
+                last_merged = last_range->start;
+            }
 
-                if (last_merged > rev->revnum) {
-                    last_merged = rev->revnum - 1;
-                }
+            if (last_merged > rev->revnum) {
+                last_merged = rev->revnum - 1;
+            }
 
-                parent = commit_cache_get(ctx->commits, last_merged, merge_branch);
-                if (parent != NULL) {
-                    commit_cache_add_merge(ctx->commits, commit, parent, scratch_pool);
-                }
+            parent = commit_cache_get(ctx->commits, last_merged, merge_branch);
+            if (parent != NULL) {
+                commit_cache_add_merge(ctx->commits, commit, parent, scratch_pool);
             }
         }
     }

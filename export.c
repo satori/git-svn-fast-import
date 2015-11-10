@@ -309,6 +309,9 @@ process_change_record(const char *path,
         tree_merge(&ignores, sub_branches, abs_ignores, scratch_pool);
         tree_merge(&ignores, ignores, rel_ignores, scratch_pool);
         tree_diff(&ignores, ignores, no_ignores, scratch_pool);
+        // Do not match by tree root node, i.e. do not ignore source path itself.
+        // We can merge orphan branch into parent branch.
+        ignores->value = NULL;
 
         SVN_ERR(svn_fs_revision_root(&src_root, fs, change->copyfrom_rev, scratch_pool));
         SVN_ERR(set_tree_checksum(&node->checksum, &node->cached, &node->entries,

@@ -74,6 +74,7 @@ tree_merge(tree_t **dst, const tree_t *t1, const tree_t *t2, apr_pool_t *pool)
     }
 
     tree_t *t = tree_create(pool);
+    t->value = t1->value != NULL ? t1->value : t2->value;
 
     for (idx = apr_hash_first(pool, t1->nodes); idx; idx = apr_hash_next(idx)) {
         const char *key1 = apr_hash_this_key(idx);

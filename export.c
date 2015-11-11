@@ -204,7 +204,7 @@ process_change_record(const char *path,
     if (commit == NULL) {
         parent = commit_cache_get(ctx->commits, rev->revnum - 1, branch);
         commit = commit_cache_add(ctx->commits, rev->revnum, branch);
-        if (parent != NULL) {
+        if (parent != NULL && branch->dirty == FALSE) {
             commit->parent = parent->mark;
         }
 

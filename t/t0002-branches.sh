@@ -54,12 +54,9 @@ test_branch_not_exists() {
 	test "$#" = 1 ||
 		error "FATAL: test_branch_not_exists requires 1 argument"
 
-	cat >empty <<EOF
-EOF
-
 	(cd repo.git &&
 		git branch --list $1 >../actual &&
-		test_cmp ../empty ../actual)
+		test_must_be_empty ../actual)
 }
 
 init_repos

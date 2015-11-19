@@ -27,6 +27,7 @@ git-svn-fast-import [options] <repo>
 h,help                      show the help
 r,revision=                 set revision range
 s,stdlayout                 set trunk,tags,branches as the relative paths, which is SVN default
+incremental                 incremental mode
 b,branch=path               set repository <path> as a branch
 B,branches=path             set repository <path> as a root for branches
 t,tag=path                  set repository <path> as a tag
@@ -35,10 +36,13 @@ I,ignore-path=path          ignore a relative repository <path>
 i,ignore-abspath!=path      ignore repository <path>
 no-ignore-abspath=path      do not ignore repository <path>
 A,authors-file=file         load from <file> the mapping of SVN committer names to Git commit authors
-export-rev-marks=file       dump the SVN revision marks to <file>
+export-rev-marks=file       dump SVN revision marks to <file>
 export-marks=file           dump Git marks into <file>
+export-branches=file        dump known branches into <file>
+import-rev-marks=file       load SVN revision marks from <file>
 import-marks=file           load Git marks from <file>
 import-marks-if-exists=file load Git marks from <file>, if exists
+import-branches=file        load branches from <file>
 c,checksum-cache=file       use <file> as a checksum cache
 force                       force updating modified existing branches, even if doing so would cause commits to be lost
 quiet                       disable all non-fatal output"
@@ -50,11 +54,11 @@ GIT_FAST_IMPORT_ARGS=
 
 while [ "$#" -gt 0 ]; do
 case $1 in
-    -s|-v)
+    -s|--incremental)
         SVN_FAST_EXPORT_ARGS="$SVN_FAST_EXPORT_ARGS $1"
         shift
         ;;
-    -r|-t|-T|-b|-B|-i|-I|-A|--export-rev-marks|--no-ignore-abspath)
+    -r|-t|-T|-b|-B|-i|-I|-A|--export-rev-marks|--import-rev-marks|--export-branches|--import-branches|--no-ignore-abspath)
         SVN_FAST_EXPORT_ARGS="$SVN_FAST_EXPORT_ARGS $1 $2"
         shift 2
         ;;

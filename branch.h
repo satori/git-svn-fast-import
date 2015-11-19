@@ -26,7 +26,7 @@
 #include "tree.h"
 #include <apr_pools.h>
 #include <apr_tables.h>
-#include <svn_types.h>
+#include <svn_io.h>
 
 typedef struct
 {
@@ -48,6 +48,7 @@ typedef struct
     tree_t *tree;
     // Branch and tag path prefixes.
     tree_t *pfx;
+    apr_hash_t *refnames;
 } branch_storage_t;
 
 // Create new branch storage.
@@ -65,7 +66,20 @@ branch_storage_add_branch(branch_storage_t *bs, const char *ref, const char *pat
 branch_t *
 branch_storage_lookup_path(branch_storage_t *bs, const char *path, apr_pool_t *pool);
 
-apr_array_header_t *
-branch_storage_collect_branches(branch_storage_t *bs, const char *path, apr_pool_t *pool);
+// Lookup a branch by refname.
+branch_t *
+branch_storage_lookup_refname(branch_storage_t *bs, const char *refname);
+
+svn_error_t *
+branch_storage_dump(branch_storage_t *bs, svn_stream_t *dst, apr_pool_t *pool);
+
+svn_error_t *
+branch_storage_dump_path(branch_storage_t *bs, const char *path, apr_pool_t *pool);
+
+svn_error_t *
+branch_storage_load(branch_storage_t *bs, svn_stream_t *src, apr_pool_t *pool);
+
+svn_error_t *
+branch_storage_load_path(branch_storage_t *bs, const char *path, apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_BRANCH_H_

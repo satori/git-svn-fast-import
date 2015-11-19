@@ -33,7 +33,7 @@ EOF
 
 test_export_import() {
 	test_expect_success 'Import dump into Git' '
-	(cd repo.git && git-svn-fast-import --quiet --stdlayout -B branches-2 -b branches/some-feature/sub-branch -b branches/old-feature/sub-branch -t tags/some-feature-before-remove/sub-branch --force -c ../cache.txt -I data --no-ignore-abspath branches/old-feature/data -A ../authors.txt --export-rev-marks ../rev-marks.txt --export-marks ../marks.txt ../repo)
+	(cd repo.git && git-svn-fast-import --quiet --stdlayout --incremental -B branches-2 -b branches/some-feature/sub-branch -b branches/old-feature/sub-branch -t tags/some-feature-before-remove/sub-branch --force -c ../cache.txt -I data --no-ignore-abspath branches/old-feature/data -A ../authors.txt --import-rev-marks ../rev-marks.txt --export-rev-marks ../rev-marks.txt --import-marks-if-exists ../marks.txt --export-marks ../marks.txt --import-branches ../branches.txt --export-branches ../branches.txt ../repo)
 	'
 }
 
@@ -77,37 +77,6 @@ test_export_import
 
 test_tick
 
-mkdir -p repo.svn/branches/without_parent
-cat >repo.svn/branches/without_parent/dummy.c <<EOF
-EOF
-
-test_expect_success 'Create branch without parent' '
-(cd repo.svn &&
-	svn add branches/without_parent &&
-	svn_commit "Add branch without parent")
-'
-
-test_export_import
-
-test_expect_success 'Validate branch creation' '
-test_branch_exists "branches--without_parent"
-'
-
-init_repos
-
-test_tick
-
-test_expect_success 'Commit standard directories layout' '
-(cd repo.svn &&
-	mkdir -p branches tags trunk &&
-	svn add branches tags trunk &&
-	svn_commit "Standard project directories initialized")
-'
-
-test_export_import
-
-test_tick
-
 cat >repo.svn/trunk/main.c <<EOF
 int main() {
 	return 0;
@@ -123,7 +92,7 @@ test_expect_success 'Commit new file into trunk' '
 test_export_import
 
 cat >expect <<EOF
-2b6b24602064b0569f3b3cd4fe807e306f1cee29
+30c06039d6982e0cadef7dbc9827113832896632
 :000000 100644 0000000000000000000000000000000000000000 cb3f7482fa46d2ac25648a694127f23c1976b696 A	main.c
 EOF
 

@@ -24,6 +24,7 @@
 #include "utils.h"
 #include <apr_strings.h>
 #include <svn_dirent_uri.h>
+#include <svn_hash.h>
 #include <svn_string.h>
 
 svn_boolean_t
@@ -57,6 +58,7 @@ branch_storage_create(apr_pool_t *pool)
     bs->pool = pool;
     bs->tree = tree_create(pool);
     bs->pfx = tree_create(pool);
+    bs->refnames = apr_hash_make(pool);
 
     return bs;
 }
@@ -77,13 +79,20 @@ branch_storage_add_branch(branch_storage_t *bs,
                           apr_pool_t *pool)
 {
     branch_t *b = apr_pcalloc(bs->pool, sizeof(branch_t));
-    b->refname = refname;
-    b->path = path;
+    b->refname = apr_pstrdup(bs->pool, refname);
+    b->path = apr_pstrdup(bs->pool, path);
     b->dirty = TRUE;
 
     tree_insert(bs->tree, b->path, b, pool);
+    svn_hash_sets(bs->refnames, b->refname, b);
 
     return b;
+}
+
+branch_t *
+branch_storage_lookup_refname(branch_storage_t *bs, const char *refname)
+{
+    return svn_hash_gets(bs->refnames, refname);
 }
 
 branch_t *
@@ -113,40 +122,138 @@ branch_storage_lookup_path(branch_storage_t *bs, const char *path, apr_pool_t *p
 
     root = strchr(subpath, '/');
     if (root == NULL) {
-        branch_path = apr_pstrdup(bs->pool, path);
+        branch_path = path;
     } else {
-        branch_path = apr_pstrndup(bs->pool, path, root - path);
+        branch_path = apr_pstrndup(pool, path, root - path);
     }
 
-    refname = branch_refname_from_path(branch_path, bs->pool);
+    refname = branch_refname_from_path(branch_path, pool);
 
     return branch_storage_add_branch(bs, refname, branch_path, pool);
 }
 
-static void
-collect_values(const tree_t *t, apr_array_header_t *values, apr_pool_t *pool)
+svn_error_t *
+branch_storage_dump(branch_storage_t *bs, svn_stream_t *dst, apr_pool_t *pool)
 {
-    apr_hash_index_t *idx;
+    apr_array_header_t *values;
+    values = tree_values(bs->tree, "", pool, pool);
 
-    if (t->value != NULL) {
-        APR_ARRAY_PUSH(values, const branch_t *) = t->value;
+    for (int i = 0; i < values->nelts; i++) {
+        const branch_t *branch = APR_ARRAY_IDX(values, i, branch_t *);
+        SVN_ERR(svn_stream_printf(dst, pool, "%s \"%s\" %d\n",
+                                  branch->refname, branch->path, branch->dirty));
     }
 
-    for (idx = apr_hash_first(pool, t->nodes); idx; idx = apr_hash_next(idx)) {
-        const tree_t *subtree = apr_hash_this_val(idx);
-        collect_values(subtree, values, pool);
-    }
+    return SVN_NO_ERROR;
 }
 
-apr_array_header_t *
-branch_storage_collect_branches(branch_storage_t *bs, const char *path, apr_pool_t *pool)
+svn_error_t *
+branch_storage_dump_path(branch_storage_t *bs, const char *path, apr_pool_t *pool)
 {
-    apr_array_header_t *values = apr_array_make(pool, 0, sizeof(branch_t *));
-    const tree_t *t = tree_subtree(bs->tree, path, pool);
+    apr_file_t *fd;
+    svn_stream_t *dst;
 
-    if (t != NULL) {
-        collect_values(t, values, pool);
+    SVN_ERR(svn_io_file_open(&fd, path,
+                             APR_CREATE | APR_TRUNCATE | APR_BUFFERED | APR_WRITE,
+                             APR_OS_DEFAULT, pool));
+    dst = svn_stream_from_aprfile2(fd, FALSE, pool);
+    SVN_ERR(branch_storage_dump(bs, dst, pool));
+    SVN_ERR(svn_stream_close(dst));
+
+    return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+svn_malformed_file_error(int lineno, const char *line)
+{
+    return svn_error_createf(SVN_ERR_MALFORMED_FILE, NULL,
+                             "line %d: %s", lineno, line);
+}
+
+svn_error_t *
+branch_storage_load(branch_storage_t *bs, svn_stream_t *src, apr_pool_t *pool)
+{
+    svn_boolean_t eof;
+    int lineno = 0;
+
+    while (TRUE) {
+        const char *prev, *next;
+        const char *refname, *path;
+        branch_t *branch;
+        svn_boolean_t dirty = TRUE;
+        svn_stringbuf_t *buf;
+
+        SVN_ERR(svn_stream_readline(src, &buf, "\n", &eof, pool));
+        if (eof) {
+            break;
+        }
+
+        lineno++;
+
+        prev = buf->data;
+        next = strchr(buf->data, ' ');
+        if (next == NULL) {
+            return svn_malformed_file_error(lineno, buf->data);
+        }
+        refname = apr_pstrndup(pool, prev, next - prev);
+
+        // Skip whitespace.
+        next++;
+
+        next = strchr(next, '"');
+        if (next == NULL) {
+            return svn_malformed_file_error(lineno, buf->data);
+        }
+        next++;
+
+        prev = next;
+        next = strchr(next, '"');
+        if (next == NULL) {
+            return svn_malformed_file_error(lineno, buf->data);
+        }
+
+        path = apr_pstrndup(pool, prev, next - prev);
+
+        next++;
+
+        next = strchr(next, ' ');
+        if (next == NULL) {
+            return svn_malformed_file_error(lineno, buf->data);
+        }
+        next++;
+
+        if (*next == '0') {
+            dirty = FALSE;
+        }
+
+        branch = branch_storage_lookup_refname(bs, refname);
+        if (branch == NULL) {
+            branch = branch_storage_add_branch(bs, refname, path, pool);
+        }
+        branch->dirty = dirty;
     }
 
-    return values;
+    return SVN_NO_ERROR;
+}
+
+svn_error_t *
+branch_storage_load_path(branch_storage_t *bs, const char *path, apr_pool_t *pool)
+{
+    svn_error_t *err;
+    svn_stream_t *src;
+    svn_node_kind_t kind;
+
+    SVN_ERR(svn_io_check_path(path, &kind, pool));
+    if (kind == svn_node_none) {
+        return SVN_NO_ERROR;
+    }
+
+    SVN_ERR(svn_stream_open_readonly(&src, path, pool, pool));
+    err = branch_storage_load(bs, src, pool);
+    if (err) {
+        return svn_error_quick_wrap(err, "Malformed branches file");
+    }
+    SVN_ERR(svn_stream_close(src));
+
+    return SVN_NO_ERROR;
 }

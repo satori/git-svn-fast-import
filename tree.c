@@ -198,3 +198,38 @@ tree_subtree(const tree_t *t, const char *path, apr_pool_t *pool)
 
     return t;
 }
+
+apr_array_header_t *
+tree_values(const tree_t *t,
+            const char *path,
+            apr_pool_t *result_pool,
+            apr_pool_t *scratch_pool)
+{
+    apr_array_header_t *values, *queue;
+    const tree_t *subtree;
+
+    values = apr_array_make(result_pool, 0, sizeof(void *));
+    queue = apr_array_make(scratch_pool, 0, sizeof(tree_t *));
+
+    subtree = tree_subtree(t, path, scratch_pool);
+    if (subtree == NULL) {
+        return values;
+    }
+
+    APR_ARRAY_PUSH(queue, const tree_t *) = subtree;
+
+    while (queue->nelts) {
+        apr_hash_index_t *idx;
+        const tree_t *node = *((const tree_t **)apr_array_pop(queue));
+
+        if (node->value != NULL) {
+            APR_ARRAY_PUSH(values, const void *) = node->value;
+        }
+
+        for (idx = apr_hash_first(scratch_pool, node->nodes); idx; idx = apr_hash_next(idx)) {
+            APR_ARRAY_PUSH(queue, const tree_t *) = apr_hash_this_val(idx);
+        }
+    }
+
+    return values;
+}

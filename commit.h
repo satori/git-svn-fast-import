@@ -44,6 +44,7 @@ typedef struct
     apr_array_header_t *commits;
     apr_hash_t *idx;
     apr_array_header_t *marks;
+    svn_revnum_t last_revnum;
 } commit_cache_t;
 
 commit_cache_t *
@@ -70,5 +71,11 @@ commit_cache_dump(commit_cache_t *c, svn_stream_t *dst, apr_pool_t *pool);
 
 svn_error_t *
 commit_cache_dump_path(commit_cache_t *c, const char *path, apr_pool_t *pool);
+
+svn_error_t *
+commit_cache_load(commit_cache_t *c, svn_stream_t *src, branch_storage_t *bs, apr_pool_t *pool);
+
+svn_error_t *
+commit_cache_load_path(commit_cache_t *c, const char *path, branch_storage_t *bs, apr_pool_t *pool);
 
 #endif // GIT_SVN_FAST_IMPORT_COMMIT_H_

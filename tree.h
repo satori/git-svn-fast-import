@@ -24,6 +24,7 @@
 #define GIT_SVN_FAST_IMPORT_TREE_H_
 
 #include <apr_hash.h>
+#include <apr_tables.h>
 #include <apr_pools.h>
 
 typedef struct
@@ -52,13 +53,15 @@ tree_insert(tree_t *t,
             apr_pool_t *pool);
 
 const void *
-tree_match(const tree_t *t,
-           const char *path,
-           apr_pool_t *pool);
+tree_match(const tree_t *t, const char *path, apr_pool_t *pool);
 
 const tree_t *
-tree_subtree(const tree_t *t,
-             const char *path,
-             apr_pool_t *pool);
+tree_subtree(const tree_t *t, const char *path, apr_pool_t *pool);
+
+apr_array_header_t *
+tree_values(const tree_t *t,
+            const char *path,
+            apr_pool_t *result_pool,
+            apr_pool_t *scratch_pool);
 
 #endif // GIT_SVN_FAST_IMPORT_TREE_H_

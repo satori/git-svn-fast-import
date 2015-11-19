@@ -515,7 +515,7 @@ prepare_changes(apr_array_header_t **dst,
                   action == svn_fs_path_change_modify);
 
         if (remove) {
-            removes = branch_storage_collect_branches(ctx->branches, path, scratch_pool);
+            removes = tree_values(ctx->branches->tree, path, scratch_pool, scratch_pool);
 
             for (int i = 0; i < removes->nelts; i++) {
                 branch_t *branch = APR_ARRAY_IDX(removes, i, branch_t *);
@@ -537,7 +537,7 @@ prepare_changes(apr_array_header_t **dst,
             svn_fs_t *fs = svn_fs_root_fs(root);
             svn_fs_root_t *src_root;
             SVN_ERR(svn_fs_revision_root(&src_root, fs, change->copyfrom_rev, scratch_pool));
-            copies = branch_storage_collect_branches(ctx->branches, src_path, scratch_pool);
+            copies = tree_values(ctx->branches->tree, src_path, scratch_pool, scratch_pool);
 
             for (int i = 0; i < copies->nelts; i++) {
                 const char *new_path;

@@ -64,14 +64,19 @@ check_cancel(void *ctx)
 
 enum
 {
-    option_no_ignore_abspath = SVN_OPT_FIRST_LONGOPT_ID,
-    option_export_rev_marks
+    option_incremental = SVN_OPT_FIRST_LONGOPT_ID,
+    option_no_ignore_abspath,
+    option_export_rev_marks,
+    option_import_rev_marks,
+    option_export_branches,
+    option_import_branches
 };
 
 static struct apr_getopt_option_t cmdline_options[] = {
     {"help", 'h', 0, "Print this message and exit"},
     {"revision", 'r', 1, "Set revision range."},
     {"stdlayout", 's', 0, ""},
+    {"incremental", option_incremental, 0, ""},
     {"branch", 'b', 1, "Set repository path as a branch."},
     {"branches", 'B', 1, "Set repository path as a root for branches."},
     {"tag", 't', 1, "Set repository path as a tag."},
@@ -81,6 +86,9 @@ static struct apr_getopt_option_t cmdline_options[] = {
     {"no-ignore-abspath", option_no_ignore_abspath, 1, "Do not ignore repository path."},
     {"authors-file", 'A', 1, ""},
     {"export-rev-marks", option_export_rev_marks, 1, ""},
+    {"import-rev-marks", option_import_rev_marks, 1, ""},
+    {"export-branches", option_export_branches, 1, ""},
+    {"import-branches", option_import_branches, 1, ""},
     {"checksum-cache", 'c', 1, "Use checksum cache."},
     {0, 0, 0, 0}
 };
@@ -139,9 +147,11 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
     // Path to a file containing mapping of
     // Subversion committers to Git authors.
     const char *authors_path = NULL;
-    // Path to a file where marks should be exported.
-    const char *export_marks_path = NULL;
+    // Path to a file where marks should be exported/imported.
+    const char *export_marks_path = NULL, *import_marks_path = NULL;
+    const char *export_branches_path = NULL, *import_branches_path = NULL;
     const char *checksum_cache_path = NULL;
+    svn_boolean_t incremental = FALSE;
 
     export_ctx_t *ctx = export_ctx_create(pool);
 
@@ -205,8 +215,20 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
         case 'A':
             authors_path = opt_arg;
             break;
+        case option_incremental:
+            incremental = TRUE;
+            break;
         case option_export_rev_marks:
             export_marks_path = opt_arg;
+            break;
+        case option_import_rev_marks:
+            import_marks_path = opt_arg;
+            break;
+        case option_export_branches:
+            export_branches_path = opt_arg;
+            break;
+        case option_import_branches:
+            import_branches_path = opt_arg;
             break;
         case 'c':
             checksum_cache_path = opt_arg;
@@ -256,11 +278,20 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
         SVN_ERR(author_storage_load_path(ctx->authors, authors_path, pool));
     }
 
+    branch_storage_add_branch(ctx->branches, "refs/heads/master", trunk_path, pool);
+
+    if (incremental == TRUE && import_branches_path != NULL && import_marks_path != NULL) {
+        SVN_ERR(branch_storage_load_path(ctx->branches, import_branches_path, pool));
+        SVN_ERR(commit_cache_load_path(ctx->commits, import_marks_path, ctx->branches, pool));
+
+        if (lower <= ctx->commits->last_revnum) {
+            lower = ctx->commits->last_revnum + 1;
+        }
+    }
+
     if (checksum_cache_path != NULL) {
         SVN_ERR(checksum_cache_load_path(ctx->blobs, checksum_cache_path, pool));
     }
-
-    branch_storage_add_branch(ctx->branches, "refs/heads/master", trunk_path, pool);
 
     SVN_ERR(svn_stream_for_stdout(&output, pool));
 
@@ -270,6 +301,10 @@ do_main(int *exit_code, int argc, const char **argv, apr_pool_t *pool)
 
     if (export_marks_path != NULL) {
         err = svn_error_compose_create(err, commit_cache_dump_path(ctx->commits, export_marks_path, pool));
+    }
+
+    if (export_branches_path != NULL) {
+        err = svn_error_compose_create(err, branch_storage_dump_path(ctx->branches, export_branches_path, pool));
     }
 
     if (checksum_cache_path != NULL) {

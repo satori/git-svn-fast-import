@@ -36,6 +36,7 @@ commit_cache_create(apr_pool_t *pool)
     c->commits = apr_array_make(pool, 0, sizeof(commit_t));
     c->idx = apr_hash_make(pool);
     c->marks = apr_array_make(pool, 0, sizeof(commit_t *));
+    c->last_revnum = SVN_INVALID_REVNUM;
 
     return c;
 }
@@ -71,6 +72,10 @@ commit_cache_add(commit_cache_t *c, svn_revnum_t revnum, branch_t *branch)
     commit->merges = apr_array_make(c->pool, 0, sizeof(mark_t));
 
     apr_hash_set(c->idx, commit, sizeof(cache_key_t), commit);
+
+    if (revnum > c->last_revnum) {
+        c->last_revnum = revnum;
+    }
 
     return commit;
 }
@@ -195,11 +200,28 @@ commit_cache_dump(commit_cache_t *c, svn_stream_t *dst, apr_pool_t *pool)
             // Skip commit if mark was not assigned.
             continue;
         }
-        SVN_ERR(svn_stream_printf(dst, pool, "%ld %s %s :%d\n",
+        SVN_ERR(svn_stream_printf(dst, pool, "%ld %s :%d",
                                   commit->revnum,
                                   commit->branch->refname,
-                                  commit->branch->path,
                                   commit->mark));
+
+        SVN_ERR(svn_stream_printf(dst, pool, " :%d",
+                                  commit->parent));
+
+        if (commit->merges->nelts) {
+            int j;
+            mark_t merge;
+
+            SVN_ERR(svn_stream_printf(dst, pool, " "));
+            for (j = 0; j < commit->merges->nelts - 1; j++) {
+                merge = APR_ARRAY_IDX(commit->merges, j, mark_t);
+                SVN_ERR(svn_stream_printf(dst, pool, ":%d ", merge));
+            }
+            merge = APR_ARRAY_IDX(commit->merges, j, mark_t);
+            SVN_ERR(svn_stream_printf(dst, pool, ":%d", merge));
+        }
+
+        SVN_ERR(svn_stream_printf(dst, pool, "\n"));
     }
 
     return SVN_NO_ERROR;
@@ -218,6 +240,136 @@ commit_cache_dump_path(commit_cache_t *c, const char *path, apr_pool_t *pool)
     dst = svn_stream_from_aprfile2(fd, FALSE, pool);
     SVN_ERR(commit_cache_dump(c, dst, pool));
     SVN_ERR(svn_stream_close(dst));
+
+    return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+svn_malformed_file_error(int lineno, const char *line)
+{
+    return svn_error_createf(SVN_ERR_MALFORMED_FILE, NULL,
+                             "line %d: %s", lineno, line);
+}
+
+static uint32_t
+str_to_uint32(const char *str, const char **end)
+{
+    uint32_t result = 0;
+
+    while (TRUE) {
+        uint32_t c = (uint32_t)*str - (uint32_t)'0';
+        if (c > 9) {
+            break;
+        }
+        result = result * 10 + c;
+        ++str;
+    }
+    *end = str;
+    return result;
+}
+
+svn_error_t *
+commit_cache_load(commit_cache_t *c,
+                  svn_stream_t *src,
+                  branch_storage_t *bs,
+                  apr_pool_t *pool)
+{
+    svn_boolean_t eof;
+    int lineno = 0;
+
+    while (TRUE) {
+        const char *prev, *next;
+        const char *refname;
+        commit_t *commit;
+        branch_t *branch;
+        svn_stringbuf_t *buf;
+        svn_revnum_t revnum;
+        mark_t mark;
+
+        SVN_ERR(svn_stream_readline(src, &buf, "\n", &eof, pool));
+        if (eof) {
+            break;
+        }
+
+        lineno++;
+
+        prev = buf->data;
+        SVN_ERR(svn_revnum_parse(&revnum, prev, &next));
+        prev = ++next;
+        next = strchr(next, ' ');
+        if (next == NULL) {
+            return svn_malformed_file_error(lineno, buf->data);
+        }
+        refname = apr_pstrndup(pool, prev, next - prev);
+
+        // Skip whitespace.
+        next++;
+        if (*next != ':') {
+            return svn_malformed_file_error(lineno, buf->data);
+        }
+        prev = ++next;
+        mark = str_to_uint32(prev, &next);
+
+        branch = branch_storage_lookup_refname(bs, refname);
+        commit = commit_cache_add(c, revnum, branch);
+
+        if (*next == ' ') {
+            ++next;
+            if (*next != ':') {
+                return svn_malformed_file_error(lineno, buf->data);
+            }
+            prev = ++next;
+            commit->parent = str_to_uint32(prev, &next);
+        }
+
+        if (mark == commit->parent) {
+            commit->mark = commit->parent;
+        } else {
+            commit_cache_set_mark(c, commit);
+        }
+
+        if (*next == ' ') {
+            ++next;
+            while (TRUE) {
+                if (*next != ':') {
+                    return svn_malformed_file_error(lineno, buf->data);
+                }
+                prev = ++next;
+                APR_ARRAY_PUSH(commit->merges, mark_t) = str_to_uint32(prev, &next);
+
+                next = strchr(next, ',');
+                if (next == NULL) {
+                    break;
+                }
+                ++next;
+            }
+        }
+    }
+
+    return SVN_NO_ERROR;
+}
+
+svn_error_t *
+commit_cache_load_path(commit_cache_t *c,
+                       const char *path,
+                       branch_storage_t *bs,
+                       apr_pool_t *pool)
+{
+    svn_error_t *err;
+    svn_stream_t *src;
+    svn_node_kind_t kind;
+
+    SVN_ERR(svn_io_check_path(path, &kind, pool));
+    if (kind == svn_node_none) {
+        return SVN_NO_ERROR;
+    }
+
+    SVN_ERR(svn_stream_open_readonly(&src, path, pool, pool));
+    err = commit_cache_load(c, src, bs, pool);
+    if (err) {
+        return svn_error_quick_wrap(err, "Malformed marks file");
+    }
+    SVN_ERR(svn_stream_close(src));
 
     return SVN_NO_ERROR;
 }
